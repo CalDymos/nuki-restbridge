@@ -1,0 +1,40 @@
+{
+  "name": "NukiBleEsp",
+  "version": "2.0.0",
+  "description": "Control Nuki smartlock via BLE from esp32",
+  "keywords": "nuki ble esp32",
+  "authors": [
+    {
+      "name": "Jeroen van de Vorst",
+      "maintainer": true
+    },
+    {
+      "name": "Bas Schouten"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/I-Connect/NukiBleEsp32.git"
+  },
+  "frameworks": "Arduino",
+  "platforms": [
+    "espressif32"
+  ],
+  "build": {
+    "flags": "-Wno-unused-function"
+  },
+  "dependencies": [
+    {
+      "name": "NimBLE-Arduino",
+      "version": "h2zero/NimBLE-Arduino @ ^1.4.0"
+    },
+    {
+      "name": "CRC16",
+      "version": "https://github.com/vinmenn/Crc16"
+    },
+    {
+      "name": "BleScanner",
+      "version": "https://github.com/I-Connect/BleScanner"
+    }
+  ]
+}
