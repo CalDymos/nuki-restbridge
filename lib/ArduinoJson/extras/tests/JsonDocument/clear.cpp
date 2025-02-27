@@ -9,7 +9,6 @@
 #include <string>
 
 #include "Allocators.hpp"
-#include "Literals.hpp"
 
 TEST_CASE("JsonDocument::clear()") {
   SpyingAllocator spy;
@@ -23,7 +22,7 @@ TEST_CASE("JsonDocument::clear()") {
   }
 
   SECTION("releases resources") {
-    doc["hello"_s] = "world"_s;
+    doc[std::string("hello")] = std::string("world");
     spy.clearLog();
 
     doc.clear();

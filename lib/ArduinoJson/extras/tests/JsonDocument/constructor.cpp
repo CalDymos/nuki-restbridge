@@ -6,7 +6,6 @@
 #include <catch.hpp>
 
 #include "Allocators.hpp"
-#include "Literals.hpp"
 
 using ArduinoJson::detail::addPadding;
 
@@ -21,7 +20,7 @@ TEST_CASE("JsonDocument constructor") {
   SECTION("JsonDocument(const JsonDocument&)") {
     {
       JsonDocument doc1(&spyingAllocator);
-      doc1.set("The size of this string is 32!!"_s);
+      doc1.set(std::string("The size of this string is 32!!"));
 
       JsonDocument doc2(doc1);
 
@@ -39,7 +38,7 @@ TEST_CASE("JsonDocument constructor") {
   SECTION("JsonDocument(JsonDocument&&)") {
     {
       JsonDocument doc1(&spyingAllocator);
-      doc1.set("The size of this string is 32!!"_s);
+      doc1.set(std::string("The size of this string is 32!!"));
 
       JsonDocument doc2(std::move(doc1));
 
@@ -117,32 +116,5 @@ TEST_CASE("JsonDocument constructor") {
     JsonDocument doc2(doc1.as<JsonVariant>());
 
     REQUIRE(doc2.as<std::string>() == "hello");
-  }
-
-  SECTION("JsonDocument(JsonVariantConst)") {
-    JsonDocument doc1;
-    deserializeJson(doc1, "\"hello\"");
-
-    JsonDocument doc2(doc1.as<JsonVariantConst>());
-
-    REQUIRE(doc2.as<std::string>() == "hello");
-  }
-
-  SECTION("JsonDocument(ElementProxy)") {
-    JsonDocument doc1;
-    deserializeJson(doc1, "[\"hello\",\"world\"]");
-
-    JsonDocument doc2(doc1[1]);
-
-    REQUIRE(doc2.as<std::string>() == "world");
-  }
-
-  SECTION("JsonDocument(MemberProxy)") {
-    JsonDocument doc1;
-    deserializeJson(doc1, "{\"hello\":\"world\"}");
-
-    JsonDocument doc2(doc1["hello"]);
-
-    REQUIRE(doc2.as<std::string>() == "world");
   }
 }

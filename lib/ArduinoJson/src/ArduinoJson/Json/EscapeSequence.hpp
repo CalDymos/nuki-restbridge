@@ -1,10 +1,10 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2023, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include <ArduinoJson/Namespace.hpp>
+#include "../Namespace.hpp"
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
@@ -32,8 +32,8 @@ class EscapeSequence {
   }
 
  private:
-  static const char* escapeTable(bool isSerializing) {
-    return &"//''\"\"\\\\b\bf\fn\nr\rt\t"[isSerializing ? 4 : 0];
+  static const char* escapeTable(bool excludeSolidus) {
+    return &"//\"\"\\\\b\bf\fn\nr\rt\t"[excludeSolidus ? 2 : 0];
   }
 };
 

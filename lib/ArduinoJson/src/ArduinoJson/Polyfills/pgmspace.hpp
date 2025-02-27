@@ -1,5 +1,5 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2023, Benoit BLANCHON
 // MIT License
 
 #pragma once
@@ -12,9 +12,9 @@ class __FlashStringHelper;
 #  include <avr/pgmspace.h>
 #endif
 
-#include <ArduinoJson/Configuration.hpp>
-#include <ArduinoJson/Namespace.hpp>
-#include <ArduinoJson/Polyfills/assert.hpp>
+#include "../Configuration.hpp"
+#include "../Namespace.hpp"
+#include "../Polyfills/assert.hpp"
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 // Wraps a const char* so that the our functions are picked only if the

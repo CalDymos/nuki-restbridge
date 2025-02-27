@@ -1,10 +1,10 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2023, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include <ArduinoJson/Namespace.hpp>
+#include "../Namespace.hpp"
 
 #include <stdint.h>  // uint16_t, uint32_t
 

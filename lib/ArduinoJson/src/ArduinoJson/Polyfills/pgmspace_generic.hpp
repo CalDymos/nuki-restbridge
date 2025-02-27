@@ -1,14 +1,14 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2023, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include <ArduinoJson/Namespace.hpp>
+#include "../Namespace.hpp"
 
 #if ARDUINOJSON_ENABLE_PROGMEM
-#  include <ArduinoJson/Polyfills/pgmspace.hpp>
-#  include <ArduinoJson/Polyfills/type_traits.hpp>
+#  include "../Polyfills/pgmspace.hpp"
+#  include "../Polyfills/type_traits.hpp"
 #endif
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE

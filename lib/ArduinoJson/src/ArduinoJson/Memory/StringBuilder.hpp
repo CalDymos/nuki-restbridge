@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ArduinoJson/Memory/ResourceManager.hpp>
+#include "../Memory/ResourceManager.hpp"
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
@@ -68,7 +68,7 @@ class StringBuilder {
   JsonString str() const {
     ARDUINOJSON_ASSERT(node_ != nullptr);
     node_->data[size_] = 0;
-    return JsonString(node_->data, size_);
+    return JsonString(node_->data, size_, JsonString::Copied);
   }
 
  private:

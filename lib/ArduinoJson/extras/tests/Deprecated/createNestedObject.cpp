@@ -7,8 +7,6 @@
 
 #include <string>
 
-#include "Literals.hpp"
-
 TEST_CASE("JsonDocument::createNestedObject()") {
   JsonDocument doc;
 
@@ -25,7 +23,7 @@ TEST_CASE("JsonDocument::createNestedObject()") {
   }
 
   SECTION("createNestedObject(std::string)") {
-    JsonObject object = doc.createNestedObject("key"_s);
+    JsonObject object = doc.createNestedObject(std::string("key"));
     object["hello"] = "world";
     REQUIRE(doc.as<std::string>() == "{\"key\":{\"hello\":\"world\"}}");
   }
@@ -61,7 +59,7 @@ TEST_CASE("JsonObject::createNestedObject()") {
   }
 
   SECTION("createNestedObject(std::string)") {
-    JsonObject nestedObject = object.createNestedObject("key"_s);
+    JsonObject nestedObject = object.createNestedObject(std::string("key"));
     nestedObject["hello"] = "world";
     REQUIRE(doc.as<std::string>() == "{\"key\":{\"hello\":\"world\"}}");
   }
@@ -95,7 +93,7 @@ TEST_CASE("JsonVariant::createNestedObject()") {
   }
 
   SECTION("createNestedObject(std::string)") {
-    JsonObject object = variant.createNestedObject("key"_s);
+    JsonObject object = variant.createNestedObject(std::string("key"));
     object["hello"] = "world";
     REQUIRE(doc.as<std::string>() == "{\"key\":{\"hello\":\"world\"}}");
   }

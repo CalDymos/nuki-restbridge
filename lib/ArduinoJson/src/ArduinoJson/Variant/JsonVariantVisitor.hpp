@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <ArduinoJson/Array/JsonArray.hpp>
-#include <ArduinoJson/Object/JsonObject.hpp>
-#include <ArduinoJson/Variant/JsonVariant.hpp>
-#include <ArduinoJson/Variant/VariantDataVisitor.hpp>
+#include "../Array/JsonArray.hpp"
+#include "../Object/JsonObject.hpp"
+#include "../Variant/JsonVariant.hpp"
+#include "../Variant/VariantDataVisitor.hpp"
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
 template <typename TResult>
 struct JsonVariantVisitor {
-  using result_type = TResult;
+  typedef TResult result_type;
 
   template <typename T>
   TResult visit(const T&) {
@@ -55,7 +55,7 @@ typename TVisitor::result_type accept(JsonVariantConst variant,
     return visit.visit(nullptr);
   auto resources = VariantAttorney::getResourceManager(variant);
   VisitorAdapter<TVisitor> adapter(visit, resources);
-  return data->accept(adapter, resources);
+  return data->accept(adapter);
 }
 
 ARDUINOJSON_END_PRIVATE_NAMESPACE

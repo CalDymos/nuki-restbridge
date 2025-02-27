@@ -1,25 +1,21 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2023, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include <ArduinoJson/Namespace.hpp>
+#include "../../Namespace.hpp"
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
 template <bool Condition, class TrueType, class FalseType>
 struct conditional {
-  using type = TrueType;
+  typedef TrueType type;
 };
 
 template <class TrueType, class FalseType>
 struct conditional<false, TrueType, FalseType> {
-  using type = FalseType;
+  typedef FalseType type;
 };
-
-template <bool Condition, class TrueType, class FalseType>
-using conditional_t =
-    typename conditional<Condition, TrueType, FalseType>::type;
 
 ARDUINOJSON_END_PRIVATE_NAMESPACE

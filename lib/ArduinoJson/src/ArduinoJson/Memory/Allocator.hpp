@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ArduinoJson/Namespace.hpp>
+#include "../Namespace.hpp"
 
 #include <stdlib.h>  // malloc, free
 

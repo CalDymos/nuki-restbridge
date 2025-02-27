@@ -4,6 +4,7 @@
 
 add_executable(JsonVariantConstTests
 	as.cpp
+	containsKey.cpp
 	is.cpp
 	isnull.cpp
 	nesting.cpp

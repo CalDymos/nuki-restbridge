@@ -3,6 +3,7 @@
 # MIT License
 
 add_executable(JsonObjectConstTests
+	containsKey.cpp
 	equals.cpp
 	isNull.cpp
 	iterator.cpp

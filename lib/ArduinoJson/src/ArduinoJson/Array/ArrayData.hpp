@@ -4,29 +4,20 @@
 
 #pragma once
 
-#include <ArduinoJson/Collection/CollectionData.hpp>
+#include "../Collection/CollectionData.hpp"
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
 class ArrayData : public CollectionData {
  public:
-  VariantData* addElement(ResourceManager* resources);
+  VariantData* addElement(ResourceManager* resources) {
+    return addSlot(resources).data();
+  }
 
   static VariantData* addElement(ArrayData* array, ResourceManager* resources) {
     if (!array)
       return nullptr;
     return array->addElement(resources);
-  }
-
-  template <typename T>
-  bool addValue(const T& value, ResourceManager* resources);
-
-  template <typename T>
-  static bool addValue(ArrayData* array, const T& value,
-                       ResourceManager* resources) {
-    if (!array)
-      return false;
-    return array->addValue(value, resources);
   }
 
   VariantData* getOrAddElement(size_t index, ResourceManager* resources);
@@ -49,14 +40,14 @@ class ArrayData : public CollectionData {
     array->removeElement(index, resources);
   }
 
-  void remove(iterator it, ResourceManager* resources) {
-    CollectionData::removeOne(it, resources);
-  }
+  bool copyFrom(const ArrayData& src, ResourceManager* resources);
 
-  static void remove(ArrayData* array, iterator it,
-                     ResourceManager* resources) {
-    if (array)
-      return array->remove(it, resources);
+  static bool copy(ArrayData* dst, const ArrayData* src,
+                   ResourceManager* resources) {
+    if (!dst || !src)
+      return false;
+
+    return dst->copyFrom(*src, resources);
   }
 
  private:

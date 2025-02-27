@@ -6,12 +6,10 @@
 #include <catch.hpp>
 
 #include "Allocators.hpp"
-#include "Literals.hpp"
 
 TEST_CASE("JsonObjectConst::operator[]") {
   JsonDocument doc;
   doc["hello"] = "world";
-  doc["a\0b"_s] = "ABC";
   JsonObjectConst obj = doc.as<JsonObjectConst>();
 
   SECTION("supports const char*") {
@@ -19,8 +17,7 @@ TEST_CASE("JsonObjectConst::operator[]") {
   }
 
   SECTION("supports std::string") {
-    REQUIRE(obj["hello"_s] == "world");  // issue #2019
-    REQUIRE(obj["a\0b"_s] == "ABC");
+    REQUIRE(obj[std::string("hello")] == "world");  // issue #2019
   }
 
 #if defined(HAS_VARIABLE_LENGTH_ARRAY) && \
@@ -30,17 +27,7 @@ TEST_CASE("JsonObjectConst::operator[]") {
     char vla[i];
     strcpy(vla, "hello");
 
-    REQUIRE(obj[vla] == "world"_s);
+    REQUIRE(std::string("world") == obj[vla]);
   }
 #endif
-
-  SECTION("supports JsonVariant") {
-    doc["key1"] = "hello";
-    doc["key2"] = "a\0b"_s;
-    doc["key3"] = "foo";
-    REQUIRE(obj[obj["key1"]] == "world");
-    REQUIRE(obj[obj["key2"]] == "ABC");
-    REQUIRE(obj[obj["key3"]] == nullptr);
-    REQUIRE(obj[obj["key4"]] == nullptr);
-  }
 }

@@ -83,15 +83,7 @@ class Scanner : public Publisher, BLEAdvertisedDeviceCallbacks {
      *
      * @param advertisedDevice
      */
-    void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override;
-    
-    /**
-     * @brief Whitelist a specific BLE Address
-     *
-     * @param whiteListBleAddress
-     */
-    void whitelist(BLEAddress bleAddress);
-
+    void onResult(NimBLEAdvertisedDevice* advertisedDevice) override;
 
   private:
     uint32_t scanDuration = 0; //default indefinite scanning time

@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <ArduinoJson/Memory/Allocator.hpp>
-#include <ArduinoJson/Namespace.hpp>
-#include <ArduinoJson/Polyfills/assert.hpp>
-#include <ArduinoJson/Polyfills/integer.hpp>
-#include <ArduinoJson/Polyfills/limits.hpp>
+#include "../Memory/Allocator.hpp"
+#include "../Namespace.hpp"
+#include "../Polyfills/assert.hpp"
+#include "../Polyfills/integer.hpp"
+#include "../Polyfills/limits.hpp"
 
 #include <stddef.h>  // offsetof
 
@@ -17,9 +17,9 @@ ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 struct StringNode {
   // Use the same type as SlotId to store the reference count
   // (there can never be more references than slots)
-  using references_type = uint_t<ARDUINOJSON_SLOT_ID_SIZE * 8>;
+  using references_type = uint_t<ARDUINOJSON_SLOT_ID_SIZE * 8>::type;
 
-  using length_type = uint_t<ARDUINOJSON_STRING_LENGTH_SIZE * 8>;
+  using length_type = uint_t<ARDUINOJSON_STRING_LENGTH_SIZE * 8>::type;
 
   struct StringNode* next;
   references_type references;
@@ -35,10 +35,8 @@ struct StringNode {
   static StringNode* create(size_t length, Allocator* allocator) {
     if (length > maxLength)
       return nullptr;
-    auto size = sizeForLength(length);
-    if (size < length)  // integer overflow
-      return nullptr;   // (not testable on 64-bit)
-    auto node = reinterpret_cast<StringNode*>(allocator->allocate(size));
+    auto node = reinterpret_cast<StringNode*>(
+        allocator->allocate(sizeForLength(length)));
     if (node) {
       node->length = length_type(length);
       node->references = 1;

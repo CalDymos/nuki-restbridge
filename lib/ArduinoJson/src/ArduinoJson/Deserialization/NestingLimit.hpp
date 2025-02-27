@@ -1,11 +1,11 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2023, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include <ArduinoJson/Namespace.hpp>
-#include <ArduinoJson/Polyfills/assert.hpp>
+#include "../Namespace.hpp"
+#include "../Polyfills/assert.hpp"
 
 ARDUINOJSON_BEGIN_PUBLIC_NAMESPACE
 

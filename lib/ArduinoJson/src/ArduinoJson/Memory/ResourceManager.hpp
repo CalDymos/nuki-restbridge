@@ -4,30 +4,20 @@
 
 #pragma once
 
-#include <ArduinoJson/Memory/Allocator.hpp>
-#include <ArduinoJson/Memory/MemoryPoolList.hpp>
-#include <ArduinoJson/Memory/StringPool.hpp>
-#include <ArduinoJson/Polyfills/assert.hpp>
-#include <ArduinoJson/Polyfills/utility.hpp>
-#include <ArduinoJson/Strings/StringAdapters.hpp>
-#include <ArduinoJson/Variant/VariantData.hpp>
+#include "../Memory/Allocator.hpp"
+#include "../Memory/StringPool.hpp"
+#include "../Memory/VariantPoolList.hpp"
+#include "../Polyfills/assert.hpp"
+#include "../Polyfills/utility.hpp"
+#include "../Strings/StringAdapters.hpp"
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
-class VariantData;
-class VariantWithId;
+class VariantSlot;
+class VariantPool;
 
 class ResourceManager {
-  union SlotData {
-    VariantData variant;
-#if ARDUINOJSON_USE_EXTENSIONS
-    VariantExtension extension;
-#endif
-  };
-
  public:
-  constexpr static size_t slotSize = sizeof(SlotData);
-
   ResourceManager(Allocator* allocator = DefaultAllocator::instance())
       : allocator_(allocator), overflowed_(false) {}
 
@@ -51,22 +41,28 @@ class ResourceManager {
   }
 
   size_t size() const {
-    return variantPools_.size() + stringPool_.size();
+    return VariantPool::slotsToBytes(variantPools_.usage()) +
+           stringPool_.size();
   }
 
   bool overflowed() const {
     return overflowed_;
   }
 
-  Slot<VariantData> allocVariant();
-  void freeVariant(Slot<VariantData> slot);
-  VariantData* getVariant(SlotId id) const;
+  SlotWithId allocSlot() {
+    auto p = variantPools_.allocSlot(allocator_);
+    if (!p)
+      overflowed_ = true;
+    return p;
+  }
 
-#if ARDUINOJSON_USE_EXTENSIONS
-  Slot<VariantExtension> allocExtension();
-  void freeExtension(SlotId slot);
-  VariantExtension* getExtension(SlotId id) const;
-#endif
+  void freeSlot(SlotWithId id) {
+    variantPools_.freeSlot(id);
+  }
+
+  VariantSlot* getSlot(SlotId id) const {
+    return variantPools_.getSlot(id);
+  }
 
   template <typename TAdaptedString>
   StringNode* saveString(TAdaptedString str) {
@@ -125,7 +121,7 @@ class ResourceManager {
   Allocator* allocator_;
   bool overflowed_;
   StringPool stringPool_;
-  MemoryPoolList<SlotData> variantPools_;
+  VariantPoolList variantPools_;
 };
 
 ARDUINOJSON_END_PRIVATE_NAMESPACE

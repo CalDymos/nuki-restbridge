@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <ArduinoJson/Variant/JsonVariant.hpp>
-#include <ArduinoJson/Variant/JsonVariantVisitor.hpp>
+#include "../Variant/JsonVariant.hpp"
+#include "../Variant/JsonVariantVisitor.hpp"
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
 class JsonVariantCopier {
  public:
-  using result_type = bool;
+  typedef bool result_type;
 
   JsonVariantCopier(JsonVariant dst) : dst_(dst) {}
 

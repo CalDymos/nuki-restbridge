@@ -1,5 +1,5 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2023, Benoit BLANCHON
 // MIT License
 
 #pragma once
@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <stdlib.h>  // for size_t
 
-#include <ArduinoJson/Configuration.hpp>
+#include "../Configuration.hpp"
 #include "math.hpp"
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
