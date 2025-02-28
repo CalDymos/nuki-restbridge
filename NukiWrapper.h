@@ -1,11 +1,11 @@
 #pragma once
 
-#include "NetworkLock.h"
 #include "lib/NukiBleEsp32/src/NukiConstants.h"
 #include "lib/NukiBleEsp32/src/NukiDataTypes.h"
 #include "BleScanner.h"
 #include "lib/NukiBleEsp32/src/NukiLock.h"
 #include "AccessLevel.h"
+#include "QueryCommand.h"
 #include "LockActionResult.h"
 #include "NukiDeviceId.h"
 #include "BridgeApiToken.h"
@@ -16,7 +16,7 @@ public:
   virtual ~NukiWrapper();
 
   void initialize(const bool& firstStart);
-  void update(uint8_t queryCommands);
+  void update(uint8_t queryCommands=0);
 
   void lock();
   void unlock();
@@ -33,6 +33,8 @@ public:
   bool hasKeypad() const;
   bool hasDoorSensor() const;
   const BLEAddress getBleAddress() const;
+
+  const NukiLock::Config& Config() const;
 
   std::string firmwareVersion() const;
   std::string hardwareVersion() const;

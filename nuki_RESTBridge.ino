@@ -56,11 +56,6 @@
 
 static bool LAN_connected = false;
 
-WebServer server(SERVER_PORT);
-
-TaskHandle_t nukiTaskHandle = nullptr;
-TaskHandle_t webServerTaskHandle = nullptr;
-
 StaticJsonDocument<512> jsonDocument;
 char buffer[512];
 
@@ -72,18 +67,11 @@ BridgeApiToken *Apitoken = nullptr;
 bool ApiEnabled = false;
 bool restartOnDisconnect = false;
 
-// Nuki Device Settings
+WebServer server(SERVER_PORT);
+BleScanner::Scanner *bleScanner = nullptr;
+NukiWrapper *nuki = nullptr;
 NukiDeviceId *deviceIdLock = nullptr;
 NukiLock::NukiLock *nukiLock = nullptr;
-BleScanner::Scanner *scanner = nullptr;
-NukiLock::Config config;
-NukiLock::BatteryReport batteryReport;
-
-NukiLock::KeyTurnerState retrievedKeyTurnerState;
-std::list<NukiLock::LogEntry> requestedLogEntries;
-std::list<Nuki::KeypadEntry> requestedKeypadEntries;
-std::list<Nuki::AuthorizationEntry> requestedAuthorizationEntries;
-std::list<NukiLock::TimeControlEntry> requestedTimeControlEntries;
 
 int64_t restartTs = (pow(2, 63) - (5 * 1000 * 60000)) / 1000;
 
@@ -92,6 +80,9 @@ RTC_NOINIT_ATTR uint64_t restartReasonValidDetect;
 RTC_NOINIT_ATTR bool rebuildGpioRequested;
 bool restartReason_isValid;
 RestartReason currentRestartReason = RestartReason::NotApplicable;
+
+TaskHandle_t webServerTaskHandle = nullptr;
+TaskHandle_t nukiTaskHandle = nullptr;
 
 // define Max. 3 URLs
 static String callbackURLs[3] = { "", "", "" };
@@ -121,27 +112,6 @@ void addKeypadEntry() {
   // newKeypadEntry.allowedUntilTimeMin = 59;
 
   // nukiLock.addKeypadEntry(newKeypadEntry);
-}
-
-void getBatteryReport() {
-  uint8_t result = nukiLock->requestBatteryReport(&batteryReport);
-  if (result == 1) {
-    Log->printf("Bat report voltage: %d Crit state: %d, start temp: %d\r\n", batteryReport.batteryVoltage, batteryReport.criticalBatteryState, batteryReport.startTemperature);
-  } else {
-    Log->printf("Bat report failed: %d", result);
-  }
-}
-
-bool getKeyTurnerState() {
-  uint8_t result = nukiLock->requestKeyTurnerState(&retrievedKeyTurnerState);
-  if (result == 1) {
-    Log->printf("Bat crit: %d, Bat perc:%d lock state: %d %d:%d:%d",
-                nukiLock->isBatteryCritical(), nukiLock->getBatteryPerc(), retrievedKeyTurnerState.lockState, retrievedKeyTurnerState.currentTimeHour,
-                retrievedKeyTurnerState.currentTimeMinute, retrievedKeyTurnerState.currentTimeSecond);
-  } else {
-    Log->printf("cmd failed: %d", result);
-  }
-  return result;
 }
 
 void requestLogEntries() {
@@ -224,24 +194,7 @@ void requestTimeControlEntries() {
   // }
 }
 
-void getConfig() {
-  if (nukiLock->requestConfig(&config) == 1) {
-    Log->printf("Name: %s\r\n", config.name);
-  } else {
-    Log->println("getConfig failed");
-  }
-}
-
-bool notified = false;
-class Handler : public Nuki::SmartlockEventHandler {
-public:
-  virtual ~Handler(){};
-  void notify(Nuki::EventType eventType) {
-    notified = true;
-  }
-};
-
-Handler handler;
+// Handler handler;
 
 void setupRouting() {
   server.on("/auth", nuki_auth);
@@ -377,223 +330,254 @@ void nuki_get_lastKnownState(void *obj, bool nested = false) {
 }
 
 void nuki_list() {
-  if (server.hasArg("token") && server.arg("token") == Apitoken->get()) {
+  // 1) Token prüfen
+  if (!server.hasArg("token") || server.arg("token") != Apitoken->get()) {
+    server.send(401, "text/html");
+    return;
+  }
+
+  const NukiLock::KeyTurnerState &retrievedKeyTurnerState = nuki->keyTurnerState();
+  const NukiLock::Config &config = nuki->Config();
+
+  jsonDocument.clear();
+  jsonDocument["nukiId"] = config.nukiId;
+  jsonDocument["deviceType"] = 0;
+  jsonDocument["name"] = config.name;
+  JsonObject doc = jsonDocument["lastKnownState"].to<JsonObject>();  // JsonObject doc = jsonDocument.createNestedObject("lastKnownState");
+  doc["mode"] = (int)retrievedKeyTurnerState.nukiState;
+  doc["state"] = (int)retrievedKeyTurnerState.lockState;
+  char stateName[20];
+  NukiLock::lockstateToString(retrievedKeyTurnerState.lockState, stateName);
+  doc["stateName"] = stateName;
+  bool critical = (retrievedKeyTurnerState.criticalBatteryState & 0b00000001) > 0;
+  bool charging = (retrievedKeyTurnerState.criticalBatteryState & 0b00000010) > 0;
+  uint8_t level = (retrievedKeyTurnerState.criticalBatteryState & 0b11111100) >> 1;
+  doc["batteryCritical"] = critical;
+  doc["batteryCharging"] = charging;
+  doc["batteryChargeState"] = level;
+  doc["keypadBatteryCritical"] = false;  // TODO: Get from api
+  doc["doorsensorState"] = (int)retrievedKeyTurnerState.doorSensorState;
+  char doorsensorStateName[20];
+  NukiLock::doorSensorStateToString(retrievedKeyTurnerState.doorSensorState, doorsensorStateName);
+  doc["doorsensorStateName"] = doorsensorStateName;
+  char timestamp[36];
+  sprintf(timestamp, "%04d-%02d-%02dT%02d:%02d:%02d+%02d:00", (int)retrievedKeyTurnerState.currentTimeYear, (int)retrievedKeyTurnerState.currentTimeMonth,
+          (int)retrievedKeyTurnerState.currentTimeDay, (int)retrievedKeyTurnerState.currentTimeHour,
+          (int)retrievedKeyTurnerState.currentTimeMinute, (int)retrievedKeyTurnerState.currentTimeSecond,
+          (int)retrievedKeyTurnerState.timeZoneOffset);
+  doc["timestamp"] = timestamp;
+  serializeJson(jsonDocument, buffer);
+
+  server.send(200, "application/json", buffer);
+}
+
+void nuki_lockState() {
+  // 1) Token prüfen
+  if (!server.hasArg("token") || server.arg("token") != Apitoken->get()) {
+    server.send(401, "text/html");
+    return;
+  }
+
+  const NukiLock::KeyTurnerState &retrievedKeyTurnerState = nuki->keyTurnerState();
+  const NukiLock::Config &config = nuki->Config();
+
+  if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
+
     jsonDocument.clear();
-    jsonDocument["nukiId"] = config.nukiId;
-    jsonDocument["deviceType"] = 0;
-    jsonDocument["name"] = config.name;
-    JsonObject doc = jsonDocument["lastKnownState"].to<JsonObject>();  // JsonObject doc = jsonDocument.createNestedObject("lastKnownState");
-    doc["mode"] = (int)retrievedKeyTurnerState.nukiState;
-    doc["state"] = (int)retrievedKeyTurnerState.lockState;
+    jsonDocument["mode"] = (int)retrievedKeyTurnerState.nukiState;
+    jsonDocument["state"] = (int)retrievedKeyTurnerState.lockState;
     char stateName[20];
     NukiLock::lockstateToString(retrievedKeyTurnerState.lockState, stateName);
-    doc["stateName"] = stateName;
+    jsonDocument["stateName"] = stateName;
     bool critical = (retrievedKeyTurnerState.criticalBatteryState & 0b00000001) > 0;
     bool charging = (retrievedKeyTurnerState.criticalBatteryState & 0b00000010) > 0;
     uint8_t level = (retrievedKeyTurnerState.criticalBatteryState & 0b11111100) >> 1;
-    doc["batteryCritical"] = critical;
-    doc["batteryCharging"] = charging;
-    doc["batteryChargeState"] = level;
-    doc["keypadBatteryCritical"] = false;  // TODO: Get from api
-    doc["doorsensorState"] = (int)retrievedKeyTurnerState.doorSensorState;
+    jsonDocument["batteryCritical"] = critical;
+    jsonDocument["batteryCharging"] = charging;
+    jsonDocument["batteryChargeState"] = level;
+    jsonDocument["keypadBatteryCritical"] = false;  // TODO: Get from api
+    jsonDocument["doorsensorState"] = (int)retrievedKeyTurnerState.doorSensorState;
     char doorsensorStateName[20];
     NukiLock::doorSensorStateToString(retrievedKeyTurnerState.doorSensorState, doorsensorStateName);
-    doc["doorsensorStateName"] = doorsensorStateName;
-    char timestamp[36];
-    sprintf(timestamp, "%04d-%02d-%02dT%02d:%02d:%02d+%02d:00", (int)retrievedKeyTurnerState.currentTimeYear, (int)retrievedKeyTurnerState.currentTimeMonth,
-            (int)retrievedKeyTurnerState.currentTimeDay, (int)retrievedKeyTurnerState.currentTimeHour,
-            (int)retrievedKeyTurnerState.currentTimeMinute, (int)retrievedKeyTurnerState.currentTimeSecond,
-            (int)retrievedKeyTurnerState.timeZoneOffset);
-    doc["timestamp"] = timestamp;
+    jsonDocument["doorsensorStateName"] = doorsensorStateName;
+    jsonDocument["success"] = true;
+
     serializeJson(jsonDocument, buffer);
 
     server.send(200, "application/json", buffer);
   } else {
-    server.send(401, "text/html");
-  }
-}
-
-void nuki_lockState() {
-  if (server.hasArg("token") && server.arg("token") == Apitoken->get()) {
-    if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
-      if ((nukiLock->requestConfig(&config) == 3) || (nukiLock->requestBatteryReport(&batteryReport) == 3) || (nukiLock->requestKeyTurnerState(&retrievedKeyTurnerState) == 3)) {
-        server.send(503, "text/html");
-        return;
-      }
-
-      jsonDocument.clear();
-      jsonDocument["mode"] = (int)retrievedKeyTurnerState.nukiState;
-      jsonDocument["state"] = (int)retrievedKeyTurnerState.lockState;
-      char stateName[20];
-      NukiLock::lockstateToString(retrievedKeyTurnerState.lockState, stateName);
-      jsonDocument["stateName"] = stateName;
-      bool critical = (retrievedKeyTurnerState.criticalBatteryState & 0b00000001) > 0;
-      bool charging = (retrievedKeyTurnerState.criticalBatteryState & 0b00000010) > 0;
-      uint8_t level = (retrievedKeyTurnerState.criticalBatteryState & 0b11111100) >> 1;
-      jsonDocument["batteryCritical"] = critical;
-      jsonDocument["batteryCharging"] = charging;
-      jsonDocument["batteryChargeState"] = level;
-      jsonDocument["keypadBatteryCritical"] = false;  // TODO: Get from api
-      jsonDocument["doorsensorState"] = (int)retrievedKeyTurnerState.doorSensorState;
-      char doorsensorStateName[20];
-      NukiLock::doorSensorStateToString(retrievedKeyTurnerState.doorSensorState, doorsensorStateName);
-      jsonDocument["doorsensorStateName"] = doorsensorStateName;
-      jsonDocument["success"] = true;
-
-      serializeJson(jsonDocument, buffer);
-
-      server.send(200, "application/json", buffer);
-    } else {
-      server.send(404, "text/html");
-    }
-  } else {
-    server.send(401, "text/html");
+    server.send(404, "text/html");
   }
 }
 
 void nuki_lockAction() {
-  if (server.hasArg("token") && server.arg("token") == Apitoken->get()) {
-    if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
-      if (server.hasArg("action")) {
-        NukiLock::LockAction lockAction = (NukiLock::LockAction)server.arg("action").toInt();
-        if (nukiLock->lockAction(lockAction) == NukiLock::CmdResult::Success) {
-          logToBridgeFile(F("SmartLock"), "Lock action success: " + String((int)lockAction));
-          jsonDocument.clear();
-          jsonDocument["mode"] = (int)retrievedKeyTurnerState.nukiState;
-          jsonDocument["state"] = (int)retrievedKeyTurnerState.lockState;
-          char stateName[20];
-          NukiLock::lockstateToString(retrievedKeyTurnerState.lockState, stateName);
-          jsonDocument["stateName"] = stateName;
-          bool critical = (retrievedKeyTurnerState.criticalBatteryState & 0b00000001) > 0;
-          bool charging = (retrievedKeyTurnerState.criticalBatteryState & 0b00000010) > 0;
-          uint8_t level = (retrievedKeyTurnerState.criticalBatteryState & 0b11111100) >> 1;
-          jsonDocument["batteryCritical"] = critical;
-          jsonDocument["batteryCharging"] = charging;
-          jsonDocument["batteryChargeState"] = level;
-          jsonDocument["keypadBatteryCritical"] = false;  // TODO: Get from api
-          jsonDocument["doorsensorState"] = (int)retrievedKeyTurnerState.doorSensorState;
-          char doorsensorStateName[20];
-          NukiLock::doorSensorStateToString(retrievedKeyTurnerState.doorSensorState, doorsensorStateName);
-          jsonDocument["doorsensorStateName"] = doorsensorStateName;
-          jsonDocument["success"] = true;
+  // 1) Token prüfen
+  if (!server.hasArg("token") || server.arg("token") != Apitoken->get()) {
+    server.send(401, "text/html");
+    return;
+  }
 
-          serializeJson(jsonDocument, buffer);
+  const NukiLock::KeyTurnerState &retrievedKeyTurnerState = nuki->keyTurnerState();
+  const NukiLock::Config &config = nuki->Config();
 
-          server.send(200, "application/json", buffer);
-        } else {
-          logToBridgeFile(F("SmartLock"), "Lock action failed: " + String((int)lockAction));
-          server.send(400, "text/html");
-        }
+  if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
+    if (server.hasArg("action")) {
+      NukiLock::LockAction lockAction = (NukiLock::LockAction)server.arg("action").toInt();
+      if (nukiLock->lockAction(lockAction) == NukiLock::CmdResult::Success) {
+        logToBridgeFile(F("SmartLock"), "Lock action success: " + String((int)lockAction));
+        jsonDocument.clear();
+        jsonDocument["mode"] = (int)retrievedKeyTurnerState.nukiState;
+        jsonDocument["state"] = (int)retrievedKeyTurnerState.lockState;
+        char stateName[20];
+        NukiLock::lockstateToString(retrievedKeyTurnerState.lockState, stateName);
+        jsonDocument["stateName"] = stateName;
+        bool critical = (retrievedKeyTurnerState.criticalBatteryState & 0b00000001) > 0;
+        bool charging = (retrievedKeyTurnerState.criticalBatteryState & 0b00000010) > 0;
+        uint8_t level = (retrievedKeyTurnerState.criticalBatteryState & 0b11111100) >> 1;
+        jsonDocument["batteryCritical"] = critical;
+        jsonDocument["batteryCharging"] = charging;
+        jsonDocument["batteryChargeState"] = level;
+        jsonDocument["keypadBatteryCritical"] = false;  // TODO: Get from api
+        jsonDocument["doorsensorState"] = (int)retrievedKeyTurnerState.doorSensorState;
+        char doorsensorStateName[20];
+        NukiLock::doorSensorStateToString(retrievedKeyTurnerState.doorSensorState, doorsensorStateName);
+        jsonDocument["doorsensorStateName"] = doorsensorStateName;
+        jsonDocument["success"] = true;
 
+        serializeJson(jsonDocument, buffer);
+
+        server.send(200, "application/json", buffer);
       } else {
+        logToBridgeFile(F("SmartLock"), "Lock action failed: " + String((int)lockAction));
         server.send(400, "text/html");
       }
+
     } else {
-      server.send(404, "text/html");
+      server.send(400, "text/html");
     }
   } else {
-    server.send(401, "text/html");
+    server.send(404, "text/html");
   }
 }
 
 void nuki_lock() {
-  if (server.hasArg("token") && server.arg("token") == Apitoken->get()) {
-    if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
-      if (nukiLock->lockAction(NukiLock::LockAction::Lock) == NukiLock::CmdResult::Success) {
-        jsonDocument.clear();
-        bool critical = (retrievedKeyTurnerState.criticalBatteryState & 0b00000001) > 0;
-        jsonDocument["batteryCritical"] = critical;
-        jsonDocument["success"] = true;
-
-        serializeJson(jsonDocument, buffer);
-
-        server.send(200, "application/json", buffer);
-      } else {
-        server.send(503, "text/html");
-      }
-    } else {
-      server.send(404, "text/html");
-    }
-  } else {
+  // 1) Token prüfen
+  if (!server.hasArg("token") || server.arg("token") != Apitoken->get()) {
     server.send(401, "text/html");
+    return;
   }
-}
 
-void nuki_unlock() {
-  if (server.hasArg("token") && server.arg("token") == Apitoken->get()) {
-    if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
-      if (nukiLock->lockAction(NukiLock::LockAction::Unlock) == NukiLock::CmdResult::Success) {
-        jsonDocument.clear();
-        bool critical = (retrievedKeyTurnerState.criticalBatteryState & 0b00000001) > 0;
-        jsonDocument["batteryCritical"] = critical;
-        jsonDocument["success"] = true;
+  const NukiLock::KeyTurnerState &retrievedKeyTurnerState = nuki->keyTurnerState();
+  const NukiLock::Config &config = nuki->Config();
 
-        serializeJson(jsonDocument, buffer);
-
-        server.send(200, "application/json", buffer);
-      } else {
-        server.send(503, "text/html");
-      }
-    } else {
-      server.send(404, "text/html");
-    }
-  } else {
-    server.send(401, "text/html");
-  }
-}
-
-void nuki_unpair() {
-  if (server.hasArg("token") && server.arg("token") == Apitoken->get()) {
-    if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
-      nukiLock->unPairNuki();
+  if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
+    if (nukiLock->lockAction(NukiLock::LockAction::Lock) == NukiLock::CmdResult::Success) {
       jsonDocument.clear();
+      bool critical = (retrievedKeyTurnerState.criticalBatteryState & 0b00000001) > 0;
+      jsonDocument["batteryCritical"] = critical;
       jsonDocument["success"] = true;
 
       serializeJson(jsonDocument, buffer);
 
       server.send(200, "application/json", buffer);
-
     } else {
-      server.send(404, "text/html");
+      server.send(503, "text/html");
     }
   } else {
-    server.send(401, "text/html");
+    server.send(404, "text/html");
   }
 }
-void nuki_info() {
-  if (server.hasArg("token") && server.arg("token") == Apitoken->get()) {
-    jsonDocument.clear();
 
-    jsonDocument["bridgeType"] = (int)1;
-    JsonObject ids = jsonDocument["ids"].to<JsonObject>();  // JsonObject ids = jsonDocument.createNestedObject("ids");
-    ids["hardwareId"] = NUKI_REST_BRIDGE_HW_ID;
-    ids["serverId"] = NUKI_REST_BRIDGE_HW_ID;
-    JsonObject versions = jsonDocument["versions"].to<JsonObject>();  // JsonObject versions = jsonDocument.createNestedObject("versions");
-    versions["firmwareVersion"] = NUKI_REST_BRIDGE_VERSION;
-    versions["wifiFirmwareVersion"] = NUKI_REST_BRIDGE_WIFI_VERSION;
-    uint64_t uptime = esp_timer_get_time();
-    uint32_t uptime_low = uptime % 0xFFFFFFFF;
-    uint32_t uptime_high = (uptime >> 32) % 0xFFFFFFFF;
-    jsonDocument["uptime"] = (uptime_low + uptime_high);
-    char timestamp[36];
-    sprintf(timestamp, "%04d-%02d-%02dT%02d:%02d:%02dZ", (int)retrievedKeyTurnerState.currentTimeYear, (int)retrievedKeyTurnerState.currentTimeMonth,
-            (int)retrievedKeyTurnerState.currentTimeDay, (int)retrievedKeyTurnerState.currentTimeHour,
-            (int)retrievedKeyTurnerState.currentTimeMinute, (int)retrievedKeyTurnerState.currentTimeSecond);
-    jsonDocument["currentTime"] = timestamp;
-    jsonDocument["serverConnected"] = false;
-    JsonObject scanResults = jsonDocument["scanResults"].to<JsonObject>();  // JsonObject scanResults = jsonDocument.createNestedObject("scanResults");
-    scanResults["nukiId"] = config.nukiId;
-    scanResults["type"] = 0;
-    scanResults["name"] = config.name;
-    scanResults["rssi"] = nukiLock->getRssi();
-    scanResults["paired"] = nukiLock->isPairedWithLock();
+void nuki_unlock() {
+  // 1) Token prüfen
+  if (!server.hasArg("token") || server.arg("token") != Apitoken->get()) {
+    server.send(401, "text/html");
+    return;
+  }
+
+  const NukiLock::KeyTurnerState &retrievedKeyTurnerState = nuki->keyTurnerState();
+  const NukiLock::Config &config = nuki->Config();
+
+  if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
+    if (nukiLock->lockAction(NukiLock::LockAction::Unlock) == NukiLock::CmdResult::Success) {
+      jsonDocument.clear();
+      bool critical = (retrievedKeyTurnerState.criticalBatteryState & 0b00000001) > 0;
+      jsonDocument["batteryCritical"] = critical;
+      jsonDocument["success"] = true;
+
+      serializeJson(jsonDocument, buffer);
+
+      server.send(200, "application/json", buffer);
+    } else {
+      server.send(503, "text/html");
+    }
+  } else {
+    server.send(404, "text/html");
+  }
+}
+
+void nuki_unpair() {
+  // 1) Token prüfen
+  if (!server.hasArg("token") || server.arg("token") != Apitoken->get()) {
+    server.send(401, "text/html");
+    return;
+  }
+
+  const NukiLock::KeyTurnerState &retrievedKeyTurnerState = nuki->keyTurnerState();
+  const NukiLock::Config &config = nuki->Config();
+
+  if (server.hasArg("nukiId") && server.arg("nukiId") == (char *)config.nukiId) {
+    nukiLock->unPairNuki();
+    jsonDocument.clear();
+    jsonDocument["success"] = true;
 
     serializeJson(jsonDocument, buffer);
 
     server.send(200, "application/json", buffer);
+
   } else {
-    server.send(401, "text/html");
+    server.send(404, "text/html");
   }
+}
+void nuki_info() {
+  // 1) Token prüfen
+  if (!server.hasArg("token") || server.arg("token") != Apitoken->get()) {
+    server.send(401, "text/html");
+    return;
+  }
+
+  const NukiLock::KeyTurnerState &retrievedKeyTurnerState = nuki->keyTurnerState();
+  const NukiLock::Config &config = nuki->Config();
+
+  jsonDocument.clear();
+
+  jsonDocument["bridgeType"] = (int)1;
+  JsonObject ids = jsonDocument["ids"].to<JsonObject>();  // JsonObject ids = jsonDocument.createNestedObject("ids");
+  ids["hardwareId"] = NUKI_REST_BRIDGE_HW_ID;
+  ids["serverId"] = NUKI_REST_BRIDGE_HW_ID;
+  JsonObject versions = jsonDocument["versions"].to<JsonObject>();  // JsonObject versions = jsonDocument.createNestedObject("versions");
+  versions["firmwareVersion"] = NUKI_REST_BRIDGE_VERSION;
+  versions["wifiFirmwareVersion"] = NUKI_REST_BRIDGE_WIFI_VERSION;
+  uint64_t uptime = esp_timer_get_time();
+  uint32_t uptime_low = uptime % 0xFFFFFFFF;
+  uint32_t uptime_high = (uptime >> 32) % 0xFFFFFFFF;
+  jsonDocument["uptime"] = (uptime_low + uptime_high);
+  char timestamp[36];
+  sprintf(timestamp, "%04d-%02d-%02dT%02d:%02d:%02dZ", (int)retrievedKeyTurnerState.currentTimeYear, (int)retrievedKeyTurnerState.currentTimeMonth,
+          (int)retrievedKeyTurnerState.currentTimeDay, (int)retrievedKeyTurnerState.currentTimeHour,
+          (int)retrievedKeyTurnerState.currentTimeMinute, (int)retrievedKeyTurnerState.currentTimeSecond);
+  jsonDocument["currentTime"] = timestamp;
+  jsonDocument["serverConnected"] = false;
+  JsonObject scanResults = jsonDocument["scanResults"].to<JsonObject>();  // JsonObject scanResults = jsonDocument.createNestedObject("scanResults");
+  scanResults["nukiId"] = config.nukiId;
+  scanResults["type"] = 0;
+  scanResults["name"] = config.name;
+  scanResults["rssi"] = nukiLock->getRssi();
+  scanResults["paired"] = nukiLock->isPairedWithLock();
+
+  serializeJson(jsonDocument, buffer);
+
+  server.send(200, "application/json", buffer);
 }
 
 void saveCallbackToPreferences(int index, const String &url) {
@@ -604,6 +588,9 @@ void saveCallbackToPreferences(int index, const String &url) {
 
 String buildLockStateJson() {
   StaticJsonDocument<256> doc;
+  const NukiLock::KeyTurnerState &retrievedKeyTurnerState = nuki->keyTurnerState();
+  const NukiLock::Config &config = nuki->Config();
+
   doc["nukiId"] = config.nukiId;  // z. B. 11
   doc["deviceType"] = 0;          // 0 = Smart Lock
   doc["mode"] = (int)retrievedKeyTurnerState.nukiState;
@@ -1014,7 +1001,13 @@ bool initPreferences() {
   preferences = new Preferences();
   preferences->begin("nukiBridge", false);
 
-  return true;
+  bool firstStart = !preferences->getBool(preference_started_before);
+
+  if (firstStart) {
+    preferences->putBool(preference_started_before, true);
+  }
+
+  return firstStart;
 }
 
 void setup() {
@@ -1028,7 +1021,7 @@ void setup() {
   Log->print(F("NUKI REST Bridge version "));
   Log->println(NUKI_REST_BRIDGE_VERSION);
 
-  initPreferences();
+  bool firstStart = initPreferences();
 
   initializeRestartReason();
 
@@ -1057,7 +1050,7 @@ void setup() {
   Apitoken = new BridgeApiToken(preferences, preference_API_Token);
 
   nukiLock = new NukiLock::NukiLock("NukiBridge", deviceIdLock->get());
-  scanner = new BleScanner::Scanner;
+  bleScanner = new BleScanner::Scanner;
 
   restartOnDisconnect = preferences->getBool(preference_restart_on_disconnect);
 
@@ -1084,20 +1077,11 @@ void setup() {
   delay(100);
 
   Log->println(F("Starting NUKI BLE..."));
-  scanner->initialize("NukiBridge");
-  scanner->setScanDuration(10);
+  bleScanner->initialize("NukiBridge");
+  bleScanner->setScanDuration(10);
 
-  nukiLock->registerBleScanner(scanner);
-  nukiLock->initialize();
-
-  if (nukiLock->isPairedWithLock()) {
-    Log->println("paired");
-    nukiLock->setEventHandler(&handler);
-    getConfig();
-    getBatteryReport();
-    getKeyTurnerState();
-    nukiLock->enableLedFlash(false);
-  }
+  nuki = new NukiWrapper("NukiHub", deviceIdLock, bleScanner, preferences);
+  nuki->initialize(firstStart);
 
   setupRouting();
 
@@ -1106,32 +1090,33 @@ void setup() {
 
 void nukiTask(void *pvParameters) {
   while (true) {
-    scanner->update();
-    if (!nukiLock->isPairedWithLock()) {
-      if (nukiLock->pairNuki() == Nuki::PairingResult::Success) {
-        Log->println("paired");
-        nukiLock->setEventHandler(&handler);
-        getConfig();
-        getBatteryReport();
-        getKeyTurnerState();
-      }
+
+    bleScanner->update();
+    delay(20);
+
+    bool needsPairing = (!nuki->isPaired());
+
+    if (needsPairing) {
+      delay(2500);
+    } else {
+      nuki->update();
     }
 
-    // Handling Nuki Events
-    if (notified) {
-      if (getKeyTurnerState()) {
-        String stateStr = String("State changed to ") + String((int)retrievedKeyTurnerState.lockState);
-        logToBridgeFile("SmartLock", stateStr);
+    // // Handling Nuki Events
+    // if (notified) {
+    //   if (getKeyTurnerState()) {
+    //     String stateStr = String("State changed to ") + String((int)retrievedKeyTurnerState.lockState);
+    //     logToBridgeFile("SmartLock", stateStr);
 
-        String jsonPayload = buildLockStateJson();
-        for (int i = 0; i < 3; i++) {
-          if (!callbackURLs[i].isEmpty()) {
-            sendLockStateCallback(callbackURLs[i], jsonPayload);
-          }
-        }
-        notified = false;
-      }
-    }
+    //     String jsonPayload = buildLockStateJson();
+    //     for (int i = 0; i < 3; i++) {
+    //       if (!callbackURLs[i].isEmpty()) {
+    //         sendLockStateCallback(callbackURLs[i], jsonPayload);
+    //       }
+    //     }
+    //     notified = false;
+    //   }
+    // }
     esp_task_wdt_reset();
   }
 }

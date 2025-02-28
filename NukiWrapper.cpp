@@ -4,6 +4,8 @@
 #include "espMillis.h"
 #include "RestartReason.h"
 
+AccessLevel NukiWrapper::_accessLevel = AccessLevel::ReadOnly;
+
 NukiWrapper::NukiWrapper(const std::string& deviceName, NukiDeviceId* deviceId, BleScanner::Scanner* scanner, Preferences* preferences)
   : _deviceName(deviceName),
     _deviceId(deviceId),
@@ -315,6 +317,11 @@ NukiLock::LockAction NukiWrapper::lockActionToEnum(const char* str) {
 const NukiLock::KeyTurnerState &NukiWrapper::keyTurnerState()
 {
     return _keyTurnerState;
+}
+
+const NukiLock::Config& NukiWrapper::Config() const
+{
+    return _nukiConfig;
 }
 
 bool NukiWrapper::isPaired() const
