@@ -1,13 +1,13 @@
 #pragma once
 
+#include "lib/NukiBleEsp32/src/NukiLock.h"
 #include "lib/NukiBleEsp32/src/NukiConstants.h"
 #include "lib/NukiBleEsp32/src/NukiDataTypes.h"
-#include "BleScanner.h"
-#include "lib/NukiBleEsp32/src/NukiLock.h"
+#include <BleScanner.h>
+#include "NukiDeviceId.h"
 #include "AccessLevel.h"
 #include "QueryCommand.h"
 #include "LockActionResult.h"
-#include "NukiDeviceId.h"
 #include "BridgeApiToken.h"
 
 class NukiWrapper : public Nuki::SmartlockEventHandler {
