@@ -53,13 +53,12 @@
 
 
 #define LANEvent_t arduino_event_id_t
+#define BUTTON_PRESSED() (!digitalRead(34))
 
 static bool LAN_connected = false;
 
 StaticJsonDocument<512> jsonDocument;
 char buffer[512];
-
-#define BUTTON_PRESSED() (!digitalRead(34))
 
 Preferences *preferences = nullptr;
 
@@ -921,8 +920,6 @@ void nuki_factoryReset() {
     server.send(401, "text/html");
   }
 }
-
-
 
 void LANEvent(LANEvent_t event) {
   switch (event) {
