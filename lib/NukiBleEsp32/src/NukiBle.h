@@ -91,7 +91,7 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     /**
      * @brief Returns pairing state (if credentials are stored or not)
      */
-    const bool isPairedWithLock() const;
+    bool isPairedWithLock() const;
 
     /**
      * @brief Returns the log entry count. Only available after executing retreiveLogEntries.

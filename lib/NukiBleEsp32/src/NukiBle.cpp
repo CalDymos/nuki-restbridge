@@ -594,7 +594,7 @@ void NukiBle::getMacAddress(char* macAddress) {
   if (takeNukiBleSemaphore("retr pincode cred")) {
     if ((preferences.getBytes(BLE_ADDRESS_STORE_NAME, buf, 6) > 0)) {
       BLEAddress address = BLEAddress(buf);
-      sprintf(macAddress, "%d", address.toString().c_str());
+      sprintf(macAddress, "%s", address.toString().c_str());
       giveNukiBleSemaphore();
     }
     giveNukiBleSemaphore();
@@ -664,6 +664,7 @@ PairingState NukiBle::pairStateMachine(const PairingState nukiPairingState) {
       receivedStatus = 0xff;
       timeNow = millis();
       nukiPairingResultState = PairingState::ReqRemPubKey;
+      break;
     }
     case PairingState::ReqRemPubKey: {
       //Request remote public key (Sent message should be 0100030027A7)
@@ -675,6 +676,7 @@ PairingState NukiBle::pairStateMachine(const PairingState nukiPairingState) {
       memcpy(buff, &cmd, sizeof(Command));
       sendPlainMessage(Command::RequestData, buff, sizeof(Command));
       nukiPairingResultState = PairingState::RecRemPubKey;
+      break;
     }
     case PairingState::RecRemPubKey: {
       if (isCharArrayNotEmpty(remotePublicKey, sizeof(remotePublicKey))) {
@@ -688,13 +690,18 @@ PairingState NukiBle::pairStateMachine(const PairingState nukiPairingState) {
       #endif
       sendPlainMessage(Command::PublicKey, myPublicKey, sizeof(myPublicKey));
       nukiPairingResultState = PairingState::GenKeyPair;
+      break;
     }
     case PairingState::GenKeyPair: {
       #ifdef DEBUG_NUKI_CONNECT
       log_d("##################### CALCULATE DH SHARED KEY s #########################");
       #endif
       unsigned char sharedKeyS[32] = {0x00};
-      crypto_scalarmult_curve25519(sharedKeyS, myPrivateKey, remotePublicKey);
+      int result = crypto_scalarmult_curve25519(sharedKeyS, myPrivateKey, remotePublicKey);
+      if (result != 0) {
+        log_d("Error in crypto_scalarmult_curve25519!"); 
+        break; 
+      }
       printBuffer(sharedKeyS, sizeof(sharedKeyS), false, "Shared key s");
 
       #ifdef DEBUG_NUKI_CONNECT
@@ -706,6 +713,7 @@ PairingState NukiBle::pairStateMachine(const PairingState nukiPairingState) {
       crypto_core_hsalsa20(secretKeyK, in, sharedKeyS, sigma);
       printBuffer(secretKeyK, sizeof(secretKeyK), false, "Secret key k");
       nukiPairingResultState = PairingState::CalculateAuth;
+      break;
     }
     case PairingState::CalculateAuth: {
       if (isCharArrayNotEmpty(challengeNonceK, sizeof(challengeNonceK))) {
@@ -731,6 +739,7 @@ PairingState NukiBle::pairStateMachine(const PairingState nukiPairingState) {
       #endif
       sendPlainMessage(Command::AuthorizationAuthenticator, authenticator, sizeof(authenticator));
       nukiPairingResultState = PairingState::SendAuthData;
+      break;
     }
     case PairingState::SendAuthData: {
       if (isCharArrayNotEmpty(challengeNonceK, sizeof(challengeNonceK))) {
@@ -898,8 +907,6 @@ bool NukiBle::sendPlainMessage(Command commandIdentifier, const unsigned char* p
   log_d("Command identifier: %02x, CRC: %04x", (uint32_t)commandIdentifier, dataCrc);
   #endif
 
-  uint32_t beforeConnectBle = millis();
-  uint32_t afterConnectBle = 0;
   if (connectBle(bleAddress)) {
     return pGdioCharacteristic->writeValue((uint8_t*)dataToSend, payloadLen + 4, true);
   } else {
@@ -1181,7 +1188,7 @@ void NukiBle::setEventHandler(SmartlockEventHandler* handler) {
   eventHandler = handler;
 }
 
-const bool NukiBle::isPairedWithLock() const {
+bool NukiBle::isPairedWithLock() const {
   return isPaired;
 };
 

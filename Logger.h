@@ -1,3 +1,5 @@
+#pragma once
+
 #ifdef DEBUG
 #include <Print.h>
 extern Print* Log;

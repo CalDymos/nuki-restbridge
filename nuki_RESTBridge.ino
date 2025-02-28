@@ -11,7 +11,7 @@
 //Bibliothek ArduinoJson in Version 6.21.5
 //Bibliothek SPIFFS in Version 3.1.1
 //Bibliothek Crc16 in Version 0.1.2
-// Board: OLIMEX ESP32-POE-ISO 
+// Board: OLIMEX ESP32-POE-ISO
 // Flash-Size: 4MB
 // Partition Scheme: No OTA (2MB APP /2MB SPIFFS)
 // Flash Mode : DIO
@@ -19,6 +19,17 @@
 #include "Config.h"
 #include <Arduino.h>
 #include <list>
+// include NukiBleEsp32 library
+//-------------------------------------------
+#include "lib/NukiBleEsp32/src/NukiBle.h"
+#include "lib/NukiBleEsp32/src/NukiLock.h"
+#include "lib/NukiBleEsp32/src/NukiLockUtils.h"
+#include "lib/NukiBleEsp32/src/NukiUtils.h"
+#include "lib/NukiBleEsp32/src/NukiBle.cpp"
+#include "lib/NukiBleEsp32/src/NukiLock.cpp"
+#include "lib/NukiBleEsp32/src/NukiLockUtils.cpp"
+#include "lib/NukiBleEsp32/src/NukiUtils.cpp"
+//------------------------------------------
 #include "NukiWrapper.h"
 #if CONNECT_OVER_LAN
 #include <ETH.h>
@@ -35,6 +46,10 @@
 #include "RestartReason.h"
 #include "EspMillis.h"
 #include "SPIFFS.h"
+#include "esp_chip_info.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_task_wdt.h"
 
 
 #define LANEvent_t arduino_event_id_t
@@ -42,6 +57,9 @@
 static bool LAN_connected = false;
 
 WebServer server(SERVER_PORT);
+
+TaskHandle_t nukiTaskHandle = nullptr;
+TaskHandle_t webServerTaskHandle = nullptr;
 
 StaticJsonDocument<512> jsonDocument;
 char buffer[512];
@@ -225,7 +243,7 @@ public:
 
 Handler handler;
 
-void setup_routing() {
+void setupRouting() {
   server.on("/auth", nuki_auth);
   server.on("/configAuth", nuki_configAuth);
   server.on("/list", nuki_list);
@@ -244,18 +262,52 @@ void setup_routing() {
   server.begin();
 }
 
+void setupTasks() {
+
+  esp_task_wdt_config_t twdt_config = {
+    .timeout_ms = 300000,
+    .idle_core_mask = 0,
+    .trigger_panic = true,
+  };
+  esp_task_wdt_reconfigure(&twdt_config);
+
+  esp_chip_info_t info;
+  esp_chip_info(&info);
+  uint8_t espCores = info.cores;
+
+  xTaskCreatePinnedToCore(
+    nukiTask,         // Task-Funktion
+    "nuki",           // Name des Tasks
+    1536,             // Stack-Größe (Wörter)
+    NULL,             // Parameter
+    1,                // Priorität
+    &nukiTaskHandle,  // Task-Handle (optional)
+    0                 // Core 0 für Lastverteilung
+  );
+  esp_task_wdt_add(nukiTaskHandle);
+
+  xTaskCreatePinnedToCore(
+    webServerTask,          // Task-Funktion
+    "webServer",            // Name des Tasks
+    1280,                   // Stack-Größe (Wörter)
+    NULL,                   // Parameter
+    1,                      // Priorität
+    &webServerTaskHandle,   // Task-Handle (optional)
+    (espCores > 1) ? 1 : 0  // Core 1
+  );
+  esp_task_wdt_add(webServerTaskHandle);
+}
+
 
 
 void nuki_auth() {
   Log->println("Enable API and Get Token");
-  char rndNum;
-  char rndLetter;
   unsigned long currentMillis = 0;
   unsigned long previousMillis = 0;
   bool confirmed = false;
-  int count;
+  int count = 0;
 
-  for (int countSec; countSec < 30;) {
+  for (int countSec = 0; countSec < 30;) {
     currentMillis = espMillis();
     if (currentMillis - previousMillis > 100) {
       previousMillis = currentMillis;
@@ -318,9 +370,9 @@ void nuki_configAuth() {
 void nuki_get_lastKnownState(void *obj, bool nested = false) {
 
   if (nested) {
-    JsonObject *doc = (JsonObject *)obj;
+    //JsonObject *doc = (JsonObject *)obj;
   } else {
-    JsonDocument *doc = (JsonDocument *)obj;
+    //JsonDocument *doc = (JsonDocument *)obj;
   }
 }
 
@@ -705,8 +757,8 @@ void nuki_callback_remove() {
 // -----------------------------------------------------------
 bool isLogTooBig() {
   File f = SPIFFS.open(LOG_FILENAME, FILE_READ);
-  if (!f) return false;   // Datei existiert nicht -> nicht zu groß
-  
+  if (!f) return false;  // Datei existiert nicht -> nicht zu groß
+
   size_t sizeBytes = f.size();
   f.close();
 
@@ -751,9 +803,9 @@ void logToBridgeFile(const String &deviceType, String message) {
   // Beispiel: Dummy-Zeitstempel
   char timeStr[25];
   snprintf(timeStr, sizeof(timeStr), "2025-02-25T12:34:56Z");
-  doc["timestamp"]  = timeStr;
+  doc["timestamp"] = timeStr;
   doc["deviceType"] = deviceType;
-  doc["message"]    = message;
+  doc["message"] = message;
 
   String line;
   serializeJson(doc, line);
@@ -803,22 +855,22 @@ void nuki_log() {
       logFile.close();
       return;
     }
-    logFile.readStringUntil('\n'); // Liest bis zum Zeilenende
+    logFile.readStringUntil('\n');  // Liest bis zum Zeilenende
   }
 
   // 5) Jetzt bis zu count Zeilen einlesen
-  StaticJsonDocument<8192> doc;  
+  StaticJsonDocument<8192> doc;
   // Achtung: je nachdem wie groß dein Log pro Zeile ist und wie viele du einliest,
   // muss das hier größer oder evtl. ein DynamicJsonDocument sein
 
   JsonArray array = doc.to<JsonArray>();
 
   for (int i = 0; i < count; i++) {
-    if (!logFile.available()) break; // Ende erreicht
+    if (!logFile.available()) break;  // Ende erreicht
 
     String line = logFile.readStringUntil('\n');
     line.trim();
-    if (line.length() == 0) continue; // leere Zeile überspringen
+    if (line.length() == 0) continue;  // leere Zeile überspringen
 
     // 6) Parsen
     StaticJsonDocument<256> lineDoc;
@@ -985,7 +1037,7 @@ void setup() {
     return;
   } else {
 
-  logToBridgeFile(F("System"), F("NUKI REST Bridge gestartet"));
+    logToBridgeFile(F("System"), F("NUKI REST Bridge gestartet"));
   }
 
   // load callback urls from preferences
@@ -1047,80 +1099,87 @@ void setup() {
     nukiLock->enableLedFlash(false);
   }
 
-  setup_routing();
+  setupRouting();
+
+  setupTasks();
 }
 
-void nukiTask() {
-  scanner->update();
-  if (!nukiLock->isPairedWithLock()) {
-    if (nukiLock->pairNuki() == Nuki::PairingResult::Success) {
-      Log->println("paired");
-      nukiLock->setEventHandler(&handler);
-      getConfig();
-      getBatteryReport();
-      getKeyTurnerState();
-    }
-  }
-
-  // Handling Nuki Events
-  if (notified) {
-    if (getKeyTurnerState()) {
-      String stateStr = String("State changed to ") + String((int)retrievedKeyTurnerState.lockState);
-      logToBridgeFile("SmartLock", stateStr);
-
-      String jsonPayload = buildLockStateJson();
-      for (int i = 0; i < 3; i++) {
-        if (!callbackURLs[i].isEmpty()) {
-          sendLockStateCallback(callbackURLs[i], jsonPayload);
-        }
+void nukiTask(void *pvParameters) {
+  while (true) {
+    scanner->update();
+    if (!nukiLock->isPairedWithLock()) {
+      if (nukiLock->pairNuki() == Nuki::PairingResult::Success) {
+        Log->println("paired");
+        nukiLock->setEventHandler(&handler);
+        getConfig();
+        getBatteryReport();
+        getKeyTurnerState();
       }
-      notified = false;
     }
+
+    // Handling Nuki Events
+    if (notified) {
+      if (getKeyTurnerState()) {
+        String stateStr = String("State changed to ") + String((int)retrievedKeyTurnerState.lockState);
+        logToBridgeFile("SmartLock", stateStr);
+
+        String jsonPayload = buildLockStateJson();
+        for (int i = 0; i < 3; i++) {
+          if (!callbackURLs[i].isEmpty()) {
+            sendLockStateCallback(callbackURLs[i], jsonPayload);
+          }
+        }
+        notified = false;
+      }
+    }
+    esp_task_wdt_reset();
   }
 }
 
-void WebServerTask() {
+void webServerTask(void *pvParameters) {
   uint64_t lastReconnectAttempt = 0;
   bool result;
 
-  // Prüfen, ob wir bereits verbunden sind
-  if (!LAN_connected) {
-    // Nur alle 5 Sekunden reconnecten, nicht jedes Loop
-    if (espMillis() - lastReconnectAttempt > 5000) {
-      lastReconnectAttempt = espMillis();
-      
-      if (restartOnDisconnect && espMillis() > 60000) {
-        restartEsp(RestartReason::RestartOnDisconnectWatchdog);
-      }
+  while (true) {
+    // Prüfen, ob wir bereits verbunden sind
+    if (!LAN_connected) {
+      // Nur alle 5 Sekunden reconnecten, nicht jedes Loop
+      if (espMillis() - lastReconnectAttempt > 5000) {
+        lastReconnectAttempt = espMillis();
 
-      Log->println(F("Network not connected. Trying reconnect."));
-      #if CONNECT_OVER_LAN
+        if (restartOnDisconnect && espMillis() > 60000) {
+          restartEsp(RestartReason::RestartOnDisconnectWatchdog);
+        }
+
+        Log->println(F("Network not connected. Trying reconnect."));
+#if CONNECT_OVER_LAN
         result = ETH.reconnect();
-      #else
+#else
         result = WiFi.reconnect();
-      #endif
+#endif
 
-      if (!result) {
-        Log->println("Reconnect failed");
-      } else {
-        Log->println(F("Reconnect successful"));
+        if (!result) {
+          Log->println("Reconnect failed");
+        } else {
+          Log->println(F("Reconnect successful"));
+        }
       }
     }
-  }
 
-  server.handleClient();
+    server.handleClient();
 
-  // millis() is about to overflow. Restart device to prevent problems with overflow
-  if (espMillis() > restartTs) {
-    Log->println(F("Restart timer expired, restarting device."));
-    delay(200);
-    restartEsp(RestartReason::RestartTimer);
+    // millis() is about to overflow. Restart device to prevent problems with overflow
+    if (espMillis() > restartTs) {
+      Log->println(F("Restart timer expired, restarting device."));
+      delay(200);
+      restartEsp(RestartReason::RestartTimer);
+    }
+    esp_task_wdt_reset();
   }
 }
 
 
 void loop() {
-
-  nukiTask();
-  WebServerTask();
+  // deletes the Arduino loop task
+  vTaskDelete(NULL);
 }
