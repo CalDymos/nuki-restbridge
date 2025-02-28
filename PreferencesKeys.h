@@ -1,5 +1,6 @@
 #pragma once
 
+#define preference_started_before "run"
 #define preference_API_enabled "ApiEna"
 #define preference_API_Token "ApiToken"
 #define preference_config_Auth "ConfAuth"
