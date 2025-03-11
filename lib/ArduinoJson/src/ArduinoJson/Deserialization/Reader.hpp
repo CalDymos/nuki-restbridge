@@ -1,17 +1,17 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2023, Benoit BLANCHON
+// Copyright © 2014-2025, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include "../Namespace.hpp"
-#include "../Polyfills/utility.hpp"
+#include <ArduinoJson/Namespace.hpp>
+#include <ArduinoJson/Polyfills/utility.hpp>
 
 #include <stdlib.h>  // for size_t
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
-// The default reader is a simple wrapper for Readers that are not copiable
+// The default reader is a simple wrapper for Readers that are not copyable
 template <typename TSource, typename Enable = void>
 struct Reader {
  public:
@@ -19,7 +19,7 @@ struct Reader {
 
   int read() {
     // clang-format off
-    return source_->read();  // Error here? See https://arduinojson.org/v6/invalid-input/
+    return source_->read();  // Error here? See https://arduinojson.org/v7/invalid-input/
     // clang-format on
   }
 
@@ -39,32 +39,31 @@ struct BoundedReader {
 
 ARDUINOJSON_END_PRIVATE_NAMESPACE
 
-#include "../Deserialization/Readers/IteratorReader.hpp"
-#include "../Deserialization/Readers/RamReader.hpp"
-#include "../Deserialization/Readers/VariantReader.hpp"
+#include <ArduinoJson/Deserialization/Readers/IteratorReader.hpp>
+#include <ArduinoJson/Deserialization/Readers/RamReader.hpp>
+#include <ArduinoJson/Deserialization/Readers/VariantReader.hpp>
 
 #if ARDUINOJSON_ENABLE_ARDUINO_STREAM
-#  include "../Deserialization/Readers/ArduinoStreamReader.hpp"
+#  include <ArduinoJson/Deserialization/Readers/ArduinoStreamReader.hpp>
 #endif
 
 #if ARDUINOJSON_ENABLE_ARDUINO_STRING
-#  include "../Deserialization/Readers/ArduinoStringReader.hpp"
+#  include <ArduinoJson/Deserialization/Readers/ArduinoStringReader.hpp>
 #endif
 
 #if ARDUINOJSON_ENABLE_PROGMEM
-#  include "../Deserialization/Readers/FlashReader.hpp"
+#  include <ArduinoJson/Deserialization/Readers/FlashReader.hpp>
 #endif
 
 #if ARDUINOJSON_ENABLE_STD_STREAM
-#  include "../Deserialization/Readers/StdStreamReader.hpp"
+#  include <ArduinoJson/Deserialization/Readers/StdStreamReader.hpp>
 #endif
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
 template <typename TInput>
-Reader<typename remove_reference<TInput>::type> makeReader(TInput&& input) {
-  return Reader<typename remove_reference<TInput>::type>{
-      detail::forward<TInput>(input)};
+Reader<remove_reference_t<TInput>> makeReader(TInput&& input) {
+  return Reader<remove_reference_t<TInput>>{detail::forward<TInput>(input)};
 }
 
 template <typename TChar>

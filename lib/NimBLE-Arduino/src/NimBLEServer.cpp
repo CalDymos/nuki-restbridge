@@ -215,9 +215,7 @@ void NimBLEServer::start() {
         if(svc->m_removed == 0) {
             rc = ble_gatts_find_svc(&svc->getUUID().getNative()->u, &svc->m_handle);
             if(rc != 0) {
-                NIMBLE_LOGW(LOG_TAG, "GATT Server started without service: %s, Service %s",
-                            svc->getUUID().toString().c_str(), svc->isStarted() ? "missing" : "not started");
-                continue; // Skip this service as it was not started
+                abort();
             }
         }
 

@@ -61,15 +61,6 @@
 #include "ble_hs_priv.h"
 
 #if NIMBLE_BLE_CONNECT
-
-#ifndef min
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
-#ifndef max
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#endif
-
 /*****************************************************************************
  * $definitions / declarations                                               *
  *****************************************************************************/
@@ -241,7 +232,7 @@ static ble_gattc_err_fn ble_gattc_read_mult_err;
 static ble_gattc_err_fn ble_gattc_write_err;
 static ble_gattc_err_fn ble_gattc_write_long_err;
 static ble_gattc_err_fn ble_gattc_write_reliable_err;
-static ble_gattc_err_fn ble_gatts_indicate_err;
+static ble_gattc_err_fn ble_gattc_indicate_err;
 
 static ble_gattc_err_fn * const ble_gattc_err_dispatch[BLE_GATT_OP_CNT] = {
     [BLE_GATT_OP_MTU]               = ble_gattc_mtu_err,
@@ -258,7 +249,7 @@ static ble_gattc_err_fn * const ble_gattc_err_dispatch[BLE_GATT_OP_CNT] = {
     [BLE_GATT_OP_WRITE]             = ble_gattc_write_err,
     [BLE_GATT_OP_WRITE_LONG]        = ble_gattc_write_long_err,
     [BLE_GATT_OP_WRITE_RELIABLE]    = ble_gattc_write_reliable_err,
-    [BLE_GATT_OP_INDICATE]          = ble_gatts_indicate_err,
+    [BLE_GATT_OP_INDICATE]          = ble_gattc_indicate_err,
 };
 
 /**
@@ -316,7 +307,7 @@ static ble_gattc_tmo_fn ble_gattc_read_mult_tmo;
 static ble_gattc_tmo_fn ble_gattc_write_tmo;
 static ble_gattc_tmo_fn ble_gattc_write_long_tmo;
 static ble_gattc_tmo_fn ble_gattc_write_reliable_tmo;
-static ble_gattc_tmo_fn ble_gatts_indicate_tmo;
+static ble_gattc_tmo_fn ble_gattc_indicate_tmo;
 
 static ble_gattc_tmo_fn * const
 ble_gattc_tmo_dispatch[BLE_GATT_OP_CNT] = {
@@ -334,7 +325,7 @@ ble_gattc_tmo_dispatch[BLE_GATT_OP_CNT] = {
     [BLE_GATT_OP_WRITE]             = ble_gattc_write_tmo,
     [BLE_GATT_OP_WRITE_LONG]        = ble_gattc_write_long_tmo,
     [BLE_GATT_OP_WRITE_RELIABLE]    = ble_gattc_write_reliable_tmo,
-    [BLE_GATT_OP_INDICATE]          = ble_gatts_indicate_tmo,
+    [BLE_GATT_OP_INDICATE]          = ble_gattc_indicate_tmo,
 };
 
 /**
@@ -4158,7 +4149,7 @@ done:
  *****************************************************************************/
 
 int
-ble_gatts_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
+ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
                         struct os_mbuf *txom)
 {
 #if !MYNEWT_VAL(BLE_GATT_NOTIFY)
@@ -4208,18 +4199,8 @@ done:
     return rc;
 }
 
-/**
- * Deprecated. Should not be used. Use ble_gatts_notify_custom instead.
- */
 int
-ble_gattc_notify_custom(uint16_t conn_handle, uint16_t chr_val_handle,
-                        struct os_mbuf *txom)
-{
-    return ble_gatts_notify_custom(conn_handle, chr_val_handle, txom);
-}
-
-int
-ble_gatts_notify(uint16_t conn_handle, uint16_t chr_val_handle)
+ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
 {
 #if !MYNEWT_VAL(BLE_GATT_NOTIFY)
     return BLE_HS_ENOTSUP;
@@ -4227,18 +4208,9 @@ ble_gatts_notify(uint16_t conn_handle, uint16_t chr_val_handle)
 
     int rc;
 
-    rc = ble_gatts_notify_custom(conn_handle, chr_val_handle, NULL);
+    rc = ble_gattc_notify_custom(conn_handle, chr_val_handle, NULL);
 
     return rc;
-}
-
-/**
- * Deprecated. Should not be used. Use ble_gatts_notify instead.
- */
-int
-ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
-{
-    return ble_gatts_notify(conn_handle, chr_val_handle);
 }
 
 /*****************************************************************************
@@ -4252,7 +4224,7 @@ ble_gattc_notify(uint16_t conn_handle, uint16_t chr_val_handle)
  * error status to the application.
  */
 static void
-ble_gatts_indicate_err(struct ble_gattc_proc *proc, int status,
+ble_gattc_indicate_err(struct ble_gattc_proc *proc, int status,
                        uint16_t att_handle)
 {
     int rc;
@@ -4276,7 +4248,7 @@ ble_gatts_indicate_err(struct ble_gattc_proc *proc, int status,
 }
 
 static void
-ble_gatts_indicate_tmo(struct ble_gattc_proc *proc)
+ble_gattc_indicate_tmo(struct ble_gattc_proc *proc)
 {
     BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
     ble_gattc_dbg_assert_proc_not_inserted(proc);
@@ -4290,7 +4262,7 @@ ble_gatts_indicate_tmo(struct ble_gattc_proc *proc)
  * proc.
  */
 static void
-ble_gatts_indicate_rx_rsp(struct ble_gattc_proc *proc)
+ble_gattc_indicate_rx_rsp(struct ble_gattc_proc *proc)
 {
     int rc;
 
@@ -4321,7 +4293,7 @@ ble_gatts_indicate_fail_notconn(uint16_t conn_handle)
 }
 
 int
-ble_gatts_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
+ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
                           struct os_mbuf *txom)
 {
 #if !MYNEWT_VAL(BLE_GATT_INDICATE)
@@ -4393,29 +4365,10 @@ done:
     return rc;
 }
 
-/**
- * Deprecated. Should not be used. Use ble_gatts_indicate_custom instead.
- */
-int
-ble_gattc_indicate_custom(uint16_t conn_handle, uint16_t chr_val_handle,
-                          struct os_mbuf *txom)
-{
-    return ble_gatts_indicate_custom(conn_handle, chr_val_handle, txom);
-}
-
-int
-ble_gatts_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
-{
-    return ble_gatts_indicate_custom(conn_handle, chr_val_handle, NULL);
-}
-
-/**
- * Deprecated. Should not be used. Use ble_gatts_indicate instead.
- */
 int
 ble_gattc_indicate(uint16_t conn_handle, uint16_t chr_val_handle)
 {
-    return ble_gatts_indicate(conn_handle, chr_val_handle);
+    return ble_gattc_indicate_custom(conn_handle, chr_val_handle, NULL);
 }
 
 /*****************************************************************************
@@ -4786,7 +4739,7 @@ ble_gattc_rx_exec_write_rsp(uint16_t conn_handle, int status)
  * active GATT procedure.
  */
 void
-ble_gatts_rx_indicate_rsp(uint16_t conn_handle)
+ble_gattc_rx_indicate_rsp(uint16_t conn_handle)
 {
 #if !NIMBLE_BLE_ATT_CLT_INDICATE
     return;
@@ -4797,7 +4750,7 @@ ble_gatts_rx_indicate_rsp(uint16_t conn_handle)
     proc = ble_gattc_extract_first_by_conn_op(conn_handle,
                                               BLE_GATT_OP_INDICATE);
     if (proc != NULL) {
-        ble_gatts_indicate_rx_rsp(proc);
+        ble_gattc_indicate_rx_rsp(proc);
         ble_gattc_process_status(proc, BLE_HS_EDONE);
     }
 }

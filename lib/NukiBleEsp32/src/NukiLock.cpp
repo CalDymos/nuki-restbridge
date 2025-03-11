@@ -7,21 +7,28 @@ NukiLock::NukiLock(const std::string& deviceName, const uint32_t deviceId)
   : NukiBle(deviceName,
             deviceId,
             keyturnerPairingServiceUUID,
+            keyturnerPairingServiceUltraUUID,
             keyturnerServiceUUID,
             keyturnerGdioUUID,
+            keyturnerGdioUltraUUID,
             keyturnerUserDataUUID,
-            deviceName) {}
+            deviceName) {
+    errorCode = (uint8_t)ErrorCode::ERROR_UNKNOWN;
+}
 
 Nuki::CmdResult NukiLock::lockAction(const LockAction lockAction, const uint32_t nukiAppId, const uint8_t flags, const char* nameSuffix, const uint8_t nameSuffixLen) {
   Action action;
-  unsigned char payload[5 + nameSuffixLen] = {0};
+  unsigned char payload[sizeof(LockAction) + 4 + 1 + 20] = {0};
   memcpy(payload, &lockAction, sizeof(LockAction));
   memcpy(&payload[sizeof(LockAction)], &nukiAppId, 4);
   memcpy(&payload[sizeof(LockAction) + 4], &flags, 1);
   uint8_t payloadLen = 0;
   if (nameSuffix) {
-    memcpy(&payload[sizeof(LockAction) + 4 + 1], nameSuffix, nameSuffixLen);
-    payloadLen = sizeof(LockAction) + 4 + 1 + nameSuffixLen;
+    //If nameSuffixLen is between 1 & 18, use it, else use 19 (keep 1 for ending '\0')
+    uint8_t len = nameSuffixLen>0 && nameSuffixLen<19 ? nameSuffixLen : 19;
+    strncpy((char*)&payload[sizeof(LockAction) + 4 + 1], nameSuffix, len);
+    payload[sizeof(LockAction) + 4 + 1 + len] = '\0'; //In any case, add '\0' at end of string
+    payloadLen = sizeof(LockAction) + 4 + 1 + 20;
   } else {
     payloadLen = sizeof(LockAction) + 4 + 1;
   }
@@ -34,6 +41,20 @@ Nuki::CmdResult NukiLock::lockAction(const LockAction lockAction, const uint32_t
   return executeAction(action);
 }
 
+Nuki::CmdResult NukiLock::keypadAction(KeypadActionSource source, uint32_t code, KeypadAction keypadAction) {
+  Action action;
+  unsigned char payload[6] = {(unsigned char)source};
+  memcpy(&payload[1], &code, sizeof(code));
+  memcpy(&payload[1+sizeof(code)], &keypadAction, sizeof(KeypadAction));
+  uint8_t payloadLen = 6;
+
+  action.cmdType = Nuki::CommandType::CommandWithChallengeAndAccept;
+  action.command = Command::KeypadAction;
+  memcpy(action.payload, &payload, payloadLen);
+  action.payloadLen = payloadLen;
+
+  return executeAction(action);
+}
 
 Nuki::CmdResult NukiLock::requestKeyTurnerState(KeyTurnerState* retrievedKeyTurnerState) {
   Action action;
@@ -46,7 +67,7 @@ Nuki::CmdResult NukiLock::requestKeyTurnerState(KeyTurnerState* retrievedKeyTurn
 
   Nuki::CmdResult result = executeAction(action);
   if (result == Nuki::CmdResult::Success) {
-    // printBuffer((byte*)&retrievedKeyTurnerState, sizeof(retrievedKeyTurnerState), false, "retreived Keyturner state");
+    // printBuffer((byte*)&retrievedKeyTurnerState, sizeof(retrievedKeyTurnerState), false, "retrieved Keyturner state", debugNukiHexData);
     memcpy(retrievedKeyTurnerState, &keyTurnerState, sizeof(KeyTurnerState));
   }
   return result;
@@ -110,16 +131,68 @@ Nuki::CmdResult NukiLock::setName(const std::string& name) {
     Config oldConfig;
     Nuki::CmdResult result = requestConfig(&oldConfig);
     if (result == Nuki::CmdResult::Success) {
+      memset(oldConfig.name, 0, sizeof(oldConfig.name));
       memcpy(oldConfig.name, name.c_str(), name.length());
       result = setFromConfig(oldConfig);
     }
     return result;
   } else {
-    log_w("setName, too long (max32)");
+    logMessage("setName, too long (max32)", 2);
     return Nuki::CmdResult::Failed;
   }
 }
 
+Nuki::CmdResult NukiLock::setLatitude(const float degrees) {
+  Config oldConfig;
+  Nuki::CmdResult result = requestConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.latitude = degrees;
+    result = setFromConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setLongitude(const float degrees) {
+  Config oldConfig;
+  Nuki::CmdResult result = requestConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.longitude = degrees;
+    result = setFromConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::enableAutoUnlatch(const bool enable) {
+  Config oldConfig;
+  Nuki::CmdResult result = requestConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.autoUnlatch = enable;
+    result = setFromConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setFobAction(const uint8_t fobActionNr, const uint8_t fobAction) {
+  Config oldConfig;
+  Nuki::CmdResult result = requestConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    switch (fobActionNr) {
+      case 1:
+        oldConfig.fobAction1 = fobAction;
+        break;
+      case 2:
+        oldConfig.fobAction2 = fobAction;
+        break;
+      case 3:
+        oldConfig.fobAction3 = fobAction;
+        break;
+      default:
+        return Nuki::CmdResult::Error;
+    }
+    result = setFromConfig(oldConfig);
+  }
+  return result;
+}
 
 Nuki::CmdResult NukiLock::enableDst(const bool enable) {
   Config oldConfig;
@@ -163,6 +236,148 @@ Nuki::CmdResult NukiLock::enableButton(const bool enable) {
 
 
 //advanced config change methods
+Nuki::CmdResult NukiLock::setUnlockedPositionOffsetDegrees(const int16_t degrees) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.unlockedPositionOffsetDegrees = degrees;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setLockedPositionOffsetDegrees(const int16_t degrees) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.lockedPositionOffsetDegrees = degrees;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setSingleLockedPositionOffsetDegrees(const int16_t degrees) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.singleLockedPositionOffsetDegrees = degrees;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setUnlockedToLockedTransitionOffsetDegrees(const int16_t degrees) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.unlockedToLockedTransitionOffsetDegrees = degrees;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setLockNgoTimeout(const uint8_t timeout) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.lockNgoTimeout = timeout;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::enableDetachedCylinder(const bool enable) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.detachedCylinder = enable;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setUnlatchDuration(const uint8_t duration) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.unlatchDuration = duration;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setAutoLockTimeOut(const uint8_t timeout) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.autoLockTimeOut = timeout;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::enableNightMode(const bool enable) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.nightModeEnabled = enable;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setNightModeStartTime(unsigned char starttime[2]) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.nightModeStartTime[0] = starttime[0];
+    oldConfig.nightModeStartTime[1] = starttime[1];    
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::setNightModeEndTime(unsigned char endtime[2]) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.nightModeEndTime[0] = endtime[0];
+    oldConfig.nightModeEndTime[1] = endtime[1];    
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::enableNightModeAutoLock(const bool enable) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.nightModeAutoLockEnabled = enable;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::disableNightModeAutoUnlock(const bool disable) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.nightModeAutoUnlockDisabled = disable;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::enableNightModeImmediateLockOnStart(const bool enable) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.nightModeImmediateLockOnStart = enable;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
 Nuki::CmdResult NukiLock::setSingleButtonPressAction(const ButtonPressAction action) {
   AdvancedConfig oldConfig;
   Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
@@ -243,6 +458,26 @@ Nuki::CmdResult NukiLock::enableAutoUpdate(const bool enable) {
   return result;
 }
 
+Nuki::CmdResult NukiLock::setMotorSpeed(const MotorSpeed speed) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.motorSpeed = speed;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiLock::enableSlowSpeedDuringNightMode(const bool enable) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.enableSlowSpeedDuringNightMode = enable;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
 Nuki::CmdResult NukiLock::enablePairing(const bool enable) {
   Config oldConfig;
   Nuki::CmdResult result = requestConfig(&oldConfig);
@@ -317,11 +552,11 @@ Nuki::CmdResult NukiLock::addTimeControlEntry(NewTimeControlEntry newTimeControl
 
   Nuki::CmdResult result = executeAction(action);
   if (result == Nuki::CmdResult::Success) {
-    #ifdef DEBUG_NUKI_READABLE_DATA
-    log_d("addTimeControlEntry, payloadlen: %d", sizeof(NewTimeControlEntry));
-    printBuffer(action.payload, sizeof(NewTimeControlEntry), false, "new time control content: ");
-    logNewTimeControlEntry(newTimeControlEntry);
-    #endif
+    if (debugNukiReadableData) {      
+      logMessageVar("addTimeControlEntry, payloadlen: %d", sizeof(NewTimeControlEntry));
+      printBuffer(action.payload, sizeof(NewTimeControlEntry), false, "new time control content: ", debugNukiHexData, logger);
+      logNewTimeControlEntry(newTimeControlEntry, true, logger);
+    }
   }
   return result;
 }
@@ -339,11 +574,11 @@ Nuki::CmdResult NukiLock::updateTimeControlEntry(TimeControlEntry TimeControlEnt
 
   Nuki::CmdResult result = executeAction(action);
   if (result == Nuki::CmdResult::Success) {
-    #ifdef DEBUG_NUKI_READABLE_DATA
-    log_d("addTimeControlEntry, payloadlen: %d", sizeof(TimeControlEntry));
-    printBuffer(action.payload, sizeof(TimeControlEntry), false, "updated time control content: ");
-    logTimeControlEntry(TimeControlEntry);
-    #endif
+    if (debugNukiReadableData) {      
+      logMessageVar("addTimeControlEntry, payloadlen: %d", sizeof(TimeControlEntry));
+      printBuffer(action.payload, sizeof(TimeControlEntry), false, "updated time control content: ", debugNukiHexData, logger);
+      logTimeControlEntry(TimeControlEntry, true, logger);
+    }
   }
   return result;
 }
@@ -409,48 +644,36 @@ Nuki::CmdResult NukiLock::retrieveLogEntries(const uint32_t startIndex, const ui
   return executeAction(action);
 }
 
-Nuki::CmdResult NukiLock::retrieveAuthorizationEntries(const uint16_t offset, const uint16_t count) {
-  Action action;
-  unsigned char payload[4] = {0};
-  memcpy(payload, &offset, 2);
-  memcpy(&payload[2], &count, 2);
-
-  action.cmdType = Nuki::CommandType::CommandWithChallengeAndPin;
-  action.command = Command::RequestAuthorizationEntries;
-  memcpy(action.payload, &payload, sizeof(payload));
-  action.payloadLen = sizeof(payload);
-
-  listOfAuthorizationEntries.clear();
-
-  return executeAction(action);
-}
-
-Nuki::CmdResult NukiLock::deleteAuthorizationEntry(uint32_t id) {
-  Action action;
-  unsigned char payload[4] = {0};
-  memcpy(payload, &id, 4);
-
-  action.cmdType = CommandType::CommandWithChallengeAndPin;
-  action.command = Command::RemoveUserAuthorization;
-  memcpy(action.payload, &payload, sizeof(payload));
-  action.payloadLen = sizeof(payload);
-
-  return executeAction(action);
-}
-
 bool NukiLock::isBatteryCritical() {
-  return ((keyTurnerState.criticalBatteryState & (1 << 0)) != 0);
+  if(keyTurnerState.criticalBatteryState != 255) {
+    return ((keyTurnerState.criticalBatteryState & 1) == 1);
+  }
+  return false;
 }
 
 bool NukiLock::isKeypadBatteryCritical() {
-  if ((keyTurnerState.accessoryBatteryState & (1 << 7)) != 0) {
-    return ((keyTurnerState.accessoryBatteryState & (1 << 6)) != 0);
+  if(keyTurnerState.accessoryBatteryState != 255) {
+    if ((keyTurnerState.accessoryBatteryState & 1) == 1) {
+      return ((keyTurnerState.accessoryBatteryState & 3) == 3);
+    }
+  }
+  return false;
+}
+
+bool NukiLock::isDoorSensorBatteryCritical() {
+  if(keyTurnerState.accessoryBatteryState != 255) {
+    if ((keyTurnerState.accessoryBatteryState & 4) == 4) {
+      return ((keyTurnerState.accessoryBatteryState & 12) == 12);
+    }
   }
   return false;
 }
 
 bool NukiLock::isBatteryCharging() {
-  return ((keyTurnerState.criticalBatteryState & (1 << 1)) != 0);
+  if(keyTurnerState.criticalBatteryState != 255) {
+    return ((keyTurnerState.criticalBatteryState & 2) == 2);
+  }
+  return false;
 }
 
 uint8_t NukiLock::getBatteryPerc() {
@@ -488,21 +711,27 @@ Nuki::CmdResult NukiLock::setFromAdvancedConfig(const AdvancedConfig config) {
 
 Nuki::CmdResult NukiLock::setAdvancedConfig(NewAdvancedConfig newAdvancedConfig) {
   Action action;
-  unsigned char payload[sizeof(NewAdvancedConfig)] = {0};
-  memcpy(payload, &newAdvancedConfig, sizeof(NewAdvancedConfig));
-
   action.cmdType = Nuki::CommandType::CommandWithChallengeAndPin;
-  action.command = Command::SetAdvancedConfig;
-  memcpy(action.payload, &payload, sizeof(payload));
-  action.payloadLen = sizeof(payload);
+  action.command = Command::SetAdvancedConfig;  
 
+  if (isLockUltra()) {
+    unsigned char payload[sizeof(NewAdvancedConfig)] = {0};
+    memcpy(payload, &newAdvancedConfig, sizeof(NewAdvancedConfig));
+    memcpy(action.payload, &payload, sizeof(payload));
+    action.payloadLen = sizeof(payload);      
+  } else {
+    unsigned char payload[sizeof(NewAdvancedConfig) - 2] = {0};
+    memcpy(payload, &newAdvancedConfig, sizeof(NewAdvancedConfig) - 2);
+    memcpy(action.payload, &payload, sizeof(payload));
+    action.payloadLen = sizeof(payload);
+  }
   return executeAction(action);
 }
 
 
 void NukiLock::createNewConfig(const Config* oldConfig, NewConfig* newConfig) {
   memcpy(newConfig->name, oldConfig->name, sizeof(newConfig->name));
-  newConfig->latitide = oldConfig->latitide;
+  newConfig->latitude = oldConfig->latitude;
   newConfig->longitude = oldConfig->longitude;
   newConfig->autoUnlatch = oldConfig->autoUnlatch;
   newConfig->pairingEnabled = oldConfig->pairingEnabled;
@@ -542,67 +771,61 @@ void NukiLock::createNewAdvancedConfig(const AdvancedConfig* oldConfig, NewAdvan
   newConfig->autoLockEnabled = oldConfig->autoLockEnabled;
   newConfig->immediateAutoLockEnabled = oldConfig->immediateAutoLockEnabled;
   newConfig->autoUpdateEnabled = oldConfig->autoUpdateEnabled;
+  newConfig->motorSpeed = oldConfig->motorSpeed;
+  newConfig->enableSlowSpeedDuringNightMode = oldConfig->enableSlowSpeedDuringNightMode;  
 }
 
 void NukiLock::handleReturnMessage(Command returnCode, unsigned char* data, uint16_t dataLen) {
-  extendDisonnectTimeout();
+  extendDisconnectTimeout();
 
   switch (returnCode) {
     case Command::KeyturnerStates : {
-      printBuffer((byte*)data, dataLen, false, "keyturnerStates");
-      memcpy(&keyTurnerState, data, sizeof(keyTurnerState));
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logKeyturnerState(keyTurnerState);
-      #endif
+      printBuffer((byte*)data, dataLen, false, "keyturnerStates", debugNukiHexData, logger);
+      memcpy(&keyTurnerState, data, dataLen);
+      if (debugNukiReadableData) {
+        logKeyturnerState(keyTurnerState, true, logger);
+      }
       break;
     }
     case Command::BatteryReport : {
-      printBuffer((byte*)data, dataLen, false, "batteryReport");
-      memcpy(&batteryReport, data, sizeof(batteryReport));
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logBatteryReport(batteryReport);
-      #endif
+      printBuffer((byte*)data, dataLen, false, "batteryReport", debugNukiHexData, logger);
+      memcpy(&batteryReport, data, dataLen);
+      if (debugNukiReadableData) {
+        logBatteryReport(batteryReport, true, logger);
+      }
       break;
     }
     case Command::Config : {
-      memcpy(&config, data, sizeof(config));
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logConfig(config);
-      #endif
-      printBuffer((byte*)data, dataLen, false, "config");
+      memcpy(&config, data, dataLen);
+      if (debugNukiReadableData) {
+        logConfig(config, true, logger);
+      }
+      printBuffer((byte*)data, dataLen, false, "config", debugNukiHexData, logger);
       break;
     }
     case Command::AdvancedConfig : {
-      memcpy(&advancedConfig, data, sizeof(advancedConfig));
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logAdvancedConfig(advancedConfig);
-      #endif
-      printBuffer((byte*)data, dataLen, false, "advancedConfig");
+      memcpy(&advancedConfig, data, dataLen);
+      if (debugNukiReadableData) {
+        logAdvancedConfig(advancedConfig, true, logger);
+      }
+      printBuffer((byte*)data, dataLen, false, "advancedConfig", debugNukiHexData, logger);
       break;
     }
     case Command::TimeControlEntry : {
-      printBuffer((byte*)data, dataLen, false, "timeControlEntry");
+      printBuffer((byte*)data, dataLen, false, "timeControlEntry", debugNukiHexData, logger);
       TimeControlEntry timeControlEntry;
-      memcpy(&timeControlEntry, data, sizeof(timeControlEntry));
+      memcpy(&timeControlEntry, data, dataLen);
       listOfTimeControlEntries.push_back(timeControlEntry);
       break;
     }
     case Command::LogEntry : {
-      printBuffer((byte*)data, dataLen, false, "logEntry");
+      printBuffer((byte*)data, dataLen, false, "logEntry", debugNukiHexData, logger);
       LogEntry logEntry;
-      memcpy(&logEntry, data, sizeof(logEntry));
+      memcpy(&logEntry, data, dataLen);
       listOfLogEntries.push_back(logEntry);
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logLogEntry(logEntry);
-      #endif
-      break;
-    }
-    case Command::AuthorizationEntry : {
-      printBuffer((byte*)data, dataLen, false, "authEntry");
-      AuthorizationEntry authEntry;
-      memcpy(&authEntry, data, sizeof(authEntry));
-      listOfAuthorizationEntries.push_back(authEntry);
-      logAuthorizationEntry(authEntry);
+      if (debugNukiReadableData) {
+        logLogEntry(logEntry, true, logger);
+      }
       break;
     }
     default:
@@ -612,7 +835,7 @@ void NukiLock::handleReturnMessage(Command returnCode, unsigned char* data, uint
 }
 
 void NukiLock::logErrorCode(uint8_t errorCode) {
-  logLockErrorCode(errorCode);
+  logLockErrorCode(errorCode, debugNukiReadableData, logger);
 }
 
 }

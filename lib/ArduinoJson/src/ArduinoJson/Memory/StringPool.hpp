@@ -1,19 +1,16 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2025, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include "../Memory/Allocator.hpp"
-#include "../Memory/StringNode.hpp"
-#include "../Polyfills/assert.hpp"
-#include "../Polyfills/utility.hpp"
-#include "../Strings/StringAdapters.hpp"
+#include <ArduinoJson/Memory/Allocator.hpp>
+#include <ArduinoJson/Memory/StringNode.hpp>
+#include <ArduinoJson/Polyfills/assert.hpp>
+#include <ArduinoJson/Polyfills/utility.hpp>
+#include <ArduinoJson/Strings/StringAdapters.hpp>
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
-
-class VariantSlot;
-class VariantPool;
 
 class StringPool {
  public:

@@ -7,32 +7,53 @@ NukiOpener::NukiOpener(const std::string& deviceName, const uint32_t deviceId)
   : NukiBle(deviceName,
             deviceId,
             openerPairingServiceUUID,
+            openerPairingServiceUUID,            
             openerServiceUUID,
             openerGdioUUID,
+            openerGdioUUID,            
             openerUserDataUUID,
             deviceName + "opener") {
+  errorCode = (uint8_t)ErrorCode::ERROR_UNKNOWN;
 }
 
 Nuki::CmdResult NukiOpener::lockAction(const LockAction lockAction, const uint32_t nukiAppId, const uint8_t flags, const char* nameSuffix, const uint8_t nameSuffixLen) {
   Action action;
-  unsigned char payload[5 + nameSuffixLen] = {0};
-  memcpy(payload, &lockAction, sizeof(LockAction));
-  memcpy(&payload[sizeof(LockAction)], &nukiAppId, 4);
-  memcpy(&payload[sizeof(LockAction) + 4], &flags, 1);
-  uint8_t payloadLen = 0;
-  if (nameSuffix) {
-    memcpy(&payload[sizeof(LockAction) + 4 + 1], nameSuffix, nameSuffixLen);
-    payloadLen = sizeof(LockAction) + 4 + 1 + nameSuffixLen;
-  } else {
-    payloadLen = sizeof(LockAction) + 4 + 1;
+  
+  if((lockAction == LockAction::ActivateCM || lockAction == LockAction::DeactivateCM) && nukiAppId != 1)
+  {
+      ContinuousModeAction continuousModeAction;
+      continuousModeAction.enabled = (lockAction == LockAction::ActivateCM ? 1 : 0);
+      unsigned char payload[sizeof(ContinuousModeAction)] = {0};
+      memcpy(payload, &continuousModeAction, sizeof(ContinuousModeAction));
+
+      action.cmdType = Nuki::CommandType::CommandWithChallengeAndPin;
+      action.command = Command::ContinuousModeAction;
+      memcpy(action.payload, &payload, sizeof(ContinuousModeAction));
+      action.payloadLen = sizeof(ContinuousModeAction);
+
+      return executeAction(action);    
   }
+  else
+  {
+      unsigned char payload[5 + nameSuffixLen] = {0};
+      memcpy(payload, &lockAction, sizeof(LockAction));
+      memcpy(&payload[sizeof(LockAction)], &nukiAppId, 4);
+      memcpy(&payload[sizeof(LockAction) + 4], &flags, 1);
+      uint8_t payloadLen = 0;
+      if (nameSuffix) {
+        memcpy(&payload[sizeof(LockAction) + 4 + 1], nameSuffix, nameSuffixLen);
+        payloadLen = sizeof(LockAction) + 4 + 1 + nameSuffixLen;
+      } else {
+        payloadLen = sizeof(LockAction) + 4 + 1;
+      }
 
-  action.cmdType = Nuki::CommandType::CommandWithChallengeAndAccept;
-  action.command = Command::LockAction;
-  memcpy(action.payload, &payload, payloadLen);
-  action.payloadLen = payloadLen;
+      action.cmdType = Nuki::CommandType::CommandWithChallengeAndAccept;
+      action.command = Command::LockAction;
+      memcpy(action.payload, &payload, payloadLen);
+      action.payloadLen = payloadLen;
 
-  return executeAction(action);
+      return executeAction(action);
+  }
 }
 
 
@@ -48,7 +69,7 @@ Nuki::CmdResult NukiOpener::requestOpenerState(OpenerState* state) {
 
   Nuki::CmdResult result = executeAction(action);
   if (result == Nuki::CmdResult::Success) {
-    // printBuffer((byte*)&retrievedKeyTurnerState, sizeof(retrievedKeyTurnerState), false, "retreived Keyturner state");
+    // printBuffer((byte*)&retrievedKeyTurnerState, sizeof(retrievedKeyTurnerState), false, "retreived Keyturner state", debugNukiHexData, logger);
     memcpy(state, &openerState, sizeof(OpenerState));
   }
   return result;
@@ -113,16 +134,68 @@ Nuki::CmdResult NukiOpener::setName(const std::string& name) {
     Config oldConfig;
     Nuki::CmdResult result = requestConfig(&oldConfig);
     if (result == Nuki::CmdResult::Success) {
+      memset(oldConfig.name, 0, sizeof(oldConfig.name));
       memcpy(oldConfig.name, name.c_str(), name.length());
       result = setFromConfig(oldConfig);
     }
     return result;
   } else {
-    log_w("setName, too long (max32)");
+    logMessage("setName, too long (max32)", 2);
     return Nuki::CmdResult::Failed;
   }
 }
 
+Nuki::CmdResult NukiOpener::setLatitude(const float degrees) {
+  Config oldConfig;
+  Nuki::CmdResult result = requestConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.latitude = degrees;
+    result = setFromConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setLongitude(const float degrees) {
+  Config oldConfig;
+  Nuki::CmdResult result = requestConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.longitude = degrees;
+    result = setFromConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setFobAction(const uint8_t fobActionNr, const uint8_t fobAction) {
+  Config oldConfig;
+  Nuki::CmdResult result = requestConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    switch (fobActionNr) {
+      case 1:
+        oldConfig.fobAction1 = fobAction;
+        break;
+      case 2:
+        oldConfig.fobAction2 = fobAction;
+        break;
+      case 3:
+        oldConfig.fobAction3 = fobAction;
+        break;
+      default:
+        return Nuki::CmdResult::Error;
+    }
+    result = setFromConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setOperatingMode(const uint8_t opmode) {
+  Config oldConfig;
+  Nuki::CmdResult result = requestConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.operatingMode = opmode;
+    result = setFromConfig(oldConfig);
+  }
+  return result;
+}
 
 Nuki::CmdResult NukiOpener::enableDst(const bool enable) {
   Config oldConfig;
@@ -166,6 +239,156 @@ Nuki::CmdResult NukiOpener::enableButton(const bool enable) {
 
 
 //advanced config change methods
+Nuki::CmdResult NukiOpener::setIntercomID(const uint16_t intercomID) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.intercomID = intercomID;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setBusModeSwitch(const bool busModeSwitch) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.busModeSwitch = busModeSwitch;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setShortCircuitDuration(const uint16_t duration) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.shortCircuitDuration = duration;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setElectricStrikeDelay(const uint16_t delay) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.electricStrikeDelay = delay;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::enableRandomElectricStrikeDelay(const bool enable) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.randomElectricStrikeDelay = enable;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setElectricStrikeDuration(const uint16_t duration) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.electricStrikeDuration = duration;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::disableRtoAfterRing(const bool disable) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.disableRtoAfterRing = disable;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setRtoTimeout(const uint8_t timeout) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.rtoTimeout = timeout;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setDoorbellSuppression(const uint8_t suppression) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.doorbellSuppression = suppression;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setDoorbellSuppressionDuration(const uint16_t duration) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.doorbellSuppressionDuration = duration;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setSoundRing(const uint8_t sound) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.soundRing = sound;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setSoundOpen(const uint8_t sound) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.soundOpen = sound;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setSoundRto(const uint8_t sound) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.soundRto = sound;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::setSoundCm(const uint8_t sound) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.soundCm = sound;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
+Nuki::CmdResult NukiOpener::enableSoundConfirmation(const bool enable) {
+  AdvancedConfig oldConfig;
+  Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
+  if (result == Nuki::CmdResult::Success) {
+    oldConfig.soundConfirmation = enable;
+    result = setFromAdvancedConfig(oldConfig);
+  }
+  return result;
+}
+
 Nuki::CmdResult NukiOpener::setSingleButtonPressAction(const ButtonPressAction action) {
   AdvancedConfig oldConfig;
   Nuki::CmdResult result = requestAdvancedConfig(&oldConfig);
@@ -262,11 +485,11 @@ Nuki::CmdResult NukiOpener::addTimeControlEntry(NewTimeControlEntry newTimeContr
 
   Nuki::CmdResult result = executeAction(action);
   if (result == Nuki::CmdResult::Success) {
-    #ifdef DEBUG_NUKI_READABLE_DATA
-    log_d("addTimeControlEntry, payloadlen: %d", sizeof(NewTimeControlEntry));
-    printBuffer(action.payload, sizeof(NewTimeControlEntry), false, "new time control content: ");
-    logNewTimeControlEntry(newTimeControlEntry);
-    #endif
+    if (debugNukiReadableData) {      
+      logMessageVar("addTimeControlEntry, payloadlen: %d", sizeof(NewTimeControlEntry));
+      printBuffer(action.payload, sizeof(NewTimeControlEntry), false, "new time control content: ", debugNukiHexData, logger);
+      logNewTimeControlEntry(newTimeControlEntry, true, logger);
+    }
   }
   return result;
 }
@@ -284,11 +507,11 @@ Nuki::CmdResult NukiOpener::updateTimeControlEntry(TimeControlEntry TimeControlE
 
   Nuki::CmdResult result = executeAction(action);
   if (result == Nuki::CmdResult::Success) {
-    #ifdef DEBUG_NUKI_READABLE_DATA
-    log_d("addTimeControlEntry, payloadlen: %d", sizeof(TimeControlEntry));
-    printBuffer(action.payload, sizeof(TimeControlEntry), false, "updated time control content: ");
-    logTimeControlEntry(TimeControlEntry);
-    #endif
+    if (debugNukiReadableData) {
+      logMessageVar("addTimeControlEntry, payloadlen: %d", sizeof(TimeControlEntry));
+      printBuffer(action.payload, sizeof(TimeControlEntry), false, "updated time control content: ", debugNukiHexData, logger);
+      logTimeControlEntry(TimeControlEntry, true, logger);
+    }
   }
   return result;
 }
@@ -358,6 +581,15 @@ bool NukiOpener::isBatteryCritical() {
   return openerState.criticalBatteryState & 1;
 }
 
+bool NukiOpener::isKeypadBatteryCritical() {
+  if (openerState.accessoryBatteryState != 255) {
+    if ((openerState.accessoryBatteryState & 1) == 1) {
+      return ((openerState.accessoryBatteryState & 3) == 3);
+    }
+  }
+  return false;
+}
+
 const ErrorCode NukiOpener::getLastError() const {
   return (ErrorCode)errorCode;
 }
@@ -402,7 +634,7 @@ Nuki::CmdResult NukiOpener::setAdvancedConfig(NewAdvancedConfig newAdvancedConfi
 
 void NukiOpener::createNewConfig(const Config* oldConfig, NewConfig* newConfig) {
   memcpy(newConfig->name, oldConfig->name, sizeof(newConfig->name));
-  newConfig->latitide = oldConfig->latitide;
+  newConfig->latitude = oldConfig->latitude;
   newConfig->longitude = oldConfig->longitude;
   newConfig->capabilities = oldConfig->capabilities;
   newConfig->pairingEnabled = oldConfig->pairingEnabled;
@@ -421,7 +653,7 @@ void NukiOpener::createNewConfig(const Config* oldConfig, NewConfig* newConfig) 
 void NukiOpener::createNewAdvancedConfig(const AdvancedConfig* oldConfig, NewAdvancedConfig* newConfig) {
   newConfig->intercomID = oldConfig->intercomID;
   newConfig->busModeSwitch = oldConfig->busModeSwitch;
-  newConfig->shortCircuitDaration = oldConfig->shortCircuitDaration;
+  newConfig->shortCircuitDuration = oldConfig->shortCircuitDuration;
   newConfig->electricStrikeDelay = oldConfig->electricStrikeDelay;
   newConfig->randomElectricStrikeDelay = oldConfig->randomElectricStrikeDelay;
   newConfig->electricStrikeDuration = oldConfig->electricStrikeDuration;
@@ -443,56 +675,56 @@ void NukiOpener::createNewAdvancedConfig(const AdvancedConfig* oldConfig, NewAdv
 
 
 void NukiOpener::handleReturnMessage(Command returnCode, unsigned char* data, uint16_t dataLen) {
-  extendDisonnectTimeout();
+  extendDisconnectTimeout();
 
   switch (returnCode) {
     case Command::KeyturnerStates : {
-      printBuffer((byte*)data, dataLen, false, "keyturnerStates");
-      memcpy(&openerState, data, sizeof(openerState));
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logKeyturnerState(openerState);
-      #endif
+      printBuffer((byte*)data, dataLen, false, "keyturnerStates", debugNukiHexData, logger);
+      memcpy(&openerState, data, dataLen);
+      if (debugNukiReadableData) {
+        logKeyturnerState(openerState, true, logger);
+      }
       break;
     }
     case Command::BatteryReport : {
-      printBuffer((byte*)data, dataLen, false, "batteryReport");
-      memcpy(&batteryReport, data, sizeof(batteryReport));
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logBatteryReport(batteryReport);
-      #endif
+      printBuffer((byte*)data, dataLen, false, "batteryReport", debugNukiHexData, logger);
+      memcpy(&batteryReport, data, dataLen);
+      if (debugNukiReadableData) {
+        logBatteryReport(batteryReport, true, logger);
+      }
       break;
     }
     case Command::Config : {
-      memcpy(&config, data, sizeof(config));
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logConfig(config);
-      #endif
-      printBuffer((byte*)data, dataLen, false, "config");
+      memcpy(&config, data, dataLen);
+      if (debugNukiReadableData) {
+        logConfig(config, true, logger);
+      }
+      printBuffer((byte*)data, dataLen, false, "config", debugNukiHexData, logger);
       break;
     }
     case Command::AdvancedConfig : {
-      memcpy(&advancedConfig, data, sizeof(advancedConfig));
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logAdvancedConfig(advancedConfig);
-      #endif
-      printBuffer((byte*)data, dataLen, false, "advancedConfig");
+      memcpy(&advancedConfig, data, dataLen);
+      if (debugNukiReadableData) {
+        logAdvancedConfig(advancedConfig, true, logger);
+      }
+      printBuffer((byte*)data, dataLen, false, "advancedConfig", debugNukiHexData, logger);
       break;
     }
     case Command::TimeControlEntry : {
-      printBuffer((byte*)data, dataLen, false, "timeControlEntry");
+      printBuffer((byte*)data, dataLen, false, "timeControlEntry", debugNukiHexData, logger);
       TimeControlEntry timeControlEntry;
-      memcpy(&timeControlEntry, data, sizeof(timeControlEntry));
+      memcpy(&timeControlEntry, data, dataLen);
       listOfTimeControlEntries.push_back(timeControlEntry);
       break;
     }
     case Command::LogEntry : {
-      printBuffer((byte*)data, dataLen, false, "logEntry");
+      printBuffer((byte*)data, dataLen, false, "logEntry", debugNukiHexData, logger);
       LogEntry logEntry;
-      memcpy(&logEntry, data, sizeof(logEntry));
+      memcpy(&logEntry, data, dataLen);
       listOfLogEntries.push_back(logEntry);
-      #ifdef DEBUG_NUKI_READABLE_DATA
-      logLogEntry(logEntry);
-      #endif
+      if (debugNukiReadableData) {
+        logLogEntry(logEntry, true, logger);
+      }
       break;
     }
     default:
@@ -502,7 +734,7 @@ void NukiOpener::handleReturnMessage(Command returnCode, unsigned char* data, ui
 }
 
 void NukiOpener::logErrorCode(uint8_t errorCode) {
-  logOpenerErrorCode(errorCode);
+  logOpenerErrorCode(errorCode, debugNukiReadableData, logger);
 }
 
 

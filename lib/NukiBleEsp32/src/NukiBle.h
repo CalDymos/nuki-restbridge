@@ -11,13 +11,16 @@
  *
  */
 
-#include <NimBLEDevice.h>
+#include "NimBLEDevice.h"
 #include "NukiConstants.h"
 #include "NukiDataTypes.h"
 #include "Arduino.h"
 #include <Preferences.h>
 #include <esp_task_wdt.h>
 #include <BleInterfaces.h>
+#include <atomic>
+#include <string>
+#include <list>
 #include "sodium/crypto_secretbox.h"
 
 #define GENERAL_TIMEOUT 3000
@@ -25,14 +28,39 @@
 #define PAIRING_TIMEOUT 30000
 #define HEARTBEAT_TIMEOUT 30000
 
+#ifdef CONFIG_IDF_TARGET_ESP32P4
+typedef enum {
+    ESP_PWR_LVL_N24 = 0,              /*!< Corresponding to -24 dBm */
+    ESP_PWR_LVL_N21 = 1,              /*!< Corresponding to -21 dBm */
+    ESP_PWR_LVL_N18 = 2,              /*!< Corresponding to -18 dBm */
+    ESP_PWR_LVL_N15 = 3,              /*!< Corresponding to -15 dBm */
+    ESP_PWR_LVL_N12 = 4,              /*!< Corresponding to -12 dBm */
+    ESP_PWR_LVL_N9  = 5,              /*!< Corresponding to  -9 dBm */
+    ESP_PWR_LVL_N6  = 6,              /*!< Corresponding to  -6 dBm */
+    ESP_PWR_LVL_N3  = 7,              /*!< Corresponding to  -3 dBm */
+    ESP_PWR_LVL_N0  = 8,              /*!< Corresponding to   0 dBm */
+    ESP_PWR_LVL_P3  = 9,             /*!< Corresponding to  +3 dBm */
+    ESP_PWR_LVL_P6  = 10,             /*!< Corresponding to  +6 dBm */
+    ESP_PWR_LVL_P9  = 11,             /*!< Corresponding to  +9 dBm */
+    ESP_PWR_LVL_P12 = 12,             /*!< Corresponding to  +12 dBm */
+    ESP_PWR_LVL_P15 = 13,             /*!< Corresponding to  +15 dBm */
+    ESP_PWR_LVL_P18 = 14,             /*!< Corresponding to  +18 dBm */
+    ESP_PWR_LVL_P20 = 15,              /*!< Corresponding to  +20 dBm */
+    ESP_PWR_LVL_P21 = 15,              /*!< Corresponding to  +20 dBm, this enum variable has been deprecated */
+    ESP_PWR_LVL_INVALID = 0xFF,         /*!< Indicates an invalid value */
+} esp_power_level_t;
+#endif
+
 namespace Nuki {
 class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
   public:
     NukiBle(const std::string& deviceName,
             const uint32_t deviceId,
             const NimBLEUUID pairingServiceUUID,
+            const NimBLEUUID pairingServiceUltraUUID,
             const NimBLEUUID deviceServiceUUID,
             const NimBLEUUID gdioUUID,
+            const NimBLEUUID gdioUltraUUID,
             const NimBLEUUID userDataUUID,
             const std::string preferencedId);
     virtual ~NukiBle();
@@ -57,22 +85,29 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     void unPairNuki();
 
     /**
+     * @brief Reset BLE host
+     */
+    void resetHost();
+
+    /**
      * @brief checks the time past after last connect/communication sent, if the time past > timeout
      * it will disconnect the BLE connection with the lock so that lock will start sending advertisements.
      *
-     * This method is optional as the lock will also disconnect automaticlally after ~20 sec.
-     * If used this method should be run in loop or a task.
+     * This method is optional since the lock will automatically disconnect after approximately 20
+     * seconds. However, the lock might be unresponsive during this time if the connection is stale.
+     * For this reason, using this method is advised.
+     * If used, this method should be run in loop or a task.
      *
      */
     void updateConnectionState();
 
     /**
-     * @brief Set the BLE Disonnect Timeout, if longer than ~20 sec the lock will disconnect by itself
+     * @brief Set the BLE Disconnect Timeout, if longer than ~20 sec the lock will disconnect by itself
      * if there is no BLE communication
      *
      * @param timeoutMs
      */
-    void setDisonnectTimeout(uint32_t timeoutMs);
+    void setDisconnectTimeout(uint32_t timeoutMs);
 
     /**
      * @brief Set the BLE Connect Timeout in seconds.
@@ -92,6 +127,11 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
      * @brief Returns pairing state (if credentials are stored or not)
      */
     bool isPairedWithLock() const;
+    
+    /**
+     * @brief Returns if BLE is pairing/paired/connected with a Smart Lock Ultra
+     */
+    bool isLockUltra() const;
 
     /**
      * @brief Returns the log entry count. Only available after executing retreiveLogEntries.
@@ -169,6 +209,13 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     Nuki::CmdResult addAuthorizationEntry(NewAuthorizationEntry newAuthorizationEntry);
 
     /**
+     * @brief Deletes the authorization entry from the lock
+     *
+     * @param id id to be deleted
+     */
+    Nuki::CmdResult deleteAuthorizationEntry(const uint32_t id);
+
+    /**
      * @brief Sends an updated authorization entry to the lock via BLE
      *
      * @param updatedAuthorizationEntry Nuki api based datatype to send
@@ -201,6 +248,7 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
      * @return true if stored successfully
      */
     bool saveSecurityPincode(const uint16_t pinCode);
+    bool saveUltraPincode(const uint32_t pinCode, bool save = true);
 
     /**
      * @brief Gets the pincode stored on the esp. This pincode is used for sending/setting config via BLE to the lock
@@ -209,6 +257,7 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
      * @return pincode
      */
     uint16_t getSecurityPincode();
+    uint32_t getUltraPincode();
 
     /**
      * @brief Send the new pincode command to the lock via BLE
@@ -219,6 +268,7 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
      * @return Nuki::CmdResult
      */
     Nuki::CmdResult setSecurityPin(const uint16_t newSecurityPin);
+    Nuki::CmdResult setUltraPin(const uint32_t newSecurityPin);
 
     /**
      * @brief Send the verify pincode command via BLE to the lock.
@@ -240,7 +290,21 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
      * creates the BLE client, sets the BLE callback and checks if the lock is paired
      * (if credentials are stored in preferences)
      */
-    void initialize();
+    void initialize(bool initAltConnect = false);
+
+    /**
+     * @brief the transmission power.
+     * @param [in] powerLevel The power level to set, can be one of:
+     * *   ESP_PWR_LVL_N12 = 0, Corresponding to -12dbm
+     * *   ESP_PWR_LVL_N9  = 1, Corresponding to  -9dbm
+     * *   ESP_PWR_LVL_N6  = 2, Corresponding to  -6dbm
+     * *   ESP_PWR_LVL_N3  = 3, Corresponding to  -3dbm
+     * *   ESP_PWR_LVL_N0  = 4, Corresponding to   0dbm
+     * *   ESP_PWR_LVL_P3  = 5, Corresponding to  +3dbm
+     * *   ESP_PWR_LVL_P6  = 6, Corresponding to  +6dbm
+     * *   ESP_PWR_LVL_P9  = 7, Corresponding to  +9dbm
+     */
+    void setPower(esp_power_level_t powerLevel);
 
     /**
      * @brief Registers the BLE scanner to be used for scanning for advertisements from the lock.
@@ -262,7 +326,11 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     *
     * @return Timestamp in milliseconds
     */
+    #ifndef NUKI_64BIT_TIME
     unsigned long getLastReceivedBeaconTs() const;
+    #else
+    int64_t getLastReceivedBeaconTs() const;
+    #endif
 
     /**
     * @brief Returns the BLE address of the device if paired.
@@ -276,11 +344,60 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     *
     * @return Last heartbeat value
     */
-    uint32_t getLastHeartbeat();
+    #ifndef NUKI_64BIT_TIME
+    unsigned long getLastHeartbeat();
+    #else
+    int64_t getLastHeartbeat();
+    #endif
 
+     /**
+     * @brief Whether to enable or disable connect debug logging
+     *
+     * @param enable Set to true to enable connect debug logging
+     */
+    void setDebugConnect(bool enable);
+
+     /**
+     * @brief Whether to enable or disable communication debug logging
+     *
+     * @param enable Set to true to enable communication debug logging
+     */
+    void setDebugCommunication(bool enable);
+
+     /**
+     * @brief Whether to enable or disable readable data debug logging
+     *
+     * @param enable Set to true to enable readable data debug logging
+     */
+    void setDebugReadableData(bool enable);
+
+     /**
+     * @brief Whether to enable or disable hex data debug logging
+     *
+     * @param enable Set to true to enable hex data debug logging
+     */
+    void setDebugHexData(bool enable);
+
+     /**
+     * @brief Whether to enable or disable command debug logging
+     *
+     * @param enable Set to true to enable command debug logging
+     */
+    void setDebugCommand(bool enable);
+
+     /**
+     * @brief Registers a Logger to be used for printing debug logs
+     *
+     * @param Log the logger
+     */
+    void registerLogger(Print* Log);
+    
   protected:
-    bool connectBle(const BLEAddress bleAddress);
-    void extendDisonnectTimeout();
+    bool connectBle(const BLEAddress bleAddress, bool pairing);
+    void extendDisconnectTimeout();
+    void logMessageVar(const char* message, unsigned int var, int level = 4);
+    void logMessageVar(const char* message, const char* var, int level = 4);
+    void logMessage(const char* message, int level = 4);
 
     template <typename TDeviceAction>
     Nuki::CmdResult executeAction(const TDeviceAction action);
@@ -294,27 +411,59 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     template <typename TDeviceAction>
     Nuki::CmdResult cmdChallAccStateMachine(const TDeviceAction action);
 
-  protected:
     virtual void handleReturnMessage(Command returnCode, unsigned char* data, uint16_t dataLen);
     virtual void logErrorCode(uint8_t errorCode) = 0;
-    uint8_t errorCode;
+
+    // Cannot initialize to any meaningful value since error namespaces are only
+    // defined for NukeBle descendants. Using zero as a safe default, which should
+    // work better than random for a general case.
+    uint8_t errorCode = 0;
+
     Command lastMsgCodeReceived = Command::Empty;
 
+    bool debugNukiConnect = false;
+    bool debugNukiCommunication = false;
+    bool debugNukiReadableData = false;
+    bool debugNukiHexData = false;
+    bool debugNukiCommand = false;
+
+    Print* logger = nullptr;
+
   private:
+    #ifndef NUKI_MUTEX_RECURSIVE
     SemaphoreHandle_t nukiBleSemaphore = xSemaphoreCreateMutex();
+    #else
+    SemaphoreHandle_t nukiBleSemaphore = xSemaphoreCreateRecursiveMutex();
+    #endif
     bool takeNukiBleSemaphore(std::string taker);
     std::string owner = "free";
     void giveNukiBleSemaphore();
 
+    bool altConnect = false;
     bool connecting = false;
-    uint32_t lastStartTimeout = 0;
+    bool statusUpdated = false;
+    bool refreshServices = false;
+    bool smartLockUltra = false;
+    bool ultraAuthInfoCommandReceived = false;
+    bool encryptPairing = false;
+    bool recieveEncrypted = false;
     uint16_t timeoutDuration = 1000;
     uint8_t connectTimeoutSec = 1;
     uint8_t connectRetries = 5;
+    uint32_t countDisconnects = 0;
 
     void onConnect(BLEClient*) override;
+    #ifdef NUKI_USE_LATEST_NIMBLE
+    void onDisconnect(BLEClient*, int reason) override;
+    #else
     void onDisconnect(BLEClient*) override;
-    void onResult(BLEAdvertisedDevice* advertisedDevice) override;
+    #endif
+    void disconnect();
+    #ifndef NUKI_USE_LATEST_NIMBLE
+    void onResult(NimBLEAdvertisedDevice* advertisedDevice) override;
+    #else
+    void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override;
+    #endif
     bool registerOnGdioChar();
     bool registerOnUsdioChar();
 
@@ -331,7 +480,7 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     unsigned char authenticator[32];
     Preferences preferences;
 
-    BLEAddress bleAddress = BLEAddress("");
+    BLEAddress bleAddress = BLEAddress("", 0);
     bool pairingServiceAvailable = false;
     std::string deviceName;       //The name to be displayed for this authorization and used for storing preferences
     uint32_t deviceId;            //The ID of the Nuki App, Nuki Bridge or Nuki Fob to be authorized.
@@ -339,10 +488,14 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
 
 //Keyturner Pairing Service
     const NimBLEUUID pairingServiceUUID;
+//Keyturner Pairing Service Ultra
+    const NimBLEUUID pairingServiceUltraUUID;
 //Keyturner Service
     const NimBLEUUID deviceServiceUUID;
 //Keyturner pairing Data Input Output characteristic
     const NimBLEUUID gdioUUID;
+//Keyturner pairing Data Input Output characteristic Ultra
+    const NimBLEUUID gdioUltraUUID;
 //User-Specific Data Input Output characteristic
     const NimBLEUUID userDataUUID;
 
@@ -354,9 +507,6 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     BLERemoteCharacteristic* pUsdioCharacteristic = nullptr;
 
     Nuki::CommandState nukiCommandState = Nuki::CommandState::Idle;
-
-    uint32_t timeNow = 0;
-    uint32_t lastHeartbeat = 0;
 
     BleScanner::Publisher* bleScanner = nullptr;
     bool isPaired = false;
@@ -372,6 +522,7 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     unsigned char myPublicKey[32] = {0x00};
     unsigned char myPrivateKey[32] = {0x00};
     uint16_t pinCode = 0000;
+    uint32_t ultraPinCode = 000000;
     unsigned char secretKeyK[32] = {0x00};
 
     unsigned char sentNonce[crypto_secretbox_NONCEBYTES] = {};
@@ -381,8 +532,21 @@ class NukiBle : public BLEClientCallbacks, public BleScanner::Subscriber {
     bool keypadCodeCountReceived = false;
     uint16_t logEntryCount = 0;
     bool loggingEnabled = false;
-    int rssi = 0;
-    unsigned long lastReceivedBeaconTs = 0;
+    std::atomic_int rssi;
+    #ifndef NUKI_64BIT_TIME
+    unsigned long timeNow = 0;
+    std::atomic_ulong lastHeartbeat;
+    unsigned long lastStartTimeout = 0;
+    unsigned long pairingLastSeen = 0;
+    std::atomic_ulong lastReceivedBeaconTs;
+    #else
+    int64_t timeNow = 0;
+    std::atomic_llong lastHeartbeat;
+    int64_t lastStartTimeout = 0;
+    int64_t pairingLastSeen = 0;
+    std::atomic_llong lastReceivedBeaconTs;
+    #endif
+
     std::list<KeypadEntry> listOfKeyPadEntries;
     std::list<AuthorizationEntry> listOfAuthorizationEntries;
     AuthorizationIdType authorizationIdType = AuthorizationIdType::Bridge;

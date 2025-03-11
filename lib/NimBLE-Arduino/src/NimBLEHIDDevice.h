@@ -33,7 +33,6 @@
 #define HID_DIGITAL_PEN	0x03C7
 #define HID_BARCODE		0x03C8
 
-#define PNPVersionField(MajorVersion, MinorVersion, PatchVersion) ((MajorVersion << 16) & 0xFF00) | ((MinorVersion << 8) & 0x00F0) | (PatchVersion & 0x000F)
 
 /**
  * @brief A model of a %BLE Human Interface Device.
@@ -56,7 +55,7 @@ public:
 	void	pnp(uint8_t sig, uint16_t vid, uint16_t pid, uint16_t version);
 	//NimBLECharacteristic*	hidInfo();
 	void	hidInfo(uint8_t country, uint8_t flags);
-	NimBLECharacteristic* 	batteryLevel();
+	//NimBLECharacteristic* 	batteryLevel();
 	void 	setBatteryLevel(uint8_t level);
 
 

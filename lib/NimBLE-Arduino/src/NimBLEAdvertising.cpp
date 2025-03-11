@@ -96,8 +96,8 @@ void NimBLEAdvertising::addServiceUUID(const char* serviceUUID) {
 
 
 /**
- * @brief Remove a service UUID from the advertisment.
- * @param [in] serviceUUID The UUID of the service to remove.
+ * @brief Add a service uuid to exposed list of services.
+ * @param [in] serviceUUID The UUID of the service to expose.
  */
 void NimBLEAdvertising::removeServiceUUID(const NimBLEUUID &serviceUUID) {
     for(auto it = m_serviceUUIDs.begin(); it != m_serviceUUIDs.end(); ++it) {
@@ -111,16 +111,9 @@ void NimBLEAdvertising::removeServiceUUID(const NimBLEUUID &serviceUUID) {
 
 
 /**
- * @brief Remove all service UUIDs from the advertisment.
- */
-void NimBLEAdvertising::removeServices() {
-    std::vector<NimBLEUUID>().swap(m_serviceUUIDs);
-    m_advDataSet = false;
-} // removeServices
-
-
-/**
  * @brief Set the device appearance in the advertising data.
+ * The codes for distinct appearances can be found here:\n
+ * https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.characteristic.gap.appearance.xml.
  * @param [in] appearance The appearance of the device in the advertising data.
  */
 void NimBLEAdvertising::setAppearance(uint16_t appearance) {
@@ -144,7 +137,7 @@ void NimBLEAdvertising::addTxPower() {
  * @param [in] name The name to advertise.
  */
 void NimBLEAdvertising::setName(const std::string &name) {
-    std::vector<uint8_t>(name.begin(), name.end()).swap(m_name);
+    m_name.assign(name.begin(), name.end());
     m_advData.name = &m_name[0];
     m_advData.name_len = m_name.size();
     m_advDataSet = false;
@@ -156,19 +149,7 @@ void NimBLEAdvertising::setName(const std::string &name) {
  * @param [in] data The data to advertise.
  */
 void NimBLEAdvertising::setManufacturerData(const std::string &data) {
-    std::vector<uint8_t>(data.begin(), data.end()).swap(m_mfgData);
-    m_advData.mfg_data = &m_mfgData[0];
-    m_advData.mfg_data_len = m_mfgData.size();
-    m_advDataSet = false;
-} // setManufacturerData
-
-
-/**
- * @brief Set the advertised manufacturer data.
- * @param [in] data The data to advertise.
- */
-void NimBLEAdvertising::setManufacturerData(const std::vector<uint8_t> &data) {
-    m_mfgData = data;
+    m_mfgData.assign(data.begin(), data.end());
     m_advData.mfg_data = &m_mfgData[0];
     m_advData.mfg_data_len = m_mfgData.size();
     m_advDataSet = false;
@@ -180,7 +161,7 @@ void NimBLEAdvertising::setManufacturerData(const std::vector<uint8_t> &data) {
  * @param [in] uri The URI to advertise.
  */
 void NimBLEAdvertising::setURI(const std::string &uri) {
-    std::vector<uint8_t>(uri.begin(), uri.end()).swap(m_uri);
+    m_uri.assign(uri.begin(), uri.end());
     m_advData.uri = &m_uri[0];
     m_advData.uri_len = m_uri.size();
     m_advDataSet = false;
@@ -196,8 +177,7 @@ void NimBLEAdvertising::setURI(const std::string &uri) {
 void NimBLEAdvertising::setServiceData(const NimBLEUUID &uuid, const std::string &data) {
     switch (uuid.bitSize()) {
         case 16: {
-            std::vector<uint8_t>((uint8_t*)&uuid.getNative()->u16.value,
-                                 (uint8_t*)&uuid.getNative()->u16.value + 2).swap(m_svcData16);
+            m_svcData16.assign((uint8_t*)&uuid.getNative()->u16.value, (uint8_t*)&uuid.getNative()->u16.value + 2);
             m_svcData16.insert(m_svcData16.end(), data.begin(), data.end());
             m_advData.svc_data_uuid16 = (uint8_t*)&m_svcData16[0];
             m_advData.svc_data_uuid16_len = (data.length() > 0) ? m_svcData16.size() : 0;
@@ -205,8 +185,7 @@ void NimBLEAdvertising::setServiceData(const NimBLEUUID &uuid, const std::string
         }
 
         case 32: {
-            std::vector<uint8_t>((uint8_t*)&uuid.getNative()->u32.value,
-                                 (uint8_t*)&uuid.getNative()->u32.value + 4).swap(m_svcData32);
+            m_svcData32.assign((uint8_t*)&uuid.getNative()->u32.value, (uint8_t*)&uuid.getNative()->u32.value + 4);
             m_svcData32.insert(m_svcData32.end(), data.begin(), data.end());
             m_advData.svc_data_uuid32 = (uint8_t*)&m_svcData32[0];
             m_advData.svc_data_uuid32_len = (data.length() > 0) ? m_svcData32.size() : 0;
@@ -214,8 +193,7 @@ void NimBLEAdvertising::setServiceData(const NimBLEUUID &uuid, const std::string
         }
 
         case 128: {
-            std::vector<uint8_t>(uuid.getNative()->u128.value,
-                                 uuid.getNative()->u128.value + 16).swap(m_svcData128);
+            m_svcData128.assign(uuid.getNative()->u128.value, uuid.getNative()->u128.value + 16);
             m_svcData128.insert(m_svcData128.end(), data.begin(), data.end());
             m_advData.svc_data_uuid128 = (uint8_t*)&m_svcData128[0];
             m_advData.svc_data_uuid128_len = (data.length() > 0) ? m_svcData128.size() : 0;
@@ -409,10 +387,9 @@ void NimBLEAdvertising::setScanResponseData(NimBLEAdvertisementData& advertiseme
  * @brief Start advertising.
  * @param [in] duration The duration, in seconds, to advertise, 0 == advertise forever.
  * @param [in] advCompleteCB A pointer to a callback to be invoked when advertising ends.
- * @param [in] dirAddr The address of a peer to directly advertise to.
  * @return True if advertising started successfully.
  */
-bool NimBLEAdvertising::start(uint32_t duration, advCompleteCB_t advCompleteCB, NimBLEAddress* dirAddr) {
+bool NimBLEAdvertising::start(uint32_t duration, void (*advCompleteCB)(NimBLEAdvertising *pAdv)) {
     NIMBLE_LOGD(LOG_TAG, ">> Advertising start: customAdvData: %d, customScanResponseData: %d",
                 m_customAdvData, m_customScanResponseData);
 
@@ -646,27 +623,15 @@ bool NimBLEAdvertising::start(uint32_t duration, advCompleteCB_t advCompleteCB, 
         m_advDataSet = true;
     }
 
-    ble_addr_t peerAddr;
-    if (dirAddr != nullptr) {
-        memcpy(&peerAddr.val, dirAddr->getNative(), 6);
-        peerAddr.type = dirAddr->getType();
-    }
-
 #if defined(CONFIG_BT_NIMBLE_ROLE_PERIPHERAL)
-    rc = ble_gap_adv_start(NimBLEDevice::m_own_addr_type,
-                           (dirAddr != nullptr) ? &peerAddr : NULL,
-                           duration,
+    rc = ble_gap_adv_start(NimBLEDevice::m_own_addr_type, NULL, duration,
                            &m_advParams,
                            (pServer != nullptr) ? NimBLEServer::handleGapEvent :
                                                   NimBLEAdvertising::handleGapEvent,
                            (void*)this);
 #else
-    rc = ble_gap_adv_start(NimBLEDevice::m_own_addr_type,
-                           (dirAddr != nullptr) ? &peerAddr : NULL,
-                           duration,
-                           &m_advParams,
-                           NimBLEAdvertising::handleGapEvent,
-                           (void*)this);
+    rc = ble_gap_adv_start(NimBLEDevice::m_own_addr_type, NULL, duration,
+                           &m_advParams, NimBLEAdvertising::handleGapEvent, this);
 #endif
     switch(rc) {
         case 0:
@@ -813,6 +778,9 @@ void NimBLEAdvertisementData::addData(char * data, size_t length) {
 /**
  * @brief Set the appearance.
  * @param [in] appearance The appearance code value.
+ *
+ * See also:
+ * https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.characteristic.gap.appearance.xml
  */
 void NimBLEAdvertisementData::setAppearance(uint16_t appearance) {
     char cdata[2];
@@ -847,18 +815,6 @@ void NimBLEAdvertisementData::setManufacturerData(const std::string &data) {
     cdata[0] = data.length() + 1;
     cdata[1] = BLE_HS_ADV_TYPE_MFG_DATA ;  // 0xff
     addData(std::string(cdata, 2) + data);
-} // setManufacturerData
-
-
-/**
- * @brief Set manufacturer specific data.
- * @param [in] data The manufacturer data to advertise.
- */
-void NimBLEAdvertisementData::setManufacturerData(const std::vector<uint8_t> &data) {
-    char cdata[2];
-    cdata[0] = data.size() + 1;
-    cdata[1] = BLE_HS_ADV_TYPE_MFG_DATA ;  // 0xff
-    addData(std::string(cdata, 2) + std::string((char*)&data[0], data.size()));
 } // setManufacturerData
 
 
@@ -1078,13 +1034,5 @@ void NimBLEAdvertisementData::setPreferredParams(uint16_t min, uint16_t max) {
 std::string NimBLEAdvertisementData::getPayload() {
     return m_payload;
 } // getPayload
-
-
-/**
- * @brief Clear the advertisement data for reuse.
- */
-void NimBLEAdvertisementData::clearData() {
-    m_payload.clear();
-}
 
 #endif /* CONFIG_BT_ENABLED && CONFIG_BT_NIMBLE_ROLE_BROADCASTER  && !CONFIG_BT_NIMBLE_EXT_ADV */

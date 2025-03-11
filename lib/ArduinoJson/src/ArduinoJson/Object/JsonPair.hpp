@@ -1,25 +1,26 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2023, Benoit BLANCHON
+// Copyright © 2014-2025, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include "../Strings/JsonString.hpp"
-#include "../Variant/JsonVariant.hpp"
-#include "../Variant/JsonVariantConst.hpp"
+#include <ArduinoJson/Strings/JsonString.hpp>
+#include <ArduinoJson/Variant/JsonVariant.hpp>
+#include <ArduinoJson/Variant/JsonVariantConst.hpp>
 
 ARDUINOJSON_BEGIN_PUBLIC_NAMESPACE
 
 // A key-value pair.
-// https://arduinojson.org/v6/api/jsonobject/begin_end/
+// https://arduinojson.org/v7/api/jsonobject/begin_end/
 class JsonPair {
  public:
   // INTERNAL USE ONLY
-  JsonPair(detail::MemoryPool* pool, detail::VariantSlot* slot) {
-    if (slot) {
-      key_ = JsonString(slot->key(), slot->ownsKey() ? JsonString::Copied
-                                                     : JsonString::Linked);
-      value_ = JsonVariant(pool, slot->data());
+  JsonPair(detail::ObjectData::iterator iterator,
+           detail::ResourceManager* resources) {
+    if (!iterator.done()) {
+      key_ = iterator->asString();
+      iterator.next(resources);
+      value_ = JsonVariant(iterator.data(), resources);
     }
   }
 
@@ -29,7 +30,7 @@ class JsonPair {
   }
 
   // Returns the value.
-  JsonVariant value() const {
+  JsonVariant value() {
     return value_;
   }
 
@@ -39,14 +40,15 @@ class JsonPair {
 };
 
 // A read-only key-value pair.
-// https://arduinojson.org/v6/api/jsonobjectconst/begin_end/
+// https://arduinojson.org/v7/api/jsonobjectconst/begin_end/
 class JsonPairConst {
  public:
-  JsonPairConst(const detail::VariantSlot* slot) {
-    if (slot) {
-      key_ = JsonString(slot->key(), slot->ownsKey() ? JsonString::Copied
-                                                     : JsonString::Linked);
-      value_ = JsonVariantConst(slot->data());
+  JsonPairConst(detail::ObjectData::iterator iterator,
+                const detail::ResourceManager* resources) {
+    if (!iterator.done()) {
+      key_ = iterator->asString();
+      iterator.next(resources);
+      value_ = JsonVariantConst(iterator.data(), resources);
     }
   }
 

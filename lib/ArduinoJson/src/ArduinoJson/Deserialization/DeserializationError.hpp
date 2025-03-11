@@ -1,12 +1,12 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2023, Benoit BLANCHON
+// Copyright © 2014-2025, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include "../Namespace.hpp"
-#include "../Polyfills/pgmspace_generic.hpp"
-#include "../Polyfills/preprocessor.hpp"
+#include <ArduinoJson/Namespace.hpp>
+#include <ArduinoJson/Polyfills/pgmspace_generic.hpp>
+#include <ArduinoJson/Polyfills/preprocessor.hpp>
 
 #if ARDUINOJSON_ENABLE_STD_STREAM
 #  include <ostream>

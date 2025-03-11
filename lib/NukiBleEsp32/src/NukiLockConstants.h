@@ -21,10 +21,14 @@ using namespace Nuki;
 
 //Keyturner Pairing Service
 const NimBLEUUID keyturnerPairingServiceUUID  = NimBLEUUID("a92ee100-5501-11e4-916c-0800200c9a66");
+//Keyturner Pairing Service SmartLock Ultra
+const NimBLEUUID keyturnerPairingServiceUltraUUID  = NimBLEUUID("a92ee300-5501-11e4-916c-0800200c9a66");
 //Keyturner Service
 const NimBLEUUID keyturnerServiceUUID  = NimBLEUUID("a92ee200-5501-11e4-916c-0800200c9a66");
 //Keyturner pairing Data Input Output characteristic
 const NimBLEUUID keyturnerGdioUUID  = NimBLEUUID("a92ee101-5501-11e4-916c-0800200c9a66");
+//Keyturner pairing Data Input Output characteristic Ultra
+const NimBLEUUID keyturnerGdioUltraUUID  = NimBLEUUID("a92ee301-5501-11e4-916c-0800200c9a66");
 //User-Specific Data Input Output characteristic
 const NimBLEUUID keyturnerUserDataUUID  = NimBLEUUID("a92ee202-5501-11e4-916c-0800200c9a66");
 
@@ -36,42 +40,42 @@ struct Action {
 };
 
 enum class ErrorCode : uint8_t {
-  ERROR_BAD_CRC	                    = 0xFD,
-  ERROR_BAD_LENGTH	                = 0xFE,
-  ERROR_UNKNOWN	                    = 0xFF,
-  P_ERROR_NOT_PAIRING	              = 0x10,
-  P_ERROR_BAD_AUTHENTICATOR	        = 0x11,
-  P_ERROR_BAD_PARAMETER	            = 0x12,
-  P_ERROR_MAX_USER	                = 0x13,
-  K_ERROR_NOT_AUTHORIZED	          = 0x20,
-  K_ERROR_BAD_PIN	                  = 0x21,
-  K_ERROR_BAD_NONCE	                = 0x22,
-  K_ERROR_BAD_PARAMETER	            = 0x23,
-  K_ERROR_INVALID_AUTH_ID	          = 0x24,
-  K_ERROR_DISABLED	                = 0x25,
-  K_ERROR_REMOTE_NOT_ALLOWED	      = 0x26,
-  K_ERROR_TIME_NOT_ALLOWED	        = 0x27,
-  K_ERROR_TOO_MANY_PIN_ATTEMPTS	    = 0x28,
-  K_ERROR_TOO_MANY_ENTRIES	        = 0x29,
-  K_ERROR_CODE_ALREADY_EXISTS	      = 0x2A,
-  K_ERROR_CODE_INVALID	            = 0x2B,
-  K_ERROR_CODE_INVALID_TIMEOUT_1    = 0x2C,
-  K_ERROR_CODE_INVALID_TIMEOUT_2    = 0x2D,
-  K_ERROR_CODE_INVALID_TIMEOUT_3	  = 0x2E,
-  K_ERROR_AUTO_UNLOCK_TOO_RECENT	  = 0x40,
-  K_ERROR_POSITION_UNKNOWN	        = 0x41,
-  K_ERROR_MOTOR_BLOCKED	            = 0x42,
-  K_ERROR_CLUTCH_FAILURE	          = 0x43,
-  K_ERROR_MOTOR_TIMEOUT	            = 0x44,
-  K_ERROR_BUSY	                    = 0x45,
-  K_ERROR_CANCELED	                = 0x46,
-  K_ERROR_NOT_CALIBRATED	          = 0x47,
-  K_ERROR_MOTOR_POSITION_LIMIT	    = 0x48,
-  K_ERROR_MOTOR_LOW_VOLTAGE	        = 0x49,
-  K_ERROR_MOTOR_POWER_FAILURE	      = 0x4A,
-  K_ERROR_CLUTCH_POWER_FAILURE	    = 0x4B,
-  K_ERROR_VOLTAGE_TOO_LOW	          = 0x4C,
-  K_ERROR_FIRMWARE_UPDATE_NEEDED	  = 0x4D
+  ERROR_BAD_CRC                  = 0xFD,
+  ERROR_BAD_LENGTH               = 0xFE,
+  ERROR_UNKNOWN                  = 0xFF,
+  P_ERROR_NOT_PAIRING            = 0x10,
+  P_ERROR_BAD_AUTHENTICATOR      = 0x11,
+  P_ERROR_BAD_PARAMETER          = 0x12,
+  P_ERROR_MAX_USER               = 0x13,
+  K_ERROR_NOT_AUTHORIZED         = 0x20,
+  K_ERROR_BAD_PIN                = 0x21,
+  K_ERROR_BAD_NONCE              = 0x22,
+  K_ERROR_BAD_PARAMETER          = 0x23,
+  K_ERROR_INVALID_AUTH_ID        = 0x24,
+  K_ERROR_DISABLED               = 0x25,
+  K_ERROR_REMOTE_NOT_ALLOWED     = 0x26,
+  K_ERROR_TIME_NOT_ALLOWED       = 0x27,
+  K_ERROR_TOO_MANY_PIN_ATTEMPTS  = 0x28,
+  K_ERROR_TOO_MANY_ENTRIES       = 0x29,
+  K_ERROR_CODE_ALREADY_EXISTS    = 0x2A,
+  K_ERROR_CODE_INVALID           = 0x2B,
+  K_ERROR_CODE_INVALID_TIMEOUT_1 = 0x2C,
+  K_ERROR_CODE_INVALID_TIMEOUT_2 = 0x2D,
+  K_ERROR_CODE_INVALID_TIMEOUT_3 = 0x2E,
+  K_ERROR_AUTO_UNLOCK_TOO_RECENT = 0x40,
+  K_ERROR_POSITION_UNKNOWN       = 0x41,
+  K_ERROR_MOTOR_BLOCKED          = 0x42,
+  K_ERROR_CLUTCH_FAILURE         = 0x43,
+  K_ERROR_MOTOR_TIMEOUT          = 0x44,
+  K_ERROR_BUSY                   = 0x45,
+  K_ERROR_CANCELED               = 0x46,
+  K_ERROR_NOT_CALIBRATED         = 0x47,
+  K_ERROR_MOTOR_POSITION_LIMIT   = 0x48,
+  K_ERROR_MOTOR_LOW_VOLTAGE      = 0x49,
+  K_ERROR_MOTOR_POWER_FAILURE    = 0x4A,
+  K_ERROR_CLUTCH_POWER_FAILURE   = 0x4B,
+  K_ERROR_VOLTAGE_TOO_LOW        = 0x4C,
+  K_ERROR_FIRMWARE_UPDATE_NEEDED = 0x4D
 };
 
 enum class State : uint8_t {
@@ -82,39 +86,59 @@ enum class State : uint8_t {
 };
 
 enum class LockState : uint8_t {
-  Uncalibrated    = 0x00,
-  Locked          = 0x01,
-  Unlocking       = 0x02,
-  Unlocked        = 0x03,
-  Locking         = 0x04,
-  Unlatched       = 0x05,
-  UnlockedLnga    = 0x06,
-  Unlatching      = 0x07,
-  Calibration     = 0xFC,
-  BootRun         = 0xFD,
-  MotorBlocked    = 0xFE,
-  Undefined       = 0xFF
+  Uncalibrated = 0x00,
+  Locked       = 0x01,
+  Unlocking    = 0x02,
+  Unlocked     = 0x03,
+  Locking      = 0x04,
+  Unlatched    = 0x05,
+  UnlockedLnga = 0x06,
+  Unlatching   = 0x07,
+  Calibration  = 0xFC,
+  BootRun      = 0xFD,
+  MotorBlocked = 0xFE,
+  Undefined    = 0xFF
 };
 
 enum class Trigger : uint8_t {
-  System          = 0x00,
-  Manual          = 0x01,
-  Button          = 0x02,
-  Automatic       = 0x03,
-  AutoLock        = 0x06
+  System    = 0x00,
+  Manual    = 0x01,
+  Button    = 0x02,
+  Automatic = 0x03,
+  AutoLock  = 0x06,
+  HomeKit   = 0xAB,
+  MQTT      = 0xAC,
+  Undefined = 0xFF
 };
 
 
 enum class LockAction : uint8_t {
+  Unlock         = 0x01,
+  Lock           = 0x02,
+  Unlatch        = 0x03,
+  LockNgo        = 0x04,
+  LockNgoUnlatch = 0x05,
+  FullLock       = 0x06,
+  FobNoAction    = 0x50,
+  ButtonNoAction = 0x5A,
+  FobAction1     = 0x81,
+  FobAction2     = 0x82,
+  FobAction3     = 0x83,
+  Undefined      = 0xFF
+};
+
+enum class KeypadActionSource : uint8_t {
+  ArrowKey    = 0x00,
+  Code        = 0x01,
+  Fingerprint = 0x02
+};
+
+enum class KeypadAction : uint8_t {
+  Intelligent     = 0x00,
   Unlock          = 0x01,
   Lock            = 0x02,
   Unlatch         = 0x03,
-  LockNgo         = 0x04,
-  LockNgoUnlatch  = 0x05,
-  FullLock        = 0x06,
-  FobAction1      = 0x81,
-  FobAction2      = 0x82,
-  FobAction3      = 0x83
+  LockNgo         = 0x04
 };
 
 enum class ButtonPressAction : uint8_t {
@@ -124,7 +148,15 @@ enum class ButtonPressAction : uint8_t {
   Lock              = 0x03,
   Unlatch           = 0x04,
   LockNgo           = 0x05,
-  ShowStatus        = 0x06
+  ShowStatus        = 0x06,
+  Unknown           = 0xFF
+};
+
+enum class MotorSpeed : uint8_t {
+  Standard          = 0x00,
+  Insane            = 0x01,
+  Gentle            = 0x02,
+  Unknown           = 0xFF
 };
 
 enum class CompletionStatus : uint8_t {
@@ -137,6 +169,7 @@ enum class CompletionStatus : uint8_t {
   ClutchFailure     = 0x06,
   MotorPowerFailure = 0x07,
   IncompleteFailure = 0x08,
+  Failure           = 0x0b,
   InvalidCode       = 0xE0,
   OtherError        = 0xFE,
   Unknown           = 0xFF
@@ -154,20 +187,26 @@ struct __attribute__((packed)) KeyTurnerState {
   uint8_t currentTimeSecond;
   int16_t timeZoneOffset;
   uint8_t criticalBatteryState;
-  uint8_t configUpdateCount;
-  bool lockNgoTimer;
-  LockAction lastLockAction;
-  Trigger lastLockActionTrigger;
-  CompletionStatus lastLockActionCompletionStatus;
+  uint8_t configUpdateCount = 255;
+  uint8_t lockNgoTimer = 255;
+  LockAction lastLockAction = LockAction::Undefined;
+  Trigger lastLockActionTrigger = Trigger::Undefined;
+  CompletionStatus lastLockActionCompletionStatus = CompletionStatus::Unknown;
   DoorSensorState doorSensorState = DoorSensorState::Unavailable;
-  uint16_t nightModeActive;
-  uint8_t accessoryBatteryState;
+  uint8_t nightModeActive = 255;
+  uint8_t accessoryBatteryState = 255;
+  uint8_t remoteAccessStatus = 255;
+  int8_t bleConnectionStrength = 1;
+  int8_t wifiConnectionStrength = 1;
+  uint8_t wifiConnectionStatus = 255;
+  uint8_t mqttConnectionStatus = 255;
+  uint8_t threadConnectionStatus = 255;
 };
 
 struct __attribute__((packed)) Config {
   uint32_t nukiId;
   unsigned char name[32];
-  float latitide;
+  float latitude;
   float longitude;
   uint8_t autoUnlatch;
   uint8_t pairingEnabled;
@@ -186,21 +225,23 @@ struct __attribute__((packed)) Config {
   uint8_t  fobAction1;
   uint8_t  fobAction2;
   uint8_t  fobAction3;
-  uint8_t  singleLock;
-  AdvertisingMode advertisingMode;
-  uint8_t hasKeypad;
-  unsigned char firmwareVersion[3];
-  unsigned char hardwareRevision[2];
-  uint8_t homeKitStatus;
-  TimeZoneId timeZoneId;
-  uint8_t undocumented1;
-  uint8_t undocumented2;
-  uint8_t hasKeypadV2;
+  uint8_t  singleLock = 255;
+  AdvertisingMode advertisingMode = AdvertisingMode::Unknown;
+  uint8_t hasKeypad = 255;
+  unsigned char firmwareVersion[3] = {0, 0 , 0};
+  unsigned char hardwareRevision[2] = {0, 0};
+  uint8_t homeKitStatus = 255;
+  TimeZoneId timeZoneId = TimeZoneId::None;
+  uint8_t deviceType = 255;
+  uint8_t capabilities = 255;
+  uint8_t hasKeypadV2 = 255;
+  uint8_t matterStatus = 255;
+  uint8_t productVariant = 255;
 };
 
 struct __attribute__((packed)) NewConfig {
   unsigned char name[32];
-  float latitide;
+  float latitude;
   float longitude;
   uint8_t autoUnlatch;
   uint8_t pairingEnabled;
@@ -223,24 +264,26 @@ struct __attribute__((packed)) AdvancedConfig {
   int16_t lockedPositionOffsetDegrees;
   int16_t singleLockedPositionOffsetDegrees;
   int16_t unlockedToLockedTransitionOffsetDegrees;
-  uint8_t lockNgoTimeout;
-  ButtonPressAction singleButtonPressAction;
-  ButtonPressAction doubleButtonPressAction;
-  uint8_t detachedCylinder;
-  BatteryType batteryType;
-  uint8_t automaticBatteryTypeDetection;
-  uint8_t unlatchDuration;
-  uint16_t autoLockTimeOut;
-  uint8_t autoUnLockDisabled;
-  uint8_t nightModeEnabled;
-  unsigned char nightModeStartTime[2];
-  unsigned char nightModeEndTime[2];
-  uint8_t nightModeAutoLockEnabled;
-  uint8_t nightModeAutoUnlockDisabled;
-  uint8_t  nightModeImmediateLockOnStart;
-  uint8_t autoLockEnabled;
-  uint8_t immediateAutoLockEnabled;
-  uint8_t autoUpdateEnabled;
+  uint8_t lockNgoTimeout = 255;
+  ButtonPressAction singleButtonPressAction = ButtonPressAction::Unknown;
+  ButtonPressAction doubleButtonPressAction = ButtonPressAction::Unknown;
+  uint8_t detachedCylinder = 255;
+  BatteryType batteryType = BatteryType::Unknown;
+  uint8_t automaticBatteryTypeDetection = 255;
+  uint8_t unlatchDuration = 255;
+  uint16_t autoLockTimeOut = 65535;
+  uint8_t autoUnLockDisabled = 255;
+  uint8_t nightModeEnabled = 255;
+  unsigned char nightModeStartTime[2] = {0, 0};
+  unsigned char nightModeEndTime[2] = {0, 0};
+  uint8_t nightModeAutoLockEnabled = 255;
+  uint8_t nightModeAutoUnlockDisabled = 255;
+  uint8_t nightModeImmediateLockOnStart = 255;
+  uint8_t autoLockEnabled = 255;
+  uint8_t immediateAutoLockEnabled = 255;
+  uint8_t autoUpdateEnabled = 255;
+  MotorSpeed motorSpeed = MotorSpeed::Unknown;
+  uint8_t enableSlowSpeedDuringNightMode = 255;
 };
 
 struct __attribute__((packed)) NewAdvancedConfig {
@@ -266,6 +309,8 @@ struct __attribute__((packed)) NewAdvancedConfig {
   uint8_t autoLockEnabled;
   uint8_t immediateAutoLockEnabled;
   uint8_t autoUpdateEnabled;
+  MotorSpeed motorSpeed;
+  uint8_t enableSlowSpeedDuringNightMode;
 };
 
 struct __attribute__((packed)) BatteryReport {
@@ -342,6 +387,12 @@ inline void lockactionToString(const LockAction action, char* str) {
     case LockAction::FullLock:
       strcpy(str, "FullLock");
       break;
+    case LockAction::FobNoAction:
+      strcpy(str, "FobNoAction");
+      break;
+    case LockAction::ButtonNoAction:
+      strcpy(str, "ButtonNoAction");
+      break;
     case LockAction::FobAction1:
       strcpy(str, "FobAction1");
       break;
@@ -415,6 +466,12 @@ inline void triggerToString(const Trigger trigger, char* str) {
     case Trigger::System:
       strcpy(str, "system");
       break;
+    case Trigger::HomeKit:
+      strcpy(str, "homekit");
+      break;
+    case Trigger::MQTT:
+      strcpy(str, "mqtt");
+      break;
     default:
       strcpy(str, "undefined");
       break;
@@ -438,6 +495,9 @@ inline void completionStatusToString(const CompletionStatus status, char* str) {
     case CompletionStatus::IncompleteFailure:
       strcpy(str, "incompleteFailure");
       break;
+      case CompletionStatus::Failure:
+          strcpy(str, "failure");
+          break;
     case CompletionStatus::InvalidCode:
       strcpy(str, "invalidCode");
       break;
@@ -485,6 +545,15 @@ inline void doorSensorStateToString(const DoorSensorState state, char* str) {
       break;
     case DoorSensorState::Calibrating:
       strcpy(str, "calibrating");
+      break;
+    case DoorSensorState::Uncalibrated:
+      strcpy(str, "uncalibrated");
+      break;
+    case DoorSensorState::Tampered:
+      strcpy(str, "tampered");
+      break;
+    case DoorSensorState::Unknown:
+      strcpy(str, "unknown");
       break;
     default:
       strcpy(str, "undefined");
