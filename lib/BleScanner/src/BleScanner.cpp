@@ -21,17 +21,26 @@ Scanner::Scanner(int reservedSubscribers) {
 }
 
 void Scanner::initialize(const std::string& deviceName, const bool wantDuplicates, const uint16_t interval, const uint16_t window) {
-  if (!BLEDevice::getInitialized()) {
+  if (!BLEDevice::isInitialized()) {
     if (wantDuplicates) {
       // reduce memory footprint, cache is not used anyway
+      #ifdef CONFIG_BTDM_BLE_SCAN_DUPL
       NimBLEDevice::setScanDuplicateCacheSize(10);
+      #endif
     }
     BLEDevice::init(deviceName);
   }
+
   bleScan = BLEDevice::getScan();
+
+  #ifndef BLESCANNER_USE_LATEST_NIMBLE
   bleScan->setAdvertisedDeviceCallbacks(this, wantDuplicates);
+  #else
+  bleScan->setScanCallbacks(this, wantDuplicates);
+  #endif
   bleScan->setInterval(interval);
   bleScan->setWindow(window);
+  bleScan->setActiveScan(false);
 }
 
 void Scanner::update() {
@@ -46,7 +55,11 @@ void Scanner::update() {
     log_w("Ble scanner max results not 0. Be aware of memory issue due to unbridled growth of results vector");
   }
 
+  #ifndef BLESCANNER_USE_LATEST_NIMBLE
   bool result = bleScan->start(scanDuration, nullptr, false);
+  #else
+  bool result = bleScan->start(scanDuration * 1000, false);
+  #endif
   // if (!result) {
   //   scanErrors++;
   //   if (scanErrors % 100 == 0) {
@@ -84,6 +97,11 @@ void Scanner::onResult(NimBLEAdvertisedDevice* advertisedDevice) {
   for (const auto& subscriber : subscribers) {
     subscriber->onResult(advertisedDevice);
   }
+}
+
+void Scanner::whitelist(BLEAddress bleAddress) {
+  BLEDevice::whiteListAdd(bleAddress);   
+  bleScan->setFilterPolicy(BLE_HCI_SCAN_FILT_USE_WL);
 }
 
 } // namespace BleScanner

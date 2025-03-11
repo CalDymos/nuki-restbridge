@@ -1,16 +1,16 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2023, Benoit BLANCHON
+// Copyright © 2014-2025, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include "../../Object/MemberProxy.hpp"
-#include "../../Variant/JsonVariantConst.hpp"
+#include <ArduinoJson/Object/MemberProxy.hpp>
+#include <ArduinoJson/Variant/JsonVariantConst.hpp>
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
 template <typename TVariant>
-struct Reader<TVariant, typename enable_if<IsVariant<TVariant>::value>::type>
+struct Reader<TVariant, enable_if_t<IsVariant<TVariant>::value>>
     : Reader<char*, void> {
   explicit Reader(const TVariant& x)
       : Reader<char*, void>(x.template as<const char*>()) {}

@@ -18,7 +18,10 @@
 namespace Nuki {
 
 enum class EventType {
-  KeyTurnerStatusUpdated
+  KeyTurnerStatusUpdated,
+  KeyTurnerStatusReset,
+  ERROR_BAD_PIN,
+  BLE_ERROR_ON_DISCONNECT
 };
 
 class SmartlockEventHandler {

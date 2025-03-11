@@ -407,7 +407,7 @@ int NimBLEDevice::getPower(esp_ble_power_type_t powerType) {
         case ESP_PWR_LVL_N6:
             return -6;
         case ESP_PWR_LVL_N3:
-            return -3;
+            return -6;
         case ESP_PWR_LVL_N0:
             return 0;
         case ESP_PWR_LVL_P3:
@@ -678,7 +678,6 @@ bool NimBLEDevice::whiteListAdd(const NimBLEAddress & address) {
     int rc = ble_gap_wl_set(&wlVec[0], wlVec.size());
     if (rc != 0) {
         NIMBLE_LOGE(LOG_TAG, "Failed adding to whitelist rc=%d", rc);
-        m_whiteList.pop_back();
         return false;
     }
 
@@ -892,8 +891,8 @@ void NimBLEDevice::init(const std::string &deviceName) {
         ble_hs_cfg.sm_bonding = 0;
         ble_hs_cfg.sm_mitm = 0;
         ble_hs_cfg.sm_sc = 1;
-        ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
-        ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+        ble_hs_cfg.sm_our_key_dist = 1;
+        ble_hs_cfg.sm_their_key_dist = 3;
 
         ble_hs_cfg.store_status_cb = ble_store_util_status_rr; /*TODO: Implement handler for this*/
 
@@ -971,15 +970,6 @@ void NimBLEDevice::deinit(bool clearAll) {
         }
     }
 } // deinit
-
-/**
- * @brief Set the BLEDevice's name
- * @param [in] deviceName The device name of the device.
- */
-/* STATIC */
-void NimBLEDevice::setDeviceName(const std::string &deviceName) {
-    ble_svc_gap_device_name_set(deviceName.c_str());
-} // setDeviceName
 
 
 /**
@@ -1115,21 +1105,21 @@ void NimBLEDevice::setSecurityCallbacks(NimBLESecurityCallbacks* callbacks) {
 void NimBLEDevice::setOwnAddrType(uint8_t own_addr_type, bool useNRPA) {
     m_own_addr_type = own_addr_type;
     switch (own_addr_type) {
-#if MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+#ifdef CONFIG_IDF_TARGET_ESP32
         case BLE_OWN_ADDR_PUBLIC:
             ble_hs_pvcy_rpa_config(NIMBLE_HOST_DISABLE_PRIVACY);
             break;
 #endif
         case BLE_OWN_ADDR_RANDOM:
             setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-#if MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+#ifdef CONFIG_IDF_TARGET_ESP32
             ble_hs_pvcy_rpa_config(useNRPA ? NIMBLE_HOST_ENABLE_NRPA : NIMBLE_HOST_ENABLE_RPA);
 #endif
             break;
         case BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT:
         case BLE_OWN_ADDR_RPA_RANDOM_DEFAULT:
             setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-#if MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+#ifdef CONFIG_IDF_TARGET_ESP32
             ble_hs_pvcy_rpa_config(NIMBLE_HOST_ENABLE_RPA);
 #endif
             break;

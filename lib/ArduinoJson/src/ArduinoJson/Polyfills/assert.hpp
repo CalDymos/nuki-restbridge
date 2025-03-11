@@ -1,10 +1,10 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2023, Benoit BLANCHON
+// Copyright © 2014-2025, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include "../Configuration.hpp"
+#include <ArduinoJson/Configuration.hpp>
 
 #if ARDUINOJSON_DEBUG
 #  include <assert.h>

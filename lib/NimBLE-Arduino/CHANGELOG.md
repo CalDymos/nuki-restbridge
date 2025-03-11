@@ -2,66 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.4.3] 2024-11-27
-
-### Fixed
- - BT5 examples for non-esp devices.
- - Build errors when configured as a non-connecting device
-
-### Added
- - Coded PHY support for nRF52833 and nRF52820
-
-## [1.4.2] 2024-06-17
-
-### Fixed
- - `CONFIG_BT_NIMBLE_NVS_PERSIST` value not being used to enable/disable persistance.
- - Set service handle in `NimBLEService::getHandle` function if not set already.
- - NimBLE_service_data_advertiser example updated to initialize the advertising pointer after stack initialization.
- - Unhandled exception on `NimBLECharacteristic::handleGapEvent` when the connection handle is invalid.
- - `NimBLEHIDDevice::pnp` now correctly sets the byte order.
- - `NimBLEEddystoneTLM` now correctly sets/gets negative temperatures.
- - Adding to the whitelist will now allow the device to be added again if the previous attempts failed.
- - The IPC calls added to esp_nimble_hci have been removed to prevent IPC stack crashing.
- - Espressif log tag renamed from "TAG" to "LOG_TAG" to avoid conflict with Arduino core definition.
- - Removed broken links in docs
-
-### Added
- - `NimBLEAdvertisedDevice` new method: `getAdvFlags`, to read the flags advertised.
- - `NimBLEAdvertising::setManufacturerData` new overload method that accepts a vector of `uint8_t`.
- - `NimBLEAdvertisementData::setManufacturerData` new overload method that accepts a vector of `uint8_t`.
- - `NimBLEAdvertisedDevice` new method: `getPayloadByType`, to get data from generic data types advertised.
- - `NimBLEService` new method: `isStarted`, checks if the service has been started.
- - `NimBLEAdvertising` new method: `removeServices` removes all service UUID's from the advertisement.
- - `NimBLEAdvertisementData` new method: `clearData` sets all data to NULL to reuse the instance.
-
-### Changed
- - `NimBLEAdvertisedDevice::getManufacturerData`, now takes an index value parameter to use when there is more than 1 instance of manufacturer data.
- - `NimBLEAdvertising` directed peer address parameter to advertising start.
- - Update NimBLE core to esp-nimble @0fc6282
- - Can now create more than 255 Characteristics/Descriptors in a service.
- - `nimble_port_freertos_get_hs_hwm` function is now available to the application to get the core task stack usage.
- - changed default pairing keys shared to include ID key which is now needed by iOS
- - Removed abort in server start when a service is not found, logs a warning message instead.
- - `NimBLEAdvertising::start` on complete callback is now a std::function to allow the use of std::bind to class methods
- - `NimBLEAdvertising` setXXX methods will now properly clear the previous data before setting the new values.
- - Removed asserts in `NimBLECharacteristic` event handler when conn_handle is invalid, sends a NULL conn info to the callback instead.
-
-## [1.4.1] - 2022-10-23
-
-### Fixed
- - Compile warning removed for esp32c3
- - NimBLEDevice::getPower incorrect value when power level is -3db.
- - Failed pairing when already in progress.
-
-### Changed
- - Revert previous change that forced writing with response when subscribing in favor of allowing the application to decide.
-
-### Added
- - Added NimBLEHIDDevice::batteryLevel.
- - Added NimBLEDevice::setDeviceName allowing for changing the device name while the BLE stack is active.
- - CI build tests.
- - Missing items in CHANGELOG that were not recorded correctly
-
 ## [1.4.0] - 2022-07-10
 
 ### Fixed
@@ -71,9 +11,6 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Updated NimBLE core to use the v1.4.0 branch of esp-nimble.
 - AD flags are no longer set in the advertisements of non-connectable beacons, freeing up 3 bytes of advertisement room.
-- Config option CONFIG_BT_NIMBLE_DEBUG replaced with CONFIG_BT_NIMBLE_LOG_LEVEL (see src/nimconfig.h for usage)
-- Config option CONFIG_NIMBLE_CPP_ENABLE_ADVERTISMENT_TYPE_TEXT renamed to CONFIG_NIMBLE_CPP_ENABLE_ADVERTISEMENT_TYPE_TEXT
-- Config option CONFIG_BT_NIMBLE_TASK_STACK_SIZE renamed to CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE
 
 ### Added
 - Preliminary support for non-esp devices, NRF51 and NRF52 devices supported with [n-able arduino core](https://github.com/h2zero/n-able-Arduino)

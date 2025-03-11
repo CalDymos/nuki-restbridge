@@ -52,9 +52,7 @@
 #ifdef ESP_PLATFORM
 #include "esp_intr_alloc.h"
 #include "esp_bt.h"
-#if !SOC_ESP_NIMBLE_CONTROLLER
 #include "nimble/esp_port/esp-hci/include/esp_nimble_hci.h"
-#endif
 #endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -104,13 +102,13 @@ esp_err_t esp_nimble_init(void)
 
     npl_freertos_mempool_init();
 #endif
-
-#if false // Arduino disabled
+#if false //need delete esp_nimble_hci_and_controller_init then can be use
     if(esp_nimble_hci_init() != ESP_OK) {
         ESP_LOGE(NIMBLE_PORT_LOG_TAG, "hci inits failed\n");
         return ESP_FAIL;
     }
-#endif // Arduino disabled
+    printf("esp_nimble_hci_init\n");
+#endif
 
     /* Initialize default event queue */
     ble_npl_eventq_init(&g_eventq_dflt);
@@ -131,69 +129,40 @@ esp_err_t esp_nimble_init(void)
  */
 esp_err_t esp_nimble_deinit(void)
 {
-#if !SOC_ESP_NIMBLE_CONTROLLER
-#if false // Arduino disabled
+#if false && !SOC_ESP_NIMBLE_CONTROLLER //need delete esp_nimble_hci_and_controller_init then can be use
     if(esp_nimble_hci_deinit() != ESP_OK) {
         ESP_LOGE(NIMBLE_PORT_LOG_TAG, "hci deinit failed\n");
         return ESP_FAIL;
     }
-#endif // Arduino disabled
+#endif
+#if !(SOC_ESP_NIMBLE_CONTROLLER && CONFIG_BT_CONTROLLER_ENABLED)
     ble_npl_eventq_deinit(&g_eventq_dflt);
 #endif
     ble_hs_deinit();
-
-#if !SOC_ESP_NIMBLE_CONTROLLER
-#if CONFIG_NIMBLE_STACK_USE_MEM_POOLS
-    npl_freertos_funcs_deinit();
-#endif
-#endif
     return ESP_OK;
 }
 #endif
 
-#ifdef ESP_PLATFORM
-/**
- * @brief nimble_port_init - Initialize controller and NimBLE host stack
- *
- * @return esp_err_t
- */
-esp_err_t
-#else
 void
-#endif
 nimble_port_init(void)
 {
 #ifdef ESP_PLATFORM
-    esp_err_t ret;
-#if false // Arduino disabled
-
-#if CONFIG_IDF_TARGET_ESP32
-    esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
-#endif
-#if CONFIG_BT_CONTROLLER_ENABLED
+#if SOC_ESP_NIMBLE_CONTROLLER && CONFIG_BT_CONTROLLER_ENABLED
     esp_bt_controller_config_t config_opts = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-
-    ret = esp_bt_controller_init(&config_opts);
-    if (ret != ESP_OK) {
+    if(esp_bt_controller_init(&config_opts) != ESP_OK) {
         ESP_LOGE(NIMBLE_PORT_LOG_TAG, "controller init failed\n");
-        return ret;
+        return;
     }
-
-    ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);
-    if (ret != ESP_OK) {
+    if(esp_bt_controller_enable(ESP_BT_MODE_BLE) != ESP_OK) {
         ESP_LOGE(NIMBLE_PORT_LOG_TAG, "controller enable failed\n");
-        return ret;
+        return;
     }
 #endif
-#endif // Arduino disabled
 
-    ret = esp_nimble_init();
-    if (ret != ESP_OK) {
+    if(esp_nimble_init() != 0) {
         ESP_LOGE(NIMBLE_PORT_LOG_TAG, "nimble host init failed\n");
-        return ret;
+        return;
     }
-
-    return ESP_OK;
 #else
 #if CONFIG_NIMBLE_STACK_USE_MEM_POOLS
     /* Initialize the function pointers for OS porting */
@@ -218,43 +187,24 @@ nimble_port_init(void)
 #endif // ESP_PLATFORM
 }
 
-#ifdef ESP_PLATFORM
-/**
- * @brief nimble_port_deinit - Deinitialize controller and NimBLE host stack
- *
- * @return esp_err_t
- */
-
-esp_err_t
-#else
 void
-#endif
 nimble_port_deinit(void)
 {
 #ifdef ESP_PLATFORM
-    esp_err_t ret;
-
-    ret = esp_nimble_deinit();
-    if(ret != ESP_OK) {
+    if(esp_nimble_deinit() != 0) {
         ESP_LOGE(NIMBLE_PORT_LOG_TAG, "nimble host deinit failed\n");
-        return ret;
+        return;
     }
-
 #if CONFIG_BT_CONTROLLER_ENABLED
-    ret = esp_bt_controller_disable();
-    if(ret != ESP_OK) {
+    if(esp_bt_controller_disable() != ESP_OK) {
         ESP_LOGE(NIMBLE_PORT_LOG_TAG, "controller disable failed\n");
-        return ret;
+        return;
     }
-
-    ret = esp_bt_controller_deinit();
-    if(ret != ESP_OK) {
+    if(esp_bt_controller_deinit() != ESP_OK) {
         ESP_LOGE(NIMBLE_PORT_LOG_TAG, "controller deinit failed\n");
-        return ret;
+        return;
     }
 #endif
-
-    return ESP_OK;
 #else
    ble_npl_eventq_deinit(&g_eventq_dflt);
    ble_hs_deinit();

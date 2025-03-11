@@ -31,9 +31,7 @@
 /**************************/
 
 #include "NimBLEUUID.h"
-#include "NimBLEAddress.h"
 
-#include <functional>
 #include <vector>
 
 /* COMPATIBILITY - DO NOT USE */
@@ -45,9 +43,6 @@
 #define ESP_BLE_ADV_FLAG_NON_LIMIT_DISC     (0x00 )
  /* ************************* */
 
-class NimBLEAdvertising;
-
-typedef std::function<void(NimBLEAdvertising*)> advCompleteCB_t;
 
 /**
  * @brief Advertisement data set by the programmer to be published by the %BLE server.
@@ -63,7 +58,6 @@ public:
     void setCompleteServices32(const std::vector<NimBLEUUID> &v_uuid);
     void setFlags(uint8_t);
     void setManufacturerData(const std::string &data);
-    void setManufacturerData(const std::vector<uint8_t> &data);
     void setURI(const std::string &uri);
     void setName(const std::string &name);
     void setPartialServices(const NimBLEUUID &uuid);
@@ -76,7 +70,6 @@ public:
     void addTxPower();
     void setPreferredParams(uint16_t min, uint16_t max);
     std::string getPayload();               // Retrieve the current advert payload.
-    void clearData();                       // Clear the advertisement data.
 
 private:
     friend class NimBLEAdvertising;
@@ -97,13 +90,11 @@ public:
     void addServiceUUID(const NimBLEUUID &serviceUUID);
     void addServiceUUID(const char* serviceUUID);
     void removeServiceUUID(const NimBLEUUID &serviceUUID);
-    bool start(uint32_t duration = 0, advCompleteCB_t advCompleteCB = nullptr, NimBLEAddress* dirAddr = nullptr);
-    void removeServices();
+    bool start(uint32_t duration = 0, void (*advCompleteCB)(NimBLEAdvertising *pAdv) = nullptr);
     bool stop();
     void setAppearance(uint16_t appearance);
     void setName(const std::string &name);
     void setManufacturerData(const std::string &data);
-    void setManufacturerData(const std::vector<uint8_t> &data);
     void setURI(const std::string &uri);
     void setServiceData(const NimBLEUUID &uuid, const std::string &data);
     void setAdvertisementType(uint8_t adv_type);
@@ -135,7 +126,7 @@ private:
     bool                    m_customScanResponseData;
     bool                    m_scanResp;
     bool                    m_advDataSet;
-    advCompleteCB_t         m_advCompCB{nullptr};
+    void                    (*m_advCompCB)(NimBLEAdvertising *pAdv);
     uint8_t                 m_slaveItvl[4];
     uint32_t                m_duration;
     std::vector<uint8_t>    m_svcData16;

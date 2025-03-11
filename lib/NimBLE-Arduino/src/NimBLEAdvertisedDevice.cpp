@@ -63,25 +63,6 @@ uint8_t NimBLEAdvertisedDevice::getAdvType() {
 
 
 /**
- * @brief Get the advertisement flags.
- * @return The advertisement flags, a bitmask of:
- * BLE_HS_ADV_F_DISC_LTD (0x01) - limited discoverability
- * BLE_HS_ADV_F_DISC_GEN (0x02) - general discoverability
- * BLE_HS_ADV_F_BREDR_UNSUP - BR/EDR not supported
- */
-uint8_t NimBLEAdvertisedDevice::getAdvFlags() {
-    size_t data_loc = 0;
-
-    if(findAdvField(BLE_HS_ADV_TYPE_FLAGS, 0, &data_loc) > 0) {
-        ble_hs_adv_field *field = (ble_hs_adv_field *)&m_payload[data_loc];
-        if(field->length == BLE_HS_ADV_FLAGS_LEN + 1) {
-            return *field->value;
-        }
-    }
-    return 0;
-} // getAdvFlags
-
-/**
  * @brief Get the appearance.
  *
  * A %BLE device can declare its own appearance.  The appearance is how it would like to be shown to an end user
@@ -159,14 +140,12 @@ uint16_t NimBLEAdvertisedDevice::getMaxInterval() {
 
 /**
  * @brief Get the manufacturer data.
- * @param [in] index The index of the of the manufacturer data set to get.
- * @return The manufacturer data.
+ * @return The manufacturer data of the advertised device.
  */
-std::string NimBLEAdvertisedDevice::getManufacturerData(uint8_t index) {
+std::string NimBLEAdvertisedDevice::getManufacturerData() {
     size_t data_loc = 0;
-    index++;
 
-    if(findAdvField(BLE_HS_ADV_TYPE_MFG_DATA, index, &data_loc) > 0) {
+    if(findAdvField(BLE_HS_ADV_TYPE_MFG_DATA, 0, &data_loc) > 0) {
         ble_hs_adv_field *field = (ble_hs_adv_field *)&m_payload[data_loc];
         if(field->length > 1) {
             return std::string((char*)field->value, field->length - 1);
@@ -175,15 +154,6 @@ std::string NimBLEAdvertisedDevice::getManufacturerData(uint8_t index) {
 
     return "";
 } // getManufacturerData
-
-
-/**
- * @brief Get the count of manufacturer data sets.
- * @return The number of manufacturer data sets.
- */
-uint8_t NimBLEAdvertisedDevice::getManufacturerDataCount() {
-    return findAdvField(BLE_HS_ADV_TYPE_MFG_DATA);
-} // getManufacturerDataCount
 
 
 /**
@@ -202,24 +172,6 @@ std::string NimBLEAdvertisedDevice::getURI() {
 
     return "";
 } // getURI
-
-/**
- * @brief Get the data from any type available in the advertisement
- * @param [in] type The advertised data type BLE_HS_ADV_TYPE
- * @return The data available under the type `type`
-*/
-std::string NimBLEAdvertisedDevice::getPayloadByType(uint16_t type) {
-    size_t data_loc = 0;
-
-    if(findAdvField(type, 0, &data_loc) > 0) {
-        ble_hs_adv_field *field = (ble_hs_adv_field *)&m_payload[data_loc];
-        if(field->length > 1) {
-            return std::string((char*)field->value, field->length - 1);
-        }
-    }
-
-    return "";
-} // getPayloadByType
 
 
 /**
@@ -573,14 +525,6 @@ bool NimBLEAdvertisedDevice::haveManufacturerData() {
 bool NimBLEAdvertisedDevice::haveURI() {
     return findAdvField(BLE_HS_ADV_TYPE_URI) > 0;
 } // haveURI
-
-/**
- * @brief Does this advertisement have a adv type `type`?
- * @return True if there is a `type` present.
-*/
-bool NimBLEAdvertisedDevice::haveType(uint16_t type) {
-    return findAdvField(type) > 0;
-}
 
 
 /**

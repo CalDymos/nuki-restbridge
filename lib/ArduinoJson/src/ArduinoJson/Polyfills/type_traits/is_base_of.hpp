@@ -1,10 +1,10 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2023, Benoit BLANCHON
+// Copyright © 2014-2025, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include "../../Namespace.hpp"
+#include <ArduinoJson/Namespace.hpp>
 
 #include "remove_reference.hpp"
 
@@ -20,8 +20,8 @@ class is_base_of {
 
  public:
   static const bool value =
-      sizeof(probe(reinterpret_cast<typename remove_reference<TDerived>::type*>(
-          0))) == sizeof(int);
+      sizeof(probe(reinterpret_cast<remove_reference_t<TDerived>*>(0))) ==
+      sizeof(int);
 };
 
 ARDUINOJSON_END_PRIVATE_NAMESPACE

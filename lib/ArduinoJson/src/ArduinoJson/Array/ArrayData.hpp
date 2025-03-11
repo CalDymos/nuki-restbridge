@@ -1,23 +1,32 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2025, Benoit BLANCHON
 // MIT License
 
 #pragma once
 
-#include "../Collection/CollectionData.hpp"
+#include <ArduinoJson/Collection/CollectionData.hpp>
 
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 
 class ArrayData : public CollectionData {
  public:
-  VariantData* addElement(ResourceManager* resources) {
-    return addSlot(resources).data();
-  }
+  VariantData* addElement(ResourceManager* resources);
 
   static VariantData* addElement(ArrayData* array, ResourceManager* resources) {
     if (!array)
       return nullptr;
     return array->addElement(resources);
+  }
+
+  template <typename T>
+  bool addValue(const T& value, ResourceManager* resources);
+
+  template <typename T>
+  static bool addValue(ArrayData* array, const T& value,
+                       ResourceManager* resources) {
+    if (!array)
+      return false;
+    return array->addValue(value, resources);
   }
 
   VariantData* getOrAddElement(size_t index, ResourceManager* resources);
@@ -40,14 +49,14 @@ class ArrayData : public CollectionData {
     array->removeElement(index, resources);
   }
 
-  bool copyFrom(const ArrayData& src, ResourceManager* resources);
+  void remove(iterator it, ResourceManager* resources) {
+    CollectionData::removeOne(it, resources);
+  }
 
-  static bool copy(ArrayData* dst, const ArrayData* src,
-                   ResourceManager* resources) {
-    if (!dst || !src)
-      return false;
-
-    return dst->copyFrom(*src, resources);
+  static void remove(ArrayData* array, iterator it,
+                     ResourceManager* resources) {
+    if (array)
+      return array->remove(it, resources);
   }
 
  private:

@@ -17,6 +17,11 @@
 #include <esp_bt.h>
 #include <freertos/semphr.h>
 #include "../include/esp_compiler.h"
+/* IPC is used to improve performance when calls come from a processor not running the NimBLE stack */
+/* but does not exist for solo */
+#ifndef CONFIG_FREERTOS_UNICORE
+  #include "esp_ipc.h"
+#endif
 
 #define NIMBLE_VHCI_TIMEOUT_MS  2000
 #define BLE_HCI_EVENT_HDR_LEN               (2)
@@ -51,7 +56,7 @@ static struct os_mempool ble_hci_evt_lo_pool;
 static os_membuf_t *ble_hci_evt_lo_buf;
 
 static SemaphoreHandle_t vhci_send_sem;
-const static char *LOG_TAG = "NimBLE";
+const static char *TAG = "NimBLE";
 
 int os_msys_buf_alloc(void);
 void os_msys_buf_free(void);
@@ -67,6 +72,15 @@ void ble_hci_trans_cfg_hs(ble_hci_trans_rx_cmd_fn *cmd_cb,
     ble_hci_rx_acl_hs_arg = acl_arg;
 }
 
+/* Added; Called from the core NimBLE is running on, not used for unicore */
+#ifndef CONFIG_FREERTOS_UNICORE
+void ble_hci_trans_hs_cmd_tx_on_core(void *arg)
+{
+    // Ugly but necessary as the arduino core does not provide enough IPC stack for variables.
+    esp_vhci_host_send_packet((uint8_t*)arg, *((uint8_t*)arg + 3) + 1 + BLE_HCI_CMD_HDR_LEN);
+}
+#endif
+
 /* Modified to use ipc calls in arduino to correct performance issues */
 int ble_hci_trans_hs_cmd_tx(uint8_t *cmd)
 {
@@ -77,11 +91,21 @@ int ble_hci_trans_hs_cmd_tx(uint8_t *cmd)
     *cmd = BLE_HCI_UART_H4_CMD;
     len = BLE_HCI_CMD_HDR_LEN + cmd[3] + 1;
     if (!esp_vhci_host_check_send_available()) {
-        ESP_LOGD(LOG_TAG, "Controller not ready to receive packets");
+        ESP_LOGD(TAG, "Controller not ready to receive packets");
     }
 
     if (xSemaphoreTake(vhci_send_sem, NIMBLE_VHCI_TIMEOUT_MS / portTICK_PERIOD_MS) == pdTRUE) {
+/* esp_ipc_call_blocking does not exist for solo */
+#ifndef CONFIG_FREERTOS_UNICORE
+        if (xPortGetCoreID() != CONFIG_BT_NIMBLE_PINNED_TO_CORE && !xPortInIsrContext()) {
+            esp_ipc_call_blocking(CONFIG_BT_NIMBLE_PINNED_TO_CORE,
+                                  ble_hci_trans_hs_cmd_tx_on_core, cmd);
+        } else {
+            esp_vhci_host_send_packet(cmd, len);
+        }
+#else /* Unicore */
         esp_vhci_host_send_packet(cmd, len);
+#endif
     } else {
         rc = BLE_HS_ETIMEOUT_HCI;
     }
@@ -100,12 +124,21 @@ int ble_hci_trans_ll_evt_tx(uint8_t *hci_ev)
     return rc;
 }
 
+/* Added; Called from the core NimBLE is running on, not used for unicore */
+#ifndef CONFIG_FREERTOS_UNICORE
+void ble_hci_trans_hs_acl_tx_on_core(void *arg)
+{
+    // Ugly but necessary as the arduino core does not provide enough IPC stack for variables.
+    esp_vhci_host_send_packet((uint8_t*)arg + 2, *(uint16_t*)arg);
+}
+#endif
+
 /* Modified to use ipc calls in arduino to correct performance issues */
 int ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
 {
     uint16_t len = 0;
     uint8_t data[MYNEWT_VAL(BLE_ACL_BUF_SIZE) + 3], rc = 0;
-
+    bool tx_using_nimble_core = 0;
     /* If this packet is zero length, just free it */
     if (OS_MBUF_PKTLEN(om) == 0) {
         os_mbuf_free_chain(om);
@@ -113,15 +146,39 @@ int ble_hci_trans_hs_acl_tx(struct os_mbuf *om)
     }
 
     if (!esp_vhci_host_check_send_available()) {
-        ESP_LOGD(LOG_TAG, "Controller not ready to receive packets");
+        ESP_LOGD(TAG, "Controller not ready to receive packets");
     }
 
     len = 1 + OS_MBUF_PKTLEN(om);
+/* Don't check core ID if unicore */
+#ifndef CONFIG_FREERTOS_UNICORE
+    tx_using_nimble_core = xPortGetCoreID() != CONFIG_BT_NIMBLE_PINNED_TO_CORE;
+    if (tx_using_nimble_core && !xPortInIsrContext()) {
+        data[0] = len;
+        data[1] = (len >> 8);
+        data[2] = BLE_HCI_UART_H4_ACL;
+        os_mbuf_copydata(om, 0, OS_MBUF_PKTLEN(om), &data[3]);
+    } else {
+        data[0] = BLE_HCI_UART_H4_ACL;
+        os_mbuf_copydata(om, 0, OS_MBUF_PKTLEN(om), &data[1]);
+    }
+#else /* Unicore */
     data[0] = BLE_HCI_UART_H4_ACL;
     os_mbuf_copydata(om, 0, OS_MBUF_PKTLEN(om), &data[1]);
+#endif
 
     if (xSemaphoreTake(vhci_send_sem, NIMBLE_VHCI_TIMEOUT_MS / portTICK_PERIOD_MS) == pdTRUE) {
+/* esp_ipc_call_blocking does not exist for solo */
+#ifndef CONFIG_FREERTOS_UNICORE
+        if (tx_using_nimble_core && !xPortInIsrContext()) {
+            esp_ipc_call_blocking(CONFIG_BT_NIMBLE_PINNED_TO_CORE,
+                                  ble_hci_trans_hs_acl_tx_on_core, data);
+        } else {
+            esp_vhci_host_send_packet(data, len);
+        }
+#else /* Unicore */
         esp_vhci_host_send_packet(data, len);
+#endif
     } else {
         rc = BLE_HS_ETIMEOUT_HCI;
     }
@@ -249,11 +306,11 @@ static void ble_hci_rx_acl(uint8_t *data, uint16_t len)
     m = ble_hci_trans_acl_buf_alloc();
 
     if (!m) {
-        ESP_LOGE(LOG_TAG, "%s failed to allocate ACL buffers; increase ACL_BUF_COUNT", __func__);
+        ESP_LOGE(TAG, "%s failed to allocate ACL buffers; increase ACL_BUF_COUNT", __func__);
         return;
     }
     if ((rc = os_mbuf_append(m, data, len)) != 0) {
-        ESP_LOGE(LOG_TAG, "%s failed to os_mbuf_append; rc = %d", __func__, rc);
+        ESP_LOGE(TAG, "%s failed to os_mbuf_append; rc = %d", __func__, rc);
         os_mbuf_free_chain(m);
         return;
     }
@@ -338,7 +395,7 @@ static int host_rcv_pkt(uint8_t *data, uint16_t len)
         assert(totlen <= UINT8_MAX + BLE_HCI_EVENT_HDR_LEN);
 
         if (totlen > MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE)) {
-            ESP_LOGE(LOG_TAG, "Received HCI data length at host (%d) exceeds maximum configured HCI event buffer size (%d).",
+            ESP_LOGE(TAG, "Received HCI data length at host (%d) exceeds maximum configured HCI event buffer size (%d).",
                      totlen, MYNEWT_VAL(BLE_HCI_EVT_BUF_SIZE));
             ble_hs_sched_reset(BLE_HS_ECONTROLLER);
             return 0;
