@@ -28,4 +28,3 @@
 #define api_path_timecontrol_action (char*)"/timecontrol/action"
 
 #define api_path_auth_action (char*)"/authorization/action"
-

@@ -1,6 +1,6 @@
 #include "IPConfiguration.h"
 #include "PreferencesKeys.h"
-#include "Logger.h"
+#include "Logger.hpp"
 
 IPConfiguration::IPConfiguration(Preferences *preferences)
     : _preferences(preferences)

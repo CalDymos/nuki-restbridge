@@ -21,4 +21,3 @@ private:
     IPAddress _gateway;
     IPAddress _dnsServer;
 };
-

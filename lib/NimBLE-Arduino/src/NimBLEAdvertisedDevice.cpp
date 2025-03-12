@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -779,6 +779,16 @@ bool NimBLEAdvertisedDevice::isLegacyAdvertisement() const {
     return true;
 # endif
 } // isLegacyAdvertisement
+
+/**
+ * @brief Convenience operator to convert this NimBLEAdvertisedDevice to NimBLEAddress representation.
+ * @details This allows passing NimBLEAdvertisedDevice to functions
+ * that accept NimBLEAddress and/or or it's methods as a parameter.
+ */
+NimBLEAdvertisedDevice::operator NimBLEAddress() const {
+    NimBLEAddress address(getAddress());
+    return address;
+} // operator NimBLEAddress
 
 /**
  * @brief Get the payload advertised by the device.
