@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,6 +93,7 @@ class NimBLEAdvertisedDevice {
     uint8_t  getSecondaryPhy() const;
     uint16_t getPeriodicInterval() const;
 # endif
+    operator NimBLEAddress() const;
 
     const std::vector<uint8_t>&                getPayload() const;
     const std::vector<uint8_t>::const_iterator begin() const;

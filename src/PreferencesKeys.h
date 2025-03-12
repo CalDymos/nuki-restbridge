@@ -21,7 +21,9 @@
 
 #define preference_connect_mode (char*)"nukiConnMode"
 
-#define preference_webcfgserver_enabled (char *)"webCfgSrvEna"  // enable/disable WebCfgserver
+#define preference_webcfgserver_enabled (char *)"webCfgSrvEna"  // enable/disable WebCfgserver 
+#define preference_webcfgserver_cred_user (char*)"webCfgSrvCrdusr"
+#define preference_webcfgserver_cred_password (char*)"webCfgSrvCrdpass"
 
 #define preference_lock_enabled (char*)"lockena"
 
@@ -50,8 +52,8 @@
 #define preference_ha_query_info_nuki_bridge_build (char *)"haQueryNBBuil"
 #define preference_ha_path_freeheap (char *)"haPathFreeHp"
 #define preference_ha_query_freeheap (char *)"haQueryFreeHp"
-#define preference_ha_path_ble_adress (char *)"haPathBleAddr"
-#define preference_ha_query_ble_adress (char *)"haQueryBleAddr"
+#define preference_ha_path_ble_address (char *)"haPathBleAddr"
+#define preference_ha_query_ble_address (char *)"haQueryBleAddr"
 
 #define preference_hostname (char *)"hostname"
 
