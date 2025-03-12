@@ -7,6 +7,7 @@
 // Standard libraries
 #include <Arduino.h>
 #include <WiFi.h>
+#include "esp_wifi.h"
 #include <ETH.h>
 #include <WebServer.h>
 #include <HTTPClient.h>
@@ -45,6 +46,7 @@ public:
   void disableAutoRestarts();
   int NetworkServicesState();
   bool NetworkServicesRecentlyConnected();
+  bool isHAEnabled();
 
   void registerRestDataReceiver(RestDataReceiver* receiver);
 
@@ -76,7 +78,10 @@ private:
   void readSettings();
 
   // Event handlers & callbacks
+  void openAP();
   void onDisconnected();
+  void onConnected();
+  bool connect();
   static void onRestDataReceivedCallback(const char* path, WebServer& server);
   void onRestDataReceived(const char* path, WebServer& server);
   void onNetworkEvent(arduino_event_id_t event, arduino_event_info_t info);

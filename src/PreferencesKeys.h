@@ -13,6 +13,14 @@
 
 #define preference_disable_network_not_connected (char *)"disNtwNoCon"
 
+#define preference_debug_connect (char*)"dbgConnect"
+#define preference_debug_communication (char*)"dbgCommu"
+#define preference_debug_readable_data (char*)"dbgReadData"
+#define preference_debug_hex_data (char*)"dbgHexData"
+#define preference_debug_command (char*)"dbgCommand"
+
+#define preference_connect_mode (char*)"nukiConnMode"
+
 #define preference_webcfgserver_enabled (char *)"webCfgSrvEna"  // enable/disable WebCfgserver
 
 #define preference_lock_enabled (char*)"lockena"
@@ -42,6 +50,8 @@
 #define preference_ha_query_info_nuki_bridge_build (char *)"haQueryNBBuil"
 #define preference_ha_path_freeheap (char *)"haPathFreeHp"
 #define preference_ha_query_freeheap (char *)"haQueryFreeHp"
+#define preference_ha_path_ble_adress (char *)"haPathBleAddr"
+#define preference_ha_query_ble_adress (char *)"haQueryBleAddr"
 
 #define preference_hostname (char *)"hostname"
 
@@ -61,6 +71,12 @@
 #define preference_Maintenance_publish_interval (char *)"maintpb"  // seconds
 #define preference_restart_ble_beacon_lost (char *)"rstbcn"
 
+#define preference_authlog_max_entries (char*)"authmaxentry"
+
+#define preference_keypad_check_code_enabled (char*)"kpChkEna"
+#define preference_lock_force_id (char*)"lckForceId"
+#define preference_lock_force_keypad (char*)"lckForceKp"
+
 #define preference_query_interval_lockstate (char *)"lockStInterval"
 #define preference_query_interval_configuration (char *)"configInterval"
 #define preference_query_interval_battery (char *)"batInterval"
@@ -72,6 +88,8 @@
 #define preference_lock_max_keypad_code_count (char *)"maxkpad"
 #define preference_access_level (char *)"accLvl"
 #define preference_time_server (char*)"timeServer"
+
+#define preference_auth_info_enabled (char*)"authInfoEna"
 
 #define preference_ntw_reconfigure (char *)"ntwRECONF"
 
@@ -89,7 +107,21 @@
 #define preference_conf_lock_basic_acl (char *)"confLckBasAcl"
 #define preference_conf_lock_advanced_acl (char *)"confLckAdvAcl"
 
+#define preference_ble_tx_power (char*)"bleTxPwr"
+
+#define preference_keypad_info_enabled (char*)"kpInfoEnabled"
+#define preference_publish_authdata (char*)"pubAuth"
+#define preference_conf_info_enabled (char*)"cnfInfoEnabled"
+#define preference_timecontrol_info_enabled (char*)"tcInfoEnabled"
+
 #define preference_update_time (char*)"updateTime"
+
+
+//NOT USER CHANGEABLE
+#define preference_lock_max_auth_entry_count (char*)"maxauth"
+#define preference_lock_max_timecontrol_entry_count (char*)"maxtc"
+#define preference_nuki_id_lock (char*)"nukiId"
+#define preference_lock_pin_status (char*)"lockpin"
 
 inline bool initPreferences(Preferences *&preferences) {
   preferences = new Preferences();

@@ -24,7 +24,6 @@ NukiNetworkLock::~NukiNetworkLock() {
 
 void NukiNetworkLock::initialize() {
   strncpy(_apiLockPath, api_path_lock, sizeof(_apiLockPath) - 1);
-  _apiLockPath[sizeof(_apiLockPath) - 1] = '\0';
 }
 
 bool NukiNetworkLock::update() {
@@ -39,11 +38,9 @@ char* NukiNetworkLock::getArgs(WebServer& server) {
   if (server.args() == 1 && server.argName(0) == "val") {
     // If only one parameter with the name "val" exists, save only the value
     strncpy(_buffer, server.arg(0).c_str(), _bufferSize - 1);
-    _buffer[server.arg(0).length()] = '\0';  // Ensure zero termination
   } else if (server.args() == 1) {
     // If only one parameter exists, save only the name
     strncpy(_buffer, server.argName(0).c_str(), _bufferSize - 1);
-    _buffer[server.argName(0).length()] = '\0';  // Ensure zero termination
   } else if (server.args() > 1) {
     for (uint8_t i = 0; i < server.args(); i++) {
       doc[server.argName(i)] = server.arg(i);  // Add parameters to the JSON document
@@ -210,7 +207,6 @@ bool NukiNetworkLock::comparePrefixedPath(const char* fullPath, const char* subP
 void NukiNetworkLock::buildApiPath(const char* path, char* outPath) {
   // Copy (_apiPath) to outPath
   strncpy(outPath, _apiLockPath, sizeof(_apiLockPath) - 1);
-  outPath[strnlen(_apiLockPath, sizeof(_apiLockPath) - 1)] = '\0';  // Null-Terminierung sicherstellen
 
   // Append the (path) zo outPath
   strncat(outPath, path, 384 - strlen(outPath));  // Sicherheitsgrenze beachten
