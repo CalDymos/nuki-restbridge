@@ -38,23 +38,21 @@ public:
     void handleClient();
 
 private:
-    /**
-     * @brief Handler für GET-Anfrage auf "/"
-     *        Zeigt eine simple HTML-Seite mit einem Formular, um einen Key/Value zu setzen.
-     */
-    void handleRoot();
 
-    /**
-     * @brief Handler für POST-Anfrage auf "/save"
-     *        Liest Parameter aus und speichert sie in Preferences.
-     */
-    void handleSave();
+    void sendCss(WebServer *server);
+    void redirect(WebServer *server, const char* url, int code=301);
 
-    void handleNotFound();
-
-    void handleCSS();
-
+    std::vector<String> _ssidList;
+    std::vector<int> _rssiList;
     String generateConfirmCode();
+    void createSsidList();
+
+    bool isAuthenticated(WebServer *server);
+    int doAuthentication(WebServer *server);
+    void buildSSIDListHtml(WebServer *server);
+    void waitAndProcess(const bool blocking, const uint32_t duration);
+    bool processWiFi(WebServer *server, String& message);
+    void buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect, String redirectTo = "/");
 
     // --- Membervariablen ---
     NukiWrapper* _nuki = nullptr;
