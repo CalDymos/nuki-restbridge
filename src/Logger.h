@@ -45,7 +45,7 @@ extern DebugLog* Log;
 
 #else  // Production mode with SPIFFS logging
 
-class DebugLog {
+class DebugLog : public Print {
 private:
   Preferences* _preferences;
   String _logFile;

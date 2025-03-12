@@ -20,19 +20,20 @@ public:
   void initialize();
   bool update();
 
-  //void publishKeyTurnerState(const NukiLock::KeyTurnerState& keyTurnerState, const NukiLock::KeyTurnerState& lastKeyTurnerState);
+  void sendToHAKeyTurnerState(const NukiLock::KeyTurnerState& keyTurnerState, const NukiLock::KeyTurnerState& lastKeyTurnerState);
   //void publishState(NukiLock::LockState lockState);
-  //void publishCommandResult(const char* resultStr);
-  //void publishLockstateCommandResult(const char* resultStr);
-  //void publishBatteryReport(const NukiLock::BatteryReport& batteryReport);
-  //void publishConfig(const NukiLock::Config& config);
-  //void publishAdvancedConfig(const NukiLock::AdvancedConfig& config);
-  //void publishRssi(const int& rssi);
-  //void publishRetry(const std::string& message);
-  //void publishBleAddress(const std::string& address);
+  void sendToHAAuthorizationInfo(const std::list<NukiLock::LogEntry>& logEntries, bool latest);
+  void sendToHACommandResult(const char* resultStr); // publishCommandResult
+  void sendToHALockstateCommandResult(const char* resultStr);
+  void sendToHABatteryReport(const NukiLock::BatteryReport& batteryReport);
+  void sendToHAConfig(const NukiLock::Config& config);
+  void sendToHAAdvancedConfig(const NukiLock::AdvancedConfig& config);
+  void sendToHARssi(const int& rssi); //publishRssi
+  void sendToHARetry(const std::string& message); // publishRetry
+  void sendToHABleAddress(const std::string& address); //publishBleAddress
   //void publishKeypad(const std::list<NukiLock::KeypadEntry>& entries, uint maxKeypadCodeCount);
   //void publishTimeControl(const std::list<NukiLock::TimeControlEntry>& timeControlEntries, uint maxTimeControlEntryCount);
-  ////void publishStatusUpdated(const bool statusUpdated);
+  void sendToHAStatusUpdated(const bool statusUpdated); // publishStatusUpdated
   //void publishConfigCommandResult(const char* result);
   //void publishKeypadCommandResult(const char* result);
   //void publishTimeControlCommandResult(const char* result);
@@ -48,8 +49,8 @@ public:
 
   //const uint32_t getAuthId() const;
   //const char* getAuthName();
-  //int NetworkServicesState();
-  //uint8_t queryCommands();
+  int NetworkServicesState();
+  uint8_t queryCommands();
 private:
   bool comparePrefixedPath(const char* fullPath, const char* subPath);
 

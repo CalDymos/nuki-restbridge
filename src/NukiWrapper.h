@@ -51,18 +51,18 @@ private:
   static void onConfigUpdateReceivedCallback(const char *value);
   static void onKeypadCommandReceivedCallback(const char *command, const uint &id, const String &name, const String &code, const int &enabled);
   static void onTimeControlCommandReceivedCallback(const char *value);
-  //static void onAuthCommandReceivedCallback(const char* value);
+  static void onAuthCommandReceivedCallback(const char* value);
   LockActionResult onLockActionReceived(const char *value);
   void onKeypadCommandReceived(const char *command, const uint &id, const String &name, const String &code, const int &enabled);
   void onConfigUpdateReceived(const char *value);
   void onTimeControlCommandReceived(const char *value);
-  //void onAuthCommandReceived(const char* value);
+  void onAuthCommandReceived(const char* value);
 
-  void updateKeyTurnerState();
+  bool updateKeyTurnerState();
   void updateBatteryState();
   void updateConfig();
-  void updateAuthData();
-  void updateKeypad();
+  void updateAuthData(bool retrieved);
+  void updateKeypad(bool retrieved);
   void updateTimeControl(bool retrieved);
   void updateAuth(bool retrieved);
   void postponeBleWatchdog();
@@ -71,7 +71,7 @@ private:
   void readConfig();
   void readAdvancedConfig();
 
-  std::string CommandResultToString(Nuki::CmdResult result, const char *logDescription = nullptr);  //printCommandResult
+  std::string printCmdResult(Nuki::CmdResult result, const char *logDescription = nullptr);  //printCommandResult
 
   NukiLock::LockAction lockActionToEnum(const char *str);  // char array at least 14 characters
   Nuki::AdvertisingMode advertisingModeToEnum(const char *str);
@@ -91,7 +91,11 @@ private:
   int _intervalConfig = 60 * 60;  // seconds
   int _intervalKeypad = 0;        // seconds
   int _restartBeaconTimeout = 0;  // seconds
+  bool _publishAuthData = false;
   bool _clearAuthData = false;
+  bool _checkKeypadCodes = false;
+  int _invalidCount = 0;
+  int64_t _lastCodeCheck = 0;
   std::vector<uint16_t> _keypadCodeIds;
   std::vector<uint32_t> _keypadCodes;
   std::vector<uint8_t> _timeControlIds;
@@ -113,22 +117,35 @@ private:
   bool _statusUpdated = false;
   bool _configRead = false;
   bool _hasKeypad = false;
+  bool _forceKeypad = false;
+  bool _forceId = false;
   bool _keypadEnabled = false;
+  bool _homeAutomationEnabled = false;
   uint _maxKeypadCodeCount = 0;
+  uint _maxTimeControlEntryCount = 0;
+  uint _maxAuthEntryCount = 0;
 
   int _nrOfRetries = 0;
   int _retryDelay = 0;
   int _retryCount = 0;
+  int _retryConfigCount = 0;
   int _retryLockstateCount = 0;
-  long _rssiUpdateInterval = 0;
+  long _rssiPublishInterval = 0;
+  int64_t _statusUpdatedTs = 0;
   int64_t _nextRetryTs = 0;
   int64_t _nextLockStateUpdateTs = 0;
   int64_t _nextBatteryReportTs = 0;
   int64_t _nextConfigUpdateTs = 0;
+  int64_t _waitAuthLogUpdateTs = 0;
+  int64_t _waitKeypadUpdateTs = 0;
+  int64_t _waitTimeControlUpdateTs = 0;
+  int64_t _waitAuthUpdateTs = 0;
   int64_t _nextKeypadUpdateTs = 0;
   int64_t _nextRssiTs = 0;
   int64_t _lastRssi = 0;
   int64_t _disableBleWatchdogTs = 0;
+  uint32_t _basicLockConfigaclPrefs[16];
+  uint32_t _advancedLockConfigaclPrefs[25];
   std::string _firmwareVersion = "";
   std::string _hardwareVersion = "";
   volatile NukiLock::LockAction _nextLockAction = (NukiLock::LockAction)0xff;

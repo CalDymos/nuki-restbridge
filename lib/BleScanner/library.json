@@ -1,6 +1,6 @@
 {
   "name": "BleScanner",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Generic BleScanner using NimBle listening to advertisements. Used by NukiBleEsp32 and EnOcean libraries",
   "keywords": "ble esp32 scanner",
   "authors": [
