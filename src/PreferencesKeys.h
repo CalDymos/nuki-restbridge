@@ -25,6 +25,9 @@
 #define preference_webcfgserver_cred_user (char*)"webCfgSrvCrdusr"
 #define preference_webcfgserver_cred_password (char*)"webCfgSrvCrdpass"
 
+#define preference_bypass_proxy (char*)"credBypass"
+#define preference_http_auth_type (char*)"httpdAuthType"
+
 #define preference_lock_enabled (char*)"lockena"
 
 #define preference_ha_enabled (char *)"haEna"

@@ -333,6 +333,7 @@ void webCfgTask(void* parameter)
   while(true)
   {
 
+    webCfgServer->handleClient();
     if (espMillis() - webCfgLoopTs > 120000) {
       Log->println(F("webCfgTask is running"));
       webCfgLoopTs = espMillis();
