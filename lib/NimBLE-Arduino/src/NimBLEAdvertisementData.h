@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2024 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +38,7 @@ class NimBLEAdvertisementData {
     bool addData(const uint8_t* data, size_t length);
     bool addData(const std::vector<uint8_t>& data);
     bool setAppearance(uint16_t appearance);
-    bool setFlags(uint8_t flag);
+    bool setFlags(uint8_t);
     bool addTxPower();
     bool setPreferredParams(uint16_t minInterval, uint16_t maxInterval);
     bool addServiceUUID(const NimBLEUUID& serviceUUID);

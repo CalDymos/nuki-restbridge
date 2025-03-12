@@ -8,10 +8,9 @@
 #include <FS.h>
 #include "ArduinoJson.h"
 #include "ESP32_FTPClient.h"
-#include <Print.h>
 
 #ifdef DEBUG
-
+#include <Print.h>
 
 class DebugLog : public Print {
 private:
@@ -197,8 +196,6 @@ public:
   void println(unsigned long long, int = 10) {}
   void println(double, int = 2) {}
   void println(void) {}
-
-  size_t write(uint8_t) override {return 1;}
 
   // -----------------------------------------------------------
   // Deletes the current log file (if exists) and creates a new empty file

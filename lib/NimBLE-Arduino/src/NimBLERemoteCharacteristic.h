@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2024 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,7 +67,7 @@ class NimBLERemoteCharacteristic : public NimBLERemoteValueAttribute {
     ~NimBLERemoteCharacteristic();
 
     bool setNotify(uint16_t val, notify_callback notifyCallback = nullptr, bool response = true) const;
-    bool retrieveDescriptors(NimBLEDescriptorFilter* pFilter = nullptr) const;
+    bool retrieveDescriptors(NimBLEDescriptorFilter* filter = nullptr) const;
 
     static int descriptorDiscCB(
         uint16_t connHandle, const ble_gatt_error* error, uint16_t chrHandle, const ble_gatt_dsc* dsc, void* arg);

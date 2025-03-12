@@ -3,7 +3,7 @@
 enum class RestartReason
 {
     RequestedViaApi,
-    RequestedViaWebCfgServer,
+    RequestedViaWebServer,
     BLEError,
     BLEBeaconWatchdog,
     RestartOnDisconnectWatchdog,
@@ -18,7 +18,7 @@ enum class RestartReason
     RestartTimer,
     DeviceUnpaired,
     FactoryReset,
-    ReconfigureWebCfgServer,
+    ReconfigureWebServer,
     DisableNetworkIfNotConnected,
     NotApplicable
 };
@@ -62,9 +62,9 @@ inline static String getRestartReason()
     {
         case RestartReason::RequestedViaApi:
             return "RequestedViaApi";
-        case RestartReason::RequestedViaWebCfgServer:
+        case RestartReason::RequestedViaWebServer:
             return "RequestedViaWebServer";
-        case RestartReason::ReconfigureWebCfgServer:
+        case RestartReason::ReconfigureWebServer:
             return "ReconfigureWebServer";
         case RestartReason::BLEError:
             return "BLEError";
