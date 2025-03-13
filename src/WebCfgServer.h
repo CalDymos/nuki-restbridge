@@ -7,6 +7,10 @@
 #include "NukiNetwork.h"
 #include <ArduinoJson.h>
 
+extern TaskHandle_t networkTaskHandle;
+extern TaskHandle_t nukiTaskHandle;
+extern TaskHandle_t webCfgTaskHandle;
+
 /**
  * @brief Minimaler Web-Config-Server, der Konfiguration über / und /save entgegennimmt.
  *        Läuft auf einem eigenen Port (z.B. 8080).
@@ -46,13 +50,22 @@ private:
     std::vector<int> _rssiList;
     String generateConfirmCode();
     void createSsidList();
+    void logoutSession(WebServer *server);
 
     bool isAuthenticated(WebServer *server);
     int doAuthentication(WebServer *server);
     void buildSSIDListHtml(WebServer *server);
+    void buildLoginHtml(WebServer *server);
+    void buildBypassHtml(WebServer *server);
+    void buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect = false, String redirectTo = "/");
+    void buildCoredumpHtml(WebServer *server);
+    void buildInfoHtml(WebServer *server);
     void waitAndProcess(const bool blocking, const uint32_t duration);
     bool processWiFi(WebServer *server, String& message);
-    void buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect, String redirectTo = "/");
+
+    void saveSessions();
+    void loadSessions();
+    void clearSessions();
 
     // --- Membervariablen ---
     NukiWrapper* _nuki = nullptr;
@@ -66,4 +79,6 @@ private:
     String _hostname;
     char _credUser[31] = {0};
     char _credPassword[31] = {0};
+    bool _allowRestartToPortal = false;
+    bool _newBypass = false;
 };

@@ -270,6 +270,7 @@ private:
     const size_t _bufferSize;
     char _apiBridgePath[129] = {0};
     char _apiLockPath[129] = { 0 };
+    int _apiPort;
 
     LockActionResult (*_lockActionReceivedCallback)(const char* value) = nullptr;
     void (*_configUpdateReceivedCallback)(const char* value) = nullptr;

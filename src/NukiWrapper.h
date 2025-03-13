@@ -97,12 +97,15 @@ public:
      */
     NukiLock::LockState getLockState() const;
 
-    void notify(Nuki::EventType eventType) override;
-
+    void disableWatchdog();
+    
     const bool isPaired() const;
 
     const BLEAddress getBleAddress() const;
 
+    String firmwareVersion() const;
+    String hardwareVersion() const;
+    void notify(Nuki::EventType eventType) override;
 private:
     // Interne NukiLock-Instanz, die für die eigentliche BLE-Kommunikation sorgt
     NukiLock::NukiLock _nukiLock;
@@ -130,6 +133,9 @@ private:
     int _restartBeaconTimeout = 0; // seconds
 
     int64_t _disableBleWatchdogTs = 0;
+
+    String _firmwareVersion = "";
+    String _hardwareVersion = "";
 
     char *_buffer;
     const size_t _bufferSize;
