@@ -201,6 +201,21 @@ const BLEAddress NukiWrapper::getBleAddress() const
     return _nukiLock.getBleAddress();
 }
 
+String NukiWrapper::firmwareVersion() const
+{
+    return _firmwareVersion;
+}
+
+String NukiWrapper::hardwareVersion() const
+{
+    return _hardwareVersion;
+}
+
+void NukiWrapper::disableWatchdog()
+{
+    _restartBeaconTimeout = -1;
+}
+
 void NukiWrapper::notify(Nuki::EventType eventType)
 {
     if (eventType == Nuki::EventType::KeyTurnerStatusUpdated)

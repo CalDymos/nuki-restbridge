@@ -20,6 +20,7 @@ NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSi
 {
     _inst = this;
     _webEnabled = _preferences->getBool(preference_webcfgserver_enabled, true);
+    _apiPort = _preferences->getInt(preference_api_port, REST_SERVER_PORT);
     _apitoken = new BridgeApiToken(_preferences, preference_api_Token);
     _apiEnabled = _preferences->getBool(preference_api_enabled);
     _lockEnabled = preferences->getBool(preference_lock_enabled);
@@ -655,7 +656,7 @@ void NukiNetwork::startNetworkServices()
 {
 
     _httpClient = new HTTPClient();
-    _server = new WebServer(REST_SERVER_PORT);
+    _server = new WebServer(_apiPort);
     if (_server)
     {
         _server->onNotFound([this]()
@@ -1012,7 +1013,7 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
 
     // 5. test whether the local REST web server can be reached on the port
     WiFiClient client;
-    if (!client.connect(WiFi.localIP(), REST_SERVER_PORT))
+    if (!client.connect(WiFi.localIP(), _apiPort))
     {
         Log->println("[ERROR] WebServer is not responding!");
         webServerOk = false;
@@ -1076,7 +1077,7 @@ void NukiNetwork::restartNetworkServices(NetworkServiceStates status)
             delete _server;
             _server = nullptr;
         }
-        _server = new WebServer(REST_SERVER_PORT);
+        _server = new WebServer(_apiPort);
         if (_server)
         {
             _server->onNotFound([this]()

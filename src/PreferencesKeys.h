@@ -22,16 +22,21 @@
 #define preference_connect_mode (char*)"nukiConnMode"
 
 #define preference_webcfgserver_enabled (char *)"webCfgSrvEna"  // enable/disable WebCfgserver 
-#define preference_webcfgserver_cred_user (char*)"webCfgSrvCrdusr"
-#define preference_webcfgserver_cred_password (char*)"webCfgSrvCrdpass"
+#define preference_cred_user (char*)"webCfgSrvCrdusr"
+#define preference_cred_password (char*)"webCfgSrvCrdpass"
+#define preference_cred_session_lifetime (char*)"webCfgSrvCredLf"
+#define preference_cred_session_lifetime_remember (char*)"webCfgSrvCredLfRmbr"
 
 #define preference_bypass_proxy (char*)"credBypass"
 #define preference_http_auth_type (char*)"httpdAuthType"
 
+#define preference_bypass_secret (char*)"bypassecret"
+#define preference_admin_secret (char*)"adminsecret"
+
 #define preference_lock_enabled (char*)"lockena"
 
 #define preference_ha_enabled (char *)"haEna"
-#define preference_ha_mode (char *)"haMode"  // udp oder http POST
+#define preference_ha_mode (char *)"haMode"  // "UDP" oder "hTTP POST"
 #define preference_ha_address (char *)"haAddr"
 #define preference_ha_port (char *)"haPort"
 #define preference_ha_user (char *)"haUsr"
@@ -120,7 +125,7 @@
 #define preference_timecontrol_info_enabled (char*)"tcInfoEnabled"
 
 #define preference_update_time (char*)"updateTime"
-
+#define preference_enable_debug_mode (char*)"enadbg"
 
 //NOT USER CHANGEABLE
 #define preference_lock_max_auth_entry_count (char*)"maxauth"

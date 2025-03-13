@@ -29,8 +29,6 @@ bool lockEnabled = false;
 bool wifiConnected = false;
 bool rebootLock = false;
 
-TaskHandle_t nukiTaskHandle = nullptr;
-
 int64_t restartTs = (pow(2, 63) - (5 * 1000 * 60000)) / 1000;
 
 RTC_NOINIT_ATTR int espRunning;
@@ -40,7 +38,6 @@ RTC_NOINIT_ATTR bool forceEnableWebCfgServer;
 RTC_NOINIT_ATTR bool disableNetwork;
 RTC_NOINIT_ATTR bool wifiFallback;
 RTC_NOINIT_ATTR bool ethCriticalFailure;
-
 bool timeSynced = false;
 
 RestartReason currentRestartReason = RestartReason::NotApplicable;
