@@ -11,7 +11,7 @@ NukiNetwork *NukiNetwork::_inst = nullptr;
 extern bool ethCriticalFailure;
 extern bool wifiFallback;
 extern bool disableNetwork;
-extern bool forceEnableWebServer;
+extern bool forceEnableWebCfgServer;
 
 NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize)
     : _preferences(preferences),
@@ -190,15 +190,15 @@ bool NukiNetwork::update()
         }
 
         _networkServicesConnectCounter = 0;
-        if (forceEnableWebServer && !_webEnabled)
+        if (forceEnableWebCfgServer && !_webEnabled)
         {
-            forceEnableWebServer = false;
+            forceEnableWebCfgServer = false;
             delay(200);
             restartEsp(RestartReason::ReconfigureWebCfgServer);
         }
         else if (!_webEnabled)
         {
-            forceEnableWebServer = false;
+            forceEnableWebCfgServer = false;
         }
         delay(2000);
     }
@@ -209,7 +209,7 @@ bool NukiNetwork::update()
         {
             if (!_webEnabled)
             {
-                forceEnableWebServer = true;
+                forceEnableWebCfgServer = true;
             }
             Log->println(F("[WARNING] Network timeout has been reached, restarting ..."));
             delay(200);
@@ -764,7 +764,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 
         if (atoi(data) == 0)
         {
-            if (!_preferences->getBool(preference_webcfgserver_enabled, true) && !forceEnableWebServer)
+            if (!_preferences->getBool(preference_webcfgserver_enabled, true) && !forceEnableWebCfgServer)
             {
                 return;
             }
@@ -773,7 +773,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
         }
         else
         {
-            if (_preferences->getBool(preference_webcfgserver_enabled, true) || forceEnableWebServer)
+            if (_preferences->getBool(preference_webcfgserver_enabled, true) || forceEnableWebCfgServer)
             {
                 return;
             }
@@ -998,7 +998,7 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
             }
             else
             {
-                Log->println("[ERROR] HTTP GET failed!");
+                Log->println(F("[ERROR] HTTP GET failed!"));
                 httpClientOk = false;
             }
         }
@@ -1015,12 +1015,12 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
     WiFiClient client;
     if (!client.connect(WiFi.localIP(), _apiPort))
     {
-        Log->println("[ERROR] WebServer is not responding!");
+        Log->println(F("[ERROR] WebServer is not responding!"));
         webServerOk = false;
     }
     else
     {
-        Log->println("[OK] WebServer is responding.");
+        Log->println(F("[OK] WebServer is responding."));
         client.stop();
     }
 
@@ -1102,7 +1102,7 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
     {
     // --- Ethernet Events ---
     case ARDUINO_EVENT_ETH_START:
-        Log->println("[INFO] ETH Started");
+        Log->println(F("[INFO] ETH Started"));
         ETH.setHostname(_hostname.c_str());
         break;
 
@@ -1126,30 +1126,30 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
         break;
 
     case ARDUINO_EVENT_ETH_LOST_IP:
-        Log->println("[WARNING] ETH Lost IP");
+        Log->println(F("[WARNING] ETH Lost IP"));
         _connected = false;
         onDisconnected();
         break;
 
     case ARDUINO_EVENT_ETH_DISCONNECTED:
-        Log->println("[WARNING] ETH Disconnected");
+        Log->println(F("[WARNING] ETH Disconnected"));
         _connected = false;
         onDisconnected();
         break;
 
     case ARDUINO_EVENT_ETH_STOP:
-        Log->println("[WARNING] ETH Stopped");
+        Log->println(F("[WARNING] ETH Stopped"));
         _connected = false;
         onDisconnected();
         break;
 
     // --- WiFi Events ---
     case ARDUINO_EVENT_WIFI_READY:
-        Log->println("[OK] WiFi interface ready");
+        Log->println(F("[OK] WiFi interface ready"));
         break;
 
     case ARDUINO_EVENT_WIFI_SCAN_DONE:
-        Log->println("[INFO] Completed scan for access points");
+        Log->println(F("[INFO] Completed scan for access points"));
         _foundNetworks = WiFi.scanComplete();
 
         for (int i = 0; i < _foundNetworks; i++)
@@ -1168,17 +1168,17 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
         }
         else
         {
-            Log->println("[INFO] No networks found, restarting scan");
+            Log->println(F("[INFO] No networks found, restarting scan"));
             scan(false, true);
         }
         break;
 
     case ARDUINO_EVENT_WIFI_STA_START:
-        Log->println("[INFO] WiFi client started");
+        Log->println(F("[INFO] WiFi client started"));
         break;
 
     case ARDUINO_EVENT_WIFI_STA_STOP:
-        Log->println("[INFO] WiFi clients stopped");
+        Log->println(F("[INFO] WiFi clients stopped"));
         if (!_openAP)
         {
             onDisconnected();
@@ -1186,7 +1186,7 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
         break;
 
     case ARDUINO_EVENT_WIFI_STA_CONNECTED:
-        Log->println("Connected to access point");
+        Log->println(F("Connected to access point"));
         if (!_openAP)
         {
             onConnected();
@@ -1194,7 +1194,7 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
         break;
 
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-        Log->println("Disconnected from WiFi access point");
+        Log->println(F("Disconnected from WiFi access point"));
         if (!_openAP)
         {
             onDisconnected();
@@ -1202,11 +1202,11 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
         break;
 
     case ARDUINO_EVENT_WIFI_STA_AUTHMODE_CHANGE:
-        Log->println("Authentication mode of access point has changed");
+        Log->println(F("Authentication mode of access point has changed"));
         break;
 
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-        Log->print("Obtained IP address: ");
+        Log->print(F("Obtained IP address: "));
         Log->println(WiFi.localIP());
         if (!_openAP)
         {
@@ -1215,7 +1215,7 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
         break;
 
     case ARDUINO_EVENT_WIFI_STA_LOST_IP:
-        Log->println("Lost IP address and IP address is reset to 0");
+        Log->println(F("Lost IP address and IP address is reset to 0"));
         if (!_openAP)
         {
             onDisconnected();
@@ -1223,38 +1223,38 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
         break;
 
     case ARDUINO_EVENT_WIFI_AP_START:
-        Log->println("WiFi access point started");
+        Log->println(F("WiFi access point started"));
         break;
 
     case ARDUINO_EVENT_WIFI_AP_STOP:
-        Log->println("WiFi access point stopped");
+        Log->println(F("WiFi access point stopped"));
         break;
 
     case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
-        Log->println("Client connected");
+        Log->println(F("Client connected"));
         break;
 
     case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
-        Log->println("Client disconnected");
+        Log->println(F("Client disconnected"));
         break;
 
     case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:
-        Log->println("Assigned IP address to client");
+        Log->println(F("Assigned IP address to client"));
         break;
 
     case ARDUINO_EVENT_WIFI_AP_PROBEREQRECVED:
-        Log->println("Received probe request");
+        Log->println(F("Received probe request"));
         break;
 
     case ARDUINO_EVENT_WIFI_AP_GOT_IP6:
-        Log->println("AP IPv6 is preferred");
+        Log->println(F("AP IPv6 is preferred"));
         break;
     case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
-        Log->println("STA IPv6 is preferred");
+        Log->println(F("STA IPv6 is preferred"));
         break;
 
     default:
-        Log->print("Unknown LAN Event: ");
+        Log->print(F("Unknown LAN Event: "));
         Log->println(event);
         break;
     }
@@ -1264,7 +1264,7 @@ void NukiNetwork::onConnected()
 {
     if (_networkDeviceType == NetworkDeviceType::WiFi)
     {
-        Log->println("Wi-Fi connected");
+        Log->println(F("Wi-Fi connected"));
         _connected = true;
     }
 }
@@ -1302,7 +1302,7 @@ bool NukiNetwork::connect()
 
             if (bestConnection == -1)
             {
-                Log->print("No network found with SSID: ");
+                Log->print(F("No network found with SSID: "));
                 Log->println(_WiFissid);
             }
             else

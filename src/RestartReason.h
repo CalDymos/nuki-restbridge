@@ -27,7 +27,6 @@ enum class RestartReason
 
 extern int restartReason;
 extern uint64_t restartReasonValidDetect;
-extern bool rebuildGpioRequested;
 
 extern RestartReason currentRestartReason;
 
@@ -52,7 +51,7 @@ inline static void initializeRestartReason()
     }
     else
     {
-        rebuildGpioRequested = false;
+        //
     }
 }
 
