@@ -734,12 +734,12 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 
         if (atoi(data) == 0)
         {
-            Log->toFile("API", "Disable REST API");
+            Log->println(F("[API] Disable REST API"));
             _apiEnabled = false;
         }
         else
         {
-            Log->toFile("API", "Enable REST API");
+            Log->println(F("[API] ]Enable REST API"));
             _apiEnabled = true;
         }
         _preferences->putBool(preference_api_enabled, _apiEnabled);
@@ -747,7 +747,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
     }
     else if (comparePrefixedPath(path, api_path_bridge_reboot))
     {
-        Log->toFile("API", "Reboot requested via REST API");
+        Log->println(F("[API] Reboot requested via REST API"));
 
         sendResponse(json);
         delay(200);
@@ -768,7 +768,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             {
                 return;
             }
-            Log->toFile("API", "Disable Config Web Server, restarting");
+            Log->println(F("[API] Disable Config Web Server, restarting"));
             _preferences->putBool(preference_webcfgserver_enabled, false);
         }
         else
@@ -777,7 +777,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             {
                 return;
             }
-            Log->toFile("API", "Enable Config Web Server, restarting");
+            Log->println(F("[API] Enable Config Web Server, restarting"));
             _preferences->putBool(preference_webcfgserver_enabled, true);
         }
         sendResponse(json);
@@ -800,8 +800,8 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             }
             return;
 
-            Log->toFile("API", "Lock action received: ");
-            Log->toFile("API", data);
+            Log->println(F("[API] Lock action received: "));
+            Log->printf(F("[API] %s\n") , data);
 
             LockActionResult lockActionResult = LockActionResult::Failed;
             if (_lockActionReceivedCallback != NULL)

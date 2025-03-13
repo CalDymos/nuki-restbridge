@@ -12,28 +12,32 @@
 
 #ifdef DEBUG
 
-
-class DebugLog : public Print {
+class DebugLog : public Print
+{
 private:
-
-  bool isLogTooBig() {
+  bool isLogTooBig()
+  {
     Serial.println(F("isLogTooBig() called - always returning false in debug mode"));
     return false;
   }
+
 public:
-  DebugLog(Preferences* prefs) {}
+  DebugLog(Preferences *prefs) {}
 
   virtual ~DebugLog() {}
 
   using Print::print;
   using Print::println;
 
-  void clearLog() {
+  void clearLog()
+  {
     Serial.println(F("clearLog() called - no file operations in debug mode"));
   }
 
-  void toFile(const String& deviceType, String message) {
-    if (message.length() > _maxMsgLen) {
+  void toFile(const String &deviceType, String message)
+  {
+    if (message.length() > _maxMsgLen)
+    {
       message = message.substring(0, _maxMsgLen);
     }
 
@@ -42,13 +46,16 @@ public:
   }
 };
 
-extern DebugLog* Log;
+extern DebugLog *Log;
 
-#else  // Production mode with SPIFFS logging
+#else // Production mode with SPIFFS logging
 
-class DebugLog : public Print {
+extern bool timeSynced; // Externe Variable zur Statusprüfung der SNTP-Synchronisation
+
+class DebugLog : public Print
+{
 private:
-  Preferences* _preferences;
+  Preferences *_preferences;
   String _logFile;
   int _maxMsgLen;
   int _maxLogFileSize;
@@ -56,29 +63,41 @@ private:
   // -----------------------------------------------------------
   // Converts milliseconds into days, hours, minutes, seconds (ISO 8601)
   // -----------------------------------------------------------
-  void formatUptime(char* buffer, size_t size) {
-    int64_t millis = espMillis();
 
-    int days = millis / (1000LL * 60 * 60 * 24);
-    millis %= (1000LL * 60 * 60 * 24);
-
-    int hours = millis / (1000LL * 60 * 60);
-    millis %= (1000LL * 60 * 60);
-
-    int minutes = millis / (1000LL * 60);
-    millis %= (1000LL * 60);
-
-    int seconds = millis / 1000;
-
-    snprintf(buffer, size, "P%d:%02d:%02d:%02d", days, hours, minutes, seconds);
+  void formatUptime(char *buffer, size_t size) {
+      if (timeSynced) {
+          // Wenn die Zeit synchronisiert wurde, hole die aktuelle Uhrzeit
+          struct tm timeinfo;
+          time_t now = time(NULL);
+          localtime_r(&now, &timeinfo);
+  
+          snprintf(buffer, size, "%04d-%02d-%02d %02d:%02d:%02d",
+                   timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                   timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+      } else {
+          // Falls keine Zeit-Synchronisation vorliegt, verwende den alten Code (Uptime)
+          int64_t millis = espMillis();
+          int days = millis / (1000LL * 60 * 60 * 24);
+          millis %= (1000LL * 60 * 60 * 24);
+          int hours = millis / (1000LL * 60 * 60);
+          millis %= (1000LL * 60 * 60);
+          int minutes = millis / (1000LL * 60);
+          millis %= (1000LL * 60);
+          int seconds = millis / 1000;
+  
+          snprintf(buffer, size, "P%d:%02d:%02d:%02d", days, hours, minutes, seconds);
+      }
   }
+  
 
   // -----------------------------------------------------------
   // Checks if the log file exceeds the maximum allowed size
   // -----------------------------------------------------------
-  bool isLogTooBig() {
+  bool isLogTooBig()
+  {
     File f = SPIFFS.open(_logFile, FILE_READ);
-    if (!f) {
+    if (!f)
+    {
       return false;
     }
     bool tooBig = (f.size() > _maxLogFileSize);
@@ -89,8 +108,10 @@ private:
   // -----------------------------------------------------------
   // Backup the Log File to Networkdrive
   // -----------------------------------------------------------
-  bool backupLogToFTPServer() {
-    if (!_preferences) {
+  bool backupLogToFTPServer()
+  {
+    if (!_preferences)
+    {
       println(F("[ERROR] Preferences not initialized!"));
       return false;
     }
@@ -103,7 +124,8 @@ private:
     int backupIndex = _preferences->getInt(preference_log_backup_file_index, 0) + 1;
     _preferences->putInt(preference_log_backup_file_index, backupIndex);
 
-    if (!backupEnabled || ftpServer.isEmpty() || ftpUser.isEmpty() || ftpPass.isEmpty()) {
+    if (!backupEnabled || ftpServer.isEmpty() || ftpUser.isEmpty() || ftpPass.isEmpty())
+    {
       println(F("[WARNING] Backup disabled or no FTP Server set."));
       return false;
     }
@@ -125,16 +147,20 @@ private:
     ftp.ChangeWorkDir(ftpDir.c_str());
     int dotPos = _logFile.indexOf('.');
     String backupFilename;
-    if (dotPos != -1) {
+    if (dotPos != -1)
+    {
       backupFilename = _logFile.substring(0, dotPos) + String(backupIndex) + "." + _logFile.substring(dotPos + 1);
-    } else {
+    }
+    else
+    {
       backupFilename = _logFile + String(backupIndex) + ".log";
     }
     ftp.DeleteFile(backupFilename.c_str());
     ftp.NewFile(backupFilename.c_str());
 
     File f = SPIFFS.open(String("/") + _logFile, FILE_READ);
-    if (!f) {
+    if (!f)
+    {
       println(F("[ERROR] Failed to open log file for backup!"));
       ftp.CloseConnection();
       return false;
@@ -143,9 +169,11 @@ private:
     const size_t bufferSize = 512;
     unsigned char buffer[bufferSize];
 
-    while (f.available()) {
+    while (f.available())
+    {
       int bytesRead = f.read(buffer, bufferSize);
-      if (bytesRead > 0) {
+      if (bytesRead > 0)
+      {
         ftp.WriteData(buffer, bytesRead);
       }
     }
@@ -157,79 +185,39 @@ private:
     println("[OK] FTP Backup successful!");
     return true;
   }
-public:
-  DebugLog(Preferences* prefs)
-    : _preferences(prefs) {
-
-    _logFile = _preferences->getString(preference_log_filename, "nukiBridge.log");
-    _maxMsgLen = _preferences->getInt(preference_log_max_msg_len, 80);
-    _maxLogFileSize = _preferences->getInt(preference_log_max_file_size, 256);  // in kb
-  }
-
-  virtual ~DebugLog() {}
-
-  void printf(const char* format, ...) {}
-  void printf(const __FlashStringHelper* ifsh, ...) {}
-
-  void print(const __FlashStringHelper* ifsh) {}
-  void print(const String&) {}
-  void print(const char[]) {}
-  void print(char) {}
-  void print(unsigned char, int = 10) {}
-  void print(int, int = 10) {}
-  void print(unsigned int, int = 10) {}
-  void print(long, int = 10) {}
-  void print(unsigned long, int = 10) {}
-  void print(long long, int = 10) {}
-  void print(unsigned long long, int = 10) {}
-  void print(double, int = 2) {}
-
-  void println(const __FlashStringHelper* ifsh) {}
-  void println(const String&) {}
-  void println(const char[]) {}
-  void println(char) {}
-  void println(unsigned char, int = 10) {}
-  void println(int, int = 10) {}
-  void println(unsigned int, int = 10) {}
-  void println(long, int = 10) {}
-  void println(unsigned long, int = 10) {}
-  void println(long long, int = 10) {}
-  void println(unsigned long long, int = 10) {}
-  void println(double, int = 2) {}
-  void println(void) {}
-
-  size_t write(uint8_t) override {return 1;}
-
-  // -----------------------------------------------------------
-  // Deletes the current log file (if exists) and creates a new empty file
-  // -----------------------------------------------------------
-  void clearLog() {
-    if (SPIFFS.exists(_logFile)) {
-      SPIFFS.remove(_logFile);
-    }
-
-    File f = SPIFFS.open(_logFile, FILE_WRITE);
-    if (f) {
-      f.close();
-    }
-  }
 
   // -----------------------------------------------------------
   // Writes a JSON log entry to the log file.
   // If the file exceeds the max size, it will be cleared.
   // -----------------------------------------------------------
+  void toFile(String message)
+  {
+    String msgType = "INFO"; // Standardwert
 
-  void toFile(const String& deviceType, String message) {
     // Trim message if it exceeds max length
-    if (message.length() > _maxMsgLen) {
+    if (message.length() > _maxMsgLen)
+    {
       message = message.substring(0, _maxMsgLen);
     }
 
+    // Prüfe, ob die Nachricht mit [XYZ] beginnt
+    if (message.startsWith("["))
+    {
+      int endBracket = message.indexOf("]");
+      if (endBracket > 1)
+      { // Mindestens 1 Zeichen zwischen [ und ]
+        msgType = message.substring(1, endBracket);
+        message = message.substring(endBracket + 1);
+        message.trim();
+      }
+    }
+
     // Check file size, clear if too big
-    if (isLogTooBig()) {
-      println(F("[INFO] Log file too large, attempt to backup to ftp Server..."));
-      backupLogToFTPServer();
-      clearLog();
+    if (isLogTooBig())
+    {
+      Serial.println(F("[INFO] Log file too large, attempt to backup to ftp Server..."));
+      if (backupLogToFTPServer())
+        clearLog();
     }
 
     // Create JSON log entry
@@ -237,7 +225,7 @@ public:
     char timeStr[25];
     formatUptime(timeStr, sizeof(timeStr));
     doc[F("timestamp")] = timeStr;
-    doc[F("deviceType")] = deviceType;
+    doc[F("Type")] = msgType;
     doc[F("message")] = message;
 
     String line;
@@ -245,18 +233,66 @@ public:
 
     // Append to log file
     File f = SPIFFS.open(String("/") + _logFile, FILE_APPEND);
-    if (!f) {
-      println(F("[ERROR] Failed to open log file for appending"));
+    if (!f)
+    {
+      Serial.println(F("[ERROR] Failed to open log file for appending"));
       return;
     }
     f.println(line);
     f.close();
+  }
 
-    // Also print message to the log output
-    println(message);
+public:
+
+  DebugLog(Preferences *prefs)
+      : _preferences(prefs)
+  {
+
+    _logFile = _preferences->getString(preference_log_filename, "nukiBridge.log");
+    _maxMsgLen = _preferences->getInt(preference_log_max_msg_len, 80);
+    _maxLogFileSize = _preferences->getInt(preference_log_max_file_size, 256); // in kb
+  }
+
+  virtual ~DebugLog() {}
+
+  size_t write(uint8_t c) override
+  {
+    static String buffer;
+    if (buffer.length() == 0)
+    {
+      buffer.reserve(512); // Reserviert Speicher für bis zu 512 Zeichen
+    }
+
+    buffer += (char)c;
+
+    if (c == '\n')
+    {
+      if (buffer.length() > 1)
+      { // Verhindert leere Logs
+        toFile(buffer);
+      }
+      buffer = "";
+    }
+    return 1;
+  }
+  // -----------------------------------------------------------
+  // Deletes the current log file (if exists) and creates a new empty file
+  // -----------------------------------------------------------
+  void clearLog()
+  {
+    if (SPIFFS.exists(_logFile))
+    {
+      SPIFFS.remove(_logFile);
+    }
+
+    File f = SPIFFS.open(_logFile, FILE_WRITE);
+    if (f)
+    {
+      f.close();
+    }
   }
 };
 
-extern DebugLog* Log;
+extern DebugLog *Log;
 
-#endif  // DEBUG
+#endif // DEBUG
