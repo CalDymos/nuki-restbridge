@@ -363,12 +363,8 @@ void setup()
   preferences->begin("nukibridge", false);
   initPreferences(preferences);
 
-#ifdef DEBUG
-  Log->begin(115200);
-  Log = new DebugLog(nullptr);
-#else
-  Log = new DebugLog(preferences);
-#endif
+  Serial.begin(115200);
+  Log = new DebugLog(&Serial, preferences);
 
   initializeRestartReason();
 

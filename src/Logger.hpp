@@ -9,40 +9,50 @@
 #include "ArduinoJson.h"
 #include "ESP32_FTPClient.h"
 #include <Print.h>
+#include <atomic>
 
 #ifdef DEBUG
 
 class DebugLog : public Print
 {
 private:
+  Preferences *_preferences;
+  Print *_serial;
+
   bool isLogTooBig()
   {
-    Serial.println(F("isLogTooBig() called - always returning false in debug mode"));
+    _serial->println(F("isLogTooBig() called - always returning false in debug mode"));
     return false;
-  }
-
-public:
-  DebugLog(Preferences *prefs) {}
-
-  virtual ~DebugLog() {}
-
-  using Print::print;
-  using Print::println;
-
-  void clearLog()
-  {
-    Serial.println(F("clearLog() called - no file operations in debug mode"));
   }
 
   void toFile(const String &deviceType, String message)
   {
-    if (message.length() > _maxMsgLen)
-    {
-      message = message.substring(0, _maxMsgLen);
-    }
+    _serial->println(F("Logging message (debug mode):"));
+    _serial->println(message);
+  }
 
-    Serial.println(F("Logging message (debug mode):"));
-    Serial.println(message);
+public:
+  DebugLog(Print *serial, Preferences *prefs)
+      : _serial(serial),
+        _preferences(prefs)
+  {
+  }
+
+  virtual ~DebugLog() {}
+
+  void clearLog()
+  {
+    _serial->println(F("clearLog() called - no file operations in debug mode"));
+  }
+
+  size_t write(uint8_t c) override
+  {
+    return _serial->write(c);
+  }
+
+  size_t write(const uint8_t *buffer, size_t size) override
+  {
+    return _serial->write(buffer, size);
   }
 };
 
@@ -55,52 +65,66 @@ extern bool timeSynced; // Externe Variable zur Statusprüfung der SNTP-Synchron
 class DebugLog : public Print
 {
 private:
+  Print *_serial;
   Preferences *_preferences;
   String _logFile;
+  String _buffer;
   int _maxMsgLen;
   int _maxLogFileSize;
+  std::atomic<bool> _logFallBack{false};        // Flag to prevent LogFile overflow
+  std::atomic<bool> _logBackupIsRunning{false}; // Flag to prevent write to LogFile while Backup is running
 
   // -----------------------------------------------------------
   // Converts milliseconds into days, hours, minutes, seconds (ISO 8601)
   // -----------------------------------------------------------
 
-  void formatUptime(char *buffer, size_t size) {
-      if (timeSynced) {
-          // Wenn die Zeit synchronisiert wurde, hole die aktuelle Uhrzeit
-          struct tm timeinfo;
-          time_t now = time(NULL);
-          localtime_r(&now, &timeinfo);
-  
-          snprintf(buffer, size, "%04d-%02d-%02d %02d:%02d:%02d",
-                   timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                   timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
-      } else {
-          // Falls keine Zeit-Synchronisation vorliegt, verwende den alten Code (Uptime)
-          int64_t millis = espMillis();
-          int days = millis / (1000LL * 60 * 60 * 24);
-          millis %= (1000LL * 60 * 60 * 24);
-          int hours = millis / (1000LL * 60 * 60);
-          millis %= (1000LL * 60 * 60);
-          int minutes = millis / (1000LL * 60);
-          millis %= (1000LL * 60);
-          int seconds = millis / 1000;
-  
-          snprintf(buffer, size, "P%d:%02d:%02d:%02d", days, hours, minutes, seconds);
-      }
+  void formatUptime(char *buffer, size_t size)
+  {
+    if (timeSynced)
+    {
+      // Wenn die Zeit synchronisiert wurde, hole die aktuelle Uhrzeit
+      struct tm timeinfo;
+      time_t now = time(NULL);
+      localtime_r(&now, &timeinfo);
+
+      snprintf(buffer, size, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+               timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+               timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    }
+    else
+    {
+      // Falls keine Zeit-Synchronisation vorliegt, verwende den alten Code (Uptime)
+      int64_t millis = espMillis();
+      int days = millis / (1000LL * 60 * 60 * 24);
+      millis %= (1000LL * 60 * 60 * 24);
+      int hours = millis / (1000LL * 60 * 60);
+      millis %= (1000LL * 60 * 60);
+      int minutes = millis / (1000LL * 60);
+      millis %= (1000LL * 60);
+      int seconds = millis / 1000;
+
+      snprintf(buffer, size, "P%dDT%02dH%02dM%02dS", days, hours, minutes, seconds);
+    }
   }
-  
 
   // -----------------------------------------------------------
   // Checks if the log file exceeds the maximum allowed size
   // -----------------------------------------------------------
   bool isLogTooBig()
   {
+    if (!SPIFFS.begin(true))
+    {
+      _logFallBack.store(true);
+      println(F("[ERROR] SPIFFS not initialized!"));
+      return false;
+    }
+
     File f = SPIFFS.open(_logFile, FILE_READ);
     if (!f)
     {
       return false;
     }
-    bool tooBig = (f.size() > _maxLogFileSize);
+    bool tooBig = (f.size() > _maxLogFileSize * 1024);
     f.close();
     return tooBig;
   }
@@ -110,9 +134,18 @@ private:
   // -----------------------------------------------------------
   bool backupLogToFTPServer()
   {
+    bool expected = false;
+    if (!_logBackupIsRunning.compare_exchange_strong(expected, true))
+    {
+      println(F("[INFO] FTP Backup is running"));
+      return true;
+    }
+
     if (!_preferences)
     {
       println(F("[ERROR] Preferences not initialized!"));
+      _logBackupIsRunning.store(false);
+      _logFallBack.store(true);
       return false;
     }
 
@@ -126,25 +159,34 @@ private:
 
     if (!backupEnabled || ftpServer.isEmpty() || ftpUser.isEmpty() || ftpPass.isEmpty())
     {
-      println(F("[WARNING] Backup disabled or no FTP Server set."));
+      _serial->println(F("[WARNING] Backup disabled or no FTP Server set."));
+      clearLog();
       return false;
     }
 
     println(F("[INFO] Backing up log file to FTP Server..."));
 
-    char ftpServerChar[ftpServer.length() + 1];
-    char ftpUserChar[ftpUser.length() + 1];
-    char ftpPassChar[ftpPass.length() + 1];
+    char ftpServerChar[ftpServer.length() + 1] = {0};
+    char ftpUserChar[ftpUser.length() + 1] = {0};
+    char ftpPassChar[ftpPass.length() + 1] = {0};
 
-    strcpy(ftpServerChar, ftpServer.c_str());
-    strcpy(ftpUserChar, ftpUser.c_str());
-    strcpy(ftpPassChar, ftpPass.c_str());
+    ftpServer.toCharArray(ftpServerChar, sizeof(ftpServerChar));
+    ftpUser.toCharArray(ftpUserChar, sizeof(ftpUserChar));
+    ftpPass.toCharArray(ftpPassChar, sizeof(ftpPassChar));
 
     ESP32_FTPClient ftp(ftpServerChar, ftpUserChar, ftpPassChar);
 
     ftp.OpenConnection();
+    if (!ftp.isConnected())
+    {
+      println(F("[ERROR] FTP connection failed!"));
+      _logBackupIsRunning.store(false);
+      _logFallBack.store(true);
+      return false;
+    }
     ftp.InitFile("Type A");
     ftp.ChangeWorkDir(ftpDir.c_str());
+
     int dotPos = _logFile.indexOf('.');
     String backupFilename;
     if (dotPos != -1)
@@ -158,15 +200,25 @@ private:
     ftp.DeleteFile(backupFilename.c_str());
     ftp.NewFile(backupFilename.c_str());
 
-    File f = SPIFFS.open(String("/") + _logFile, FILE_READ);
-    if (!f)
+    if (!SPIFFS.begin(true))
     {
-      println(F("[ERROR] Failed to open log file for backup!"));
-      ftp.CloseConnection();
+      _logFallBack.store(true);
+      println(F("[ERROR] SPIFFS not initialized!"));
+      _logBackupIsRunning.store(false);
       return false;
     }
 
-    const size_t bufferSize = 512;
+    File f = SPIFFS.open(String("/") + _logFile, FILE_READ);
+    if (!f)
+    {
+      _logFallBack.store(true);
+      println(F("[ERROR] Failed to open log file for backup!"));
+      ftp.CloseConnection();
+      _logBackupIsRunning.store(false);
+      return false;
+    }
+
+    const size_t bufferSize = 512; // Blocksize 512 Byte
     unsigned char buffer[bufferSize];
 
     while (f.available())
@@ -183,6 +235,7 @@ private:
     ftp.CloseConnection();
 
     println("[OK] FTP Backup successful!");
+    _logBackupIsRunning.store(false);
     return true;
   }
 
@@ -215,9 +268,16 @@ private:
     // Check file size, clear if too big
     if (isLogTooBig())
     {
-      Serial.println(F("[INFO] Log file too large, attempt to backup to ftp Server..."));
+      println(F("[INFO] Log file too large, attempt to backup to ftp Server..."));
       if (backupLogToFTPServer())
+      {
+        _serial->println(F("[INFO] Backup successful, clearing log file..."));
         clearLog();
+      }
+      else
+      {
+        println(F("[WARNING] Backup failed!"));
+      }
     }
 
     // Create JSON log entry
@@ -231,11 +291,19 @@ private:
     String line;
     serializeJson(doc, line);
 
+    if (!SPIFFS.begin(true))
+    {
+      _logFallBack.store(true);
+      println(F("[ERROR] SPIFFS not initialized!"));
+      return;
+    }
+
     // Append to log file
     File f = SPIFFS.open(String("/") + _logFile, FILE_APPEND);
     if (!f)
     {
-      Serial.println(F("[ERROR] Failed to open log file for appending"));
+      _logFallBack.store(true);
+      println(F("[ERROR] Failed to open log file for appending"));
       return;
     }
     f.println(line);
@@ -243,35 +311,72 @@ private:
   }
 
 public:
-
-  DebugLog(Preferences *prefs)
-      : _preferences(prefs)
+  DebugLog(Print *serial, Preferences *prefs)
+      : _serial(serial),
+        _preferences(prefs)
   {
 
-    _logFile = _preferences->getString(preference_log_filename, "nukiBridge.log");
-    _maxMsgLen = _preferences->getInt(preference_log_max_msg_len, 80);
-    _maxLogFileSize = _preferences->getInt(preference_log_max_file_size, 256); // in kb
+    if (!_preferences)
+    {
+      println(F("[ERROR] Preferences not initialized! Using defaults."));
+      _logFile = "nukiBridge.log";
+      _maxMsgLen = 80;
+      _maxLogFileSize = 256;
+    }
+    else
+    {
+
+      _logFile = _preferences->getString(preference_log_filename, "nukiBridge.log");
+      _maxMsgLen = _preferences->getInt(preference_log_max_msg_len, 80);
+      _maxLogFileSize = _preferences->getInt(preference_log_max_file_size, 256); // in kb
+    }
+
+    _buffer.reserve(_maxMsgLen + 2); // Reserviert Speicher für bis _maxMsgLen Zeichen
   }
 
   virtual ~DebugLog() {}
 
+  size_t write(const uint8_t *buffer, size_t size) override
+  {
+    if (_logBackupIsRunning.load() || _logFallBack.load())
+      return _serial->write(buffer, size);
+
+    if (size > 0 && size <= _maxMsgLen && buffer[size - 1] == '\n')
+    {
+      _buffer = String((const char *)buffer);
+      if (!_buffer.isEmpty()) // Verhindert leere Logs
+      {
+        toFile(_buffer);
+      }
+      _buffer = "";
+      return 1;
+    }
+    else
+    {
+
+      size_t n = 0;
+      while (size--)
+      {
+        n += write(*buffer++);
+      }
+      return n;
+    }
+  }
+
   size_t write(uint8_t c) override
   {
-    static String buffer;
-    if (buffer.length() == 0)
-    {
-      buffer.reserve(512); // Reserviert Speicher für bis zu 512 Zeichen
-    }
+    if (_logBackupIsRunning.load() || _logFallBack.load())
+      return _serial->write(c);
 
-    buffer += (char)c;
+    _buffer += (char)c;
 
     if (c == '\n')
     {
-      if (buffer.length() > 1)
-      { // Verhindert leere Logs
-        toFile(buffer);
+      if (!_buffer.isEmpty()) // Verhindert leere Logs
+      {
+        toFile(_buffer);
       }
-      buffer = "";
+      _buffer = "";
     }
     return 1;
   }
@@ -280,6 +385,12 @@ public:
   // -----------------------------------------------------------
   void clearLog()
   {
+    if (!SPIFFS.begin(true))
+    {
+      _logFallBack.store(true);
+      println(F("[ERROR] SPIFFS not initialized!"));
+      return;
+    }
     if (SPIFFS.exists(_logFile))
     {
       SPIFFS.remove(_logFile);
@@ -290,6 +401,11 @@ public:
     {
       f.close();
     }
+  }
+
+  void resetFallBack()
+  {
+    _logFallBack.store(false);
   }
 };
 
