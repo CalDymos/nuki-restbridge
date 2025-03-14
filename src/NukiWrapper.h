@@ -152,7 +152,6 @@ private:
 
     int _nrOfRetries = 0;
     int _retryDelay = 0;
-    bool _clearAuthData = false;
     bool _hasKeypad = false;
     bool _forceDoorsensor = false;
     bool _forceKeypad = false;
@@ -169,7 +168,6 @@ private:
     int64_t _statusUpdatedTs = 0;
     int64_t _disableBleWatchdogTs = 0;
     int64_t _nextLockStateUpdateTs = 0;
-    int64_t _disableBleWatchdogTs = 0;
     int64_t _waitAuthLogUpdateTs = 0;
     uint32_t _basicLockConfigaclPrefs[16];
     uint32_t _advancedLockConfigaclPrefs[25];
