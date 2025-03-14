@@ -11,6 +11,8 @@
 #include "ESP32Ping.h"
 #include <ArduinoJson.h>
 
+#include "NukiConstants.h"
+#include "NukiLockConstants.h"
 #include "RestApiPaths.h"
 #include "IPConfiguration.h"
 #include "NetworkDeviceType.h"
@@ -75,8 +77,8 @@ public:
     void sendToHABool(const char *path, const char *query, const bool value);
     void sendToHAString(const char *path, const char *query, const char *value);
 
-    void sendToHALockBleAddress(const std::string& address);
-
+    void sendToHALockBleAddress(const std::string &address);
+    void sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurnerState, const NukiLock::KeyTurnerState &lastKeyTurnerState);
     /**
      * @brief Prüft, ob die (evtl. im AP-Modus geöffnete) Access-Point-Schnittstelle offen ist.
      */
@@ -139,6 +141,8 @@ public:
      */
     void sendResponse(const char *jsonResultStr);
     void sendResponse(JsonDocument &jsonResult, bool success = true, int httpCode = 200);
+
+    void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char* value));
 
 private:
     /**
@@ -230,6 +234,7 @@ private:
     bool _initialized = false;
     bool _restartOnDisconnect = false;
     bool _disableNetworkIfNotConnected = false;
+    bool _firstTunerStatePublish = true;
     NetworkServiceStates _networkServicesState = NetworkServiceStates::UNDEFINED;
 
     String _keypadCommandName = "";
@@ -269,12 +274,12 @@ private:
     char *_buffer;
     const size_t _bufferSize;
     char _apiBridgePath[129] = {0};
-    char _apiLockPath[129] = { 0 };
+    char _apiLockPath[129] = {0};
     int _apiPort;
 
-    LockActionResult (*_lockActionReceivedCallback)(const char* value) = nullptr;
-    void (*_configUpdateReceivedCallback)(const char* value) = nullptr;
-    void (*_keypadCommandReceivedReceivedCallback)(const char* command, const uint& id, const String& name, const String& code, const int& enabled) = nullptr;
-    void (*_timeControlCommandReceivedReceivedCallback)(const char* value) = nullptr;
-    void (*_authCommandReceivedReceivedCallback)(const char* value) = nullptr;
+    LockActionResult (*_lockActionReceivedCallback)(const char *value) = nullptr;
+    void (*_configUpdateReceivedCallback)(const char *value) = nullptr;
+    void (*_keypadCommandReceivedReceivedCallback)(const char *command, const uint &id, const String &name, const String &code, const int &enabled) = nullptr;
+    void (*_timeControlCommandReceivedReceivedCallback)(const char *value) = nullptr;
+    void (*_authCommandReceivedReceivedCallback)(const char *value) = nullptr;
 };
