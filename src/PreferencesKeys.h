@@ -7,6 +7,8 @@
 #define preference_ip_gateway (char *)"ipgtw"
 #define preference_ip_dns_server (char *)"dnssrv"
 
+#define preference_network_hardware (char*)"nwhw"
+
 #define preference_wifi_ssid (char *)"wifiSSID"
 #define preference_wifi_pass (char *)"wifiPass"
 #define preference_find_best_rssi (char *)"nwbestrssi"

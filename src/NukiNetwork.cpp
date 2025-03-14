@@ -47,6 +47,7 @@ void NukiNetwork::setupDevice()
 {
 
     _ipConfiguration = new IPConfiguration(_preferences);
+    int selhardware = _preferences->getInt(preference_network_hardware, 0);
 
     _firstBootAfterDeviceChange = _preferences->getBool(preference_ntw_reconfigure, false);
 
@@ -65,7 +66,19 @@ void NukiNetwork::setupDevice()
     }
     else
     {
-        _networkDeviceType = NetworkDeviceType::ETH;
+        if (selhardware == 0)
+        {
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+            selhardware = 1;
+#else
+            selhardware = 2;
+#endif
+            _preferences->putInt(preference_network_hardware, selhardware);
+        }
+        if (selhardware == 1)
+            _networkDeviceType = NetworkDeviceType::WiFi;
+        else
+            _networkDeviceType = NetworkDeviceType::ETH;
     }
 }
 
@@ -635,7 +648,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
         {
             path = _preferences->getString(preference_ha_path_ble_strength);
             query = _preferences->getString(preference_ha_query_ble_strength);
-    
+
             if (path && query)
             {
                 sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.bleConnectionStrength);
