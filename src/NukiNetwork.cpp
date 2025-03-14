@@ -485,6 +485,165 @@ void NukiNetwork::sendToHALockBleAddress(const std::string &address)
     }
 }
 
+void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurnerState, const NukiLock::KeyTurnerState &lastKeyTurnerState)
+{
+    char str[50];
+    memset(&str, 0, sizeof(str));
+
+    String path;
+    String query;
+
+    if (_homeAutomationEnabled)
+    {
+        lockstateToString(keyTurnerState.lockState, str);
+
+        String path = _preferences->getString(preference_ha_path_lock_state);
+        String query = _preferences->getString(preference_ha_query_lock_state);
+
+        if (path && query)
+        {
+            sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.lockState);
+        }
+
+        String path = _preferences->getString(preference_ha_path_lockngo_state);
+        String query = _preferences->getString(preference_ha_query_lockngo_state);
+
+        if (path && query)
+        {
+            sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.lockNgoTimer);
+        }
+
+        memset(&str, 0, sizeof(str));
+
+        triggerToString(keyTurnerState.trigger, str);
+
+        if (_firstTunerStatePublish || keyTurnerState.trigger != lastKeyTurnerState.trigger)
+        {
+            String path = _preferences->getString(preference_ha_path_lock_trigger);
+            String query = _preferences->getString(preference_ha_query_lock_trigger);
+
+            if (path && query)
+            {
+                sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.trigger);
+            }
+        }
+
+        String path = _preferences->getString(preference_ha_path_lock_night_mode);
+        String query = _preferences->getString(preference_ha_query_lock_night_mode);
+
+        if (path && query)
+        {
+            sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.nightModeActive);
+        }
+
+        memset(&str, 0, sizeof(str));
+        NukiLock::completionStatusToString(keyTurnerState.lastLockActionCompletionStatus, str);
+
+        if (_firstTunerStatePublish || keyTurnerState.lastLockActionCompletionStatus != lastKeyTurnerState.lastLockActionCompletionStatus)
+        {
+            String path = _preferences->getString(preference_ha_path_lock_completionStatus);
+            String query = _preferences->getString(preference_ha_query_lock_completionStatus);
+
+            if (path && query)
+            {
+                sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.lastLockActionCompletionStatus);
+            }
+        }
+
+        memset(&str, 0, sizeof(str));
+
+        NukiLock::doorSensorStateToString(keyTurnerState.doorSensorState, str);
+
+        if (_firstTunerStatePublish || keyTurnerState.doorSensorState != lastKeyTurnerState.doorSensorState)
+        {
+            String path = _preferences->getString(preference_ha_path_doorsensor_state);
+            String query = _preferences->getString(preference_ha_query_doorsensor_state);
+
+            if (path && query)
+            {
+                sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.doorSensorState);
+            }
+        }
+
+        bool critical = (keyTurnerState.criticalBatteryState & 1) == 1;
+        bool charging = (keyTurnerState.criticalBatteryState & 2) == 2;
+        uint8_t level = ((keyTurnerState.criticalBatteryState & 0b11111100) >> 1);
+        bool keypadCritical = keyTurnerState.accessoryBatteryState != 255 ? ((keyTurnerState.accessoryBatteryState & 1) == 1 ? (keyTurnerState.accessoryBatteryState & 3) == 3 : false) : false;
+
+        if ((_firstTunerStatePublish || keyTurnerState.criticalBatteryState != lastKeyTurnerState.criticalBatteryState))
+        {
+            String path = _preferences->getString(preference_ha_path_lock_battery_critical);
+            String query = _preferences->getString(preference_ha_query_lock_battery_critical);
+
+            if (path && query)
+            {
+                sendToHAInt(path.c_str(), query.c_str(), (int)critical);
+            }
+
+            String path = _preferences->getString(preference_ha_path_lock_battery_level);
+            String query = _preferences->getString(preference_ha_query_lock_battery_level);
+
+            if (path && query)
+            {
+                sendToHAInt(path.c_str(), query.c_str(), (int)level);
+            }
+
+            String path = _preferences->getString(preference_ha_path_lock_battery_charging);
+            String query = _preferences->getString(preference_ha_query_lock_battery_charging);
+
+            if (path && query)
+            {
+                sendToHAInt(path.c_str(), query.c_str(), (int)charging);
+            }
+        }
+
+        if ((_firstTunerStatePublish || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
+        {
+            String path = _preferences->getString(preference_ha_path_keypad_critical);
+            String query = _preferences->getString(preference_ha_query_keypad_critical);
+
+            if (path && query)
+            {
+                sendToHAInt(path.c_str(), query.c_str(), (int)keypadCritical);
+            }
+        }
+
+        bool doorSensorCritical = keyTurnerState.accessoryBatteryState != 255 ? ((keyTurnerState.accessoryBatteryState & 4) == 4 ? (keyTurnerState.accessoryBatteryState & 12) == 12 : false) : false;
+
+        if ((_firstTunerStatePublish || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
+        {
+            String path = _preferences->getString(preference_ha_path_doorsensor_critical);
+            String query = _preferences->getString(preference_ha_query_doorsensor_critical);
+
+            if (path && query)
+            {
+                sendToHAInt(path.c_str(), query.c_str(), (int)doorSensorCritical);
+            }
+        }
+
+        String path = _preferences->getString(preference_ha_path_remote_access_state);
+        String query = _preferences->getString(preference_ha_query_remote_access_state);
+
+        if (path && query)
+        {
+            sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.remoteAccessStatus);
+        }
+
+        if (keyTurnerState.bleConnectionStrength != 1)
+        {
+            String path = _preferences->getString(preference_ha_path_ble_strength);
+            String query = _preferences->getString(preference_ha_query_ble_strength);
+    
+            if (path && query)
+            {
+                sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.bleConnectionStrength);
+            }
+        }
+
+        _firstTunerStatePublish = false;
+    }
+}
+
 void NukiNetwork::sendRequestToHA(const char *path, const char *query, const char *value)
 {
     const size_t BUFFER_SIZE = 385;
@@ -801,7 +960,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             return;
 
             Log->println(F("[API] Lock action received: "));
-            Log->printf(F("[API] %s\n") , data);
+            Log->printf(F("[API] %s\n"), data);
 
             LockActionResult lockActionResult = LockActionResult::Failed;
             if (_lockActionReceivedCallback != NULL)
