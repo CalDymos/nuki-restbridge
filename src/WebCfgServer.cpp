@@ -338,11 +338,11 @@ void WebCfgServer::initialize()
             }
             else if (value == "cred")
             {
-                //return buildCredHtml(this->_webServer);
+                return buildCredHtml(this->_webServer);
             }
             else if (value == "ntwconfig")
             {
-                //return buildNetworkConfigHtml(this->_webServer);
+                return buildNetworkConfigHtml(this->_webServer);
             }
             else if (value == "apiconfig")
             {
@@ -407,7 +407,7 @@ void WebCfgServer::initialize()
 void WebCfgServer::redirect(WebServer *server, const char *url, int code)
 {
     _webServer->sendHeader("Location", url, true); // HTTP Redirect
-    _webServer->send(code, "text/plain", "Redirecting to /");
+    _webServer->send(code, F("text/plain"), F("Redirecting to /"));
 }
 
 void WebCfgServer::handleClient()
@@ -435,41 +435,41 @@ void WebCfgServer::buildBypassHtml(WebServer *server)
 {
     if (timeSynced)
     {
-        buildConfirmHtml(server, "One-time bypass is only available if NTP time is not synced</a>", 3, true, "/");
+        buildConfirmHtml(server, F("One-time bypass is only available if NTP time is not synced</a>"), 3, true, "/");
         return;
     }
 
-    String response = "<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
-    response += "<style>form{border:3px solid #f1f1f1; max-width: 400px;}input[type=password],input[type=text]{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;box-sizing:border-box}button{background-color:#04aa6d;color:#fff;padding:14px 20px;margin:8px 0;border:none;cursor:pointer;width:100%}button:hover{opacity:.8}.container{padding:16px}span.password{float:right;padding-top:16px}@media screen and (max-width:300px){span.psw{display:block;float:none}}</style>";
-    response += "</head><body><center><h2>Nuki Hub One-time Bypass</h2>";
-    response += "<form action=\"/post?page=bypass\" method=\"post\">";
-    response += "<div class=\"container\">";
-    response += "<label for=\"bypass\"><b>Bypass code</b></label><input type=\"text\" placeholder=\"Enter bypass code\" name=\"bypass\">";
-    response += "<button type=\"submit\">Login</button></div>";
-    response += "</form></center></body></html>";
+    String response = F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+    response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}input[type=password],input[type=text]{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;box-sizing:border-box}button{background-color:#04aa6d;color:#fff;padding:14px 20px;margin:8px 0;border:none;cursor:pointer;width:100%}button:hover{opacity:.8}.container{padding:16px}span.password{float:right;padding-top:16px}@media screen and (max-width:300px){span.psw{display:block;float:none}}</style>");
+    response += F("</head><body><center><h2>Nuki Hub One-time Bypass</h2>");
+    response += F("<form action=\"/post?page=bypass\" method=\"post\">");
+    response += F("<div class=\"container\">");
+    response += F("<label for=\"bypass\"><b>Bypass code</b></label><input type=\"text\" placeholder=\"Enter bypass code\" name=\"bypass\">");
+    response += F("<button type=\"submit\">Login</button></div>");
+    response += F("</form></center></body></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildLoginHtml(WebServer *server)
 {
-    String response = "<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
-    response += "<style>form{border:3px solid #f1f1f1; max-width: 400px;}input[type=password],input[type=text]{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;box-sizing:border-box}button{background-color:#04aa6d;color:#fff;padding:14px 20px;margin:8px 0;border:none;cursor:pointer;width:100%}button:hover{opacity:.8}.container{padding:16px}span.password{float:right;padding-top:16px}@media screen and (max-width:300px){span.psw{display:block;float:none}}</style>";
-    response += "</head><body><center><h2>Nuki Hub login</h2><form action=\"/post?page=login\" method=\"post\">";
-    response += "<div class=\"container\"><label for=\"username\"><b>Username</b></label><input type=\"text\" placeholder=\"Enter Username\" name=\"username\" required>";
-    response += "<label for=\"password\"><b>Password</b></label><input type=\"password\" placeholder=\"Enter Password\" name=\"password\" required>";
+    String response = F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+    response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}input[type=password],input[type=text]{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;box-sizing:border-box}button{background-color:#04aa6d;color:#fff;padding:14px 20px;margin:8px 0;border:none;cursor:pointer;width:100%}button:hover{opacity:.8}.container{padding:16px}span.password{float:right;padding-top:16px}@media screen and (max-width:300px){span.psw{display:block;float:none}}</style>");
+    response += F("</head><body><center><h2>Nuki Hub login</h2><form action=\"/post?page=login\" method=\"post\">");
+    response += F("<div class=\"container\"><label for=\"username\"><b>Username</b></label><input type=\"text\" placeholder=\"Enter Username\" name=\"username\" required>");
+    response += F("<label for=\"password\"><b>Password</b></label><input type=\"password\" placeholder=\"Enter Password\" name=\"password\" required>");
 
-    response += "<button type=\"submit\">Login</button>";
+    response += F("<button type=\"submit\">Login</button>");
 
-    response += "<label><input type=\"checkbox\" name=\"remember\"> Remember me</label></div>";
-    response += "</form></center></body></html>";
+    response += F("<label><input type=\"checkbox\" name=\"remember\"> Remember me</label></div>");
+    response += F("</form></center></body></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect, String redirectTo)
 {
-    String response = "<html><head>";
+    String response = F("<html><head>");
     String header;
 
     if (!redirect)
@@ -482,9 +482,9 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
     }
 
     response += header;
-    response += "<title>Confirmation</title></head><body>";
+    response += F("<title>Confirmation</title></head><body>");
     response += message;
-    response += "</body></html>";
+    response += F("</body></html>");
 
     server->send(200, "text/html", response);
 }
@@ -493,7 +493,7 @@ void WebCfgServer::buildCoredumpHtml(WebServer *server)
 {
     if (!SPIFFS.begin(true))
     {
-        Log->println("SPIFFS Mount Failed");
+        Log->println(F("SPIFFS Mount Failed"));
     }
     else
     {
@@ -501,20 +501,302 @@ void WebCfgServer::buildCoredumpHtml(WebServer *server)
 
         if (!file || file.isDirectory())
         {
-            Log->println("coredump.hex not found");
+            Log->println(F("coredump.hex not found"));
         }
         else
         {
-            server->sendHeader("Content-Disposition", "attachment; filename=\"coredump.txt\"");
-            server->streamFile(file, "application/octet-stream");
+            server->sendHeader(F("Content-Disposition"), F("attachment; filename=\"coredump.txt\""));
+            server->streamFile(file, F("application/octet-stream"));
             file.close();
             return;
         }
     }
 
-    server->sendHeader("Cache-Control", "no-cache");
-    server->sendHeader("Location", "/");
-    server->send(302, "text/plain", "");
+    server->sendHeader(F("Cache-Control"), F("no-cache"));
+    server->sendHeader(F("Location"), F("/"));
+    server->send(302, F("text/plain"), "");
+}
+
+void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
+{
+    String response;
+    response.reserve(4096); // Speicher reservieren, um Fragmentierung zu reduzieren
+
+    response += F("<!DOCTYPE html><html><head><meta charset=\"UTF-8\">");
+    response += F("<title>Network Configuration</title></head><body>");
+    response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
+    response += F("<h3>Network Configuration</h3>");
+    response += F("<table>");
+
+    printInputField(response, "HOSTNAME", "Host name", _preferences->getString(preference_hostname).c_str(), 100, "");
+    printDropDown(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions(), "");
+    //printInputField(response, "HASSCUURL", "Home Assistant device configuration URL (empty to use http://LOCALIP; fill when using a reverse proxy for example)", _preferences->getString(preference_mqtt_hass_cu_url).c_str(), 261, "");
+
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+    printInputField(response, "RSSI", "RSSI Publish interval (seconds; -1 to disable)", _preferences->getInt(preference_rssi_publish_interval), 6, "");
+#endif
+
+    printCheckBox(response, "RSTDISC", "Restart on disconnect", _preferences->getBool(preference_restart_on_disconnect), "");
+    printCheckBox(response, "FINDBESTRSSI", "Find WiFi AP with strongest signal", _preferences->getBool(preference_find_best_rssi, false), "");
+
+    response += F("</table>");
+    response += F("<h3>IP Address assignment</h3>");
+    response += F("<table>");
+
+    printCheckBox(response, "DHCPENA", "Enable DHCP", _preferences->getBool(preference_ip_dhcp_enabled), "");
+    printInputField(response, "IPADDR", "Static IP address", _preferences->getString(preference_ip_address).c_str(), 15, "");
+    printInputField(response, "IPSUB", "Subnet", _preferences->getString(preference_ip_subnet).c_str(), 15, "");
+    printInputField(response, "IPGTW", "Default gateway", _preferences->getString(preference_ip_gateway).c_str(), 15, "");
+    printInputField(response, "DNSSRV", "DNS Server", _preferences->getString(preference_ip_dns_server).c_str(), 15, "");
+
+    response += F("</table>");
+    response += F("<br><input type=\"submit\" name=\"submit\" value=\"Save\">");
+    response += F("</form>");
+    response += F("</body></html>");
+
+    server->send(200, "text/html", response);
+}
+
+void WebCfgServer::buildCredHtml(WebServer *server)
+{
+    // Generiere zufällige Strings für One-Time-Bypass & Admin-Schlüssel
+    auto generateRandomString = [](char* buffer, size_t length, const char* chars, size_t charSize) {
+        for (size_t i = 0; i < length; i++) {
+            buffer[i] = chars[esp_random() % charSize];
+        }
+        buffer[length] = '\0';
+    };
+
+    const char chars[] = "234567ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const char chars2[] = "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    char randomstr[17];
+    generateRandomString(randomstr, 16, chars, sizeof(chars) - 1);
+
+    char randomstr2[33];
+    generateRandomString(randomstr2, 32, chars2, sizeof(chars2) - 1);
+
+    char randomstr3[33];
+    generateRandomString(randomstr3, 32, chars2, sizeof(chars2) - 1);
+
+    // HTML-Antwort aufbauen
+    String response;
+    response.reserve(8192); // Speicher reservieren, um Fragmentierung zu reduzieren
+
+    response += F("<!DOCTYPE html><html><head><meta charset=\"UTF-8\">");
+    response += F("<title>Credentials</title></head><body>");
+    response += F("<form id=\"credfrm\" class=\"adapt\" onsubmit=\"return testcreds();\" method=\"post\" action=\"post\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
+    response += F("<h3>Credentials</h3><table>");
+
+    printInputField(response, "CREDUSER", "User (# to clear)", _preferences->getString(preference_cred_user).c_str(), 30, "id=\"inputuser\"", false, true);
+    printInputField(response, "CREDPASS", "Password", "*", 30, "id=\"inputpass\"", true, true);
+    printInputField(response, "CREDPASSRE", "Retype password", "*", 30, "id=\"inputpass2\"", true);
+
+    std::vector<std::pair<String, String>> httpAuthOptions = {
+        {"0", "Basic"},
+        {"1", "Digest"},
+        {"2", "Form"}
+    };
+    printDropDown(response, "CREDDIGEST", "HTTP Authentication type", String(_preferences->getInt(preference_http_auth_type, 0)), httpAuthOptions, "");
+
+    printInputField(response, "CREDTRUSTPROXY", "Bypass authentication for reverse proxy with IP", _preferences->getString(preference_bypass_proxy, "").c_str(), 255, "");
+    printInputField(response, "CREDBYPASS", "One-time MFA Bypass", "*", 32, "", true, false);
+    response += F("<tr id=\"bypassgentr\"><td><input type=\"button\" id=\"bypassgen\" onclick=\"document.getElementsByName('CREDBYPASS')[0].type='text'; document.getElementsByName('CREDBYPASS')[0].value='");
+    response += randomstr2;
+    response += F("'; document.getElementById('bypassgentr').style.display='none';\" value=\"Generate new Bypass\"></td></tr>");
+
+    printInputField(response, "CREDADMIN", "Admin key", "*", 32, "", true, false);
+    response += F("<tr id=\"admingentr\"><td><input type=\"button\" id=\"admingen\" onclick=\"document.getElementsByName('CREDADMIN')[0].type='text'; document.getElementsByName('CREDADMIN')[0].value='");
+    response += randomstr3;
+    response += F("'; document.getElementById('admingentr').style.display='none';\" value=\"Generate new Admin key\"></td></tr>");
+
+    printInputField(response, "CREDLFTM", "Session validity (in seconds)", _preferences->getInt(preference_cred_session_lifetime, 3600), 12, "");
+    printInputField(response, "CREDLFTMRMBR", "Session validity remember (in hours)", _preferences->getInt(preference_cred_session_lifetime_remember, 720), 12, "");
+    
+    response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form>");
+    
+    // JavaScript Validierung
+    response += F("<script>function testcreds() {"
+                  "var input_user = document.getElementById(\"inputuser\").value;"
+                  "var input_pass = document.getElementById(\"inputpass\").value;"
+                  "var input_pass2 = document.getElementById(\"inputpass2\").value;"
+                  "var pattern = /^[ -~]*$/;"
+                  "if(input_user == '#' || input_user == '') { return true; }"
+                  "if (input_pass != input_pass2) { alert('Passwords do not match'); return false;}"
+                  "if(!pattern.test(input_user) || !pattern.test(input_pass)) { alert('Only non-unicode characters are allowed in username and password'); return false;}"
+                  "return true; }</script>");
+
+    // Nuki Lock Einstellungen
+    if (_nuki != nullptr)
+    {
+        response += F("<br><br><form class=\"adapt\" method=\"post\" action=\"post\">");
+        response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
+        response += F("<h3>Nuki Lock PIN</h3><table>");
+        printInputField(response, "NUKIPIN", "PIN Code (# to clear)", "*", 20, "", true);
+        response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form>");
+    }
+
+    // Unpair Nuki Lock
+    if (_nuki != nullptr)
+    {
+        response += F("<br><br><h3>Unpair Nuki Lock</h3><form class=\"adapt\" method=\"post\" action=\"/post\">");
+        response += F("<input type=\"hidden\" name=\"page\" value=\"unpairlock\">");
+        response += F("<table>");
+        printInputField(response, "CONFIRMTOKEN", ("Type " + _confirmCode + " to confirm unpair").c_str(), "", 10, "");
+        response += F("</table><br><button type=\"submit\">OK</button></form>");
+    }
+
+    // Factory Reset
+    response += F("<br><br><h3>Factory reset Nuki Hub</h3><h4 class=\"warning\">This will reset all settings to default...</h4>");
+    response += F("<form class=\"adapt\" method=\"post\" action=\"/post\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"factoryreset\">");
+    printInputField(response, "CONFIRMTOKEN", ("Type " + _confirmCode + " to confirm factory reset").c_str(), "", 10, "");
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+    printCheckBox(response, "WIFI", "Also reset WiFi settings", false, "");
+#endif
+    response += F("</table><br><button type=\"submit\">OK</button></form></body></html>");
+
+    server->send(200, "text/html", response);
+}
+
+
+void WebCfgServer::printInputField(String &response,
+                                   const char *token,
+                                   const char *description,
+                                   const char *value,
+                                   const size_t &maxLength,
+                                   const char *args,
+                                   const bool &isPassword,
+                                   const bool &showLengthRestriction)
+{
+    char maxLengthStr[20];
+    itoa(maxLength, maxLengthStr, 10);
+
+    response += F("<tr><td>");
+    response += description;
+
+    if (showLengthRestriction)
+    {
+        response += F(" (Max. ");
+        response += maxLengthStr;
+        response += F(" characters)");
+    }
+
+    response += F("</td><td>");
+    response += F("<input type=");
+    response += isPassword ? F("\"password\"") : F("\"text\"");
+
+    if (strcmp(args, "") != 0)
+    {
+        response += F(" ");
+        response += args;
+    }
+
+    if (strcmp(value, "") != 0)
+    {
+        response += F(" value=\"");
+        response += value;
+        response += F("\"");
+    }
+
+    response += F(" name=\"");
+    response += token;
+    response += F("\" size=\"25\" maxlength=\"");
+    response += maxLengthStr;
+    response += F("\"/></td></tr>");
+}
+
+void WebCfgServer::printInputField(String &response,
+                                   const char *token,
+                                   const char *description,
+                                   const int value,
+                                   size_t maxLength,
+                                   const char *args)
+{
+    char valueStr[20];
+    itoa(value, valueStr, 10);
+    printInputField(response, token, description, valueStr, maxLength, args);
+}
+
+void WebCfgServer::printDropDown(String &response,
+                                 const char *token,
+                                 const char *description,
+                                 const String preselectedValue,
+                                 const std::vector<std::pair<String, String>> &options,
+                                 const String className)
+{
+    response += F("<tr><td>");
+    response += description;
+    response += F("</td><td>");
+
+    response += F("<select ");
+    if (className.length() > 0)
+    {
+        response += F("class=\"");
+        response += className;
+        response += F("\" ");
+    }
+    response += F("name=\"");
+    response += token;
+    response += F("\">");
+
+    for (const auto &option : options)
+    {
+        response += F("<option ");
+        if (option.first == preselectedValue)
+        {
+            response += F("selected=\"selected\" ");
+        }
+        response += F("value=\"");
+        response += option.first;
+        response += F("\">");
+        response += option.second;
+        response += F("</option>");
+    }
+
+    response += F("</select>");
+    response += F("</td></tr>");
+}
+
+void WebCfgServer::printCheckBox(String& response, 
+    const char *token, 
+    const char *description, 
+    const bool value, 
+    const char *htmlClass)
+{
+response += F("<tr><td>");
+response += description;
+response += F("</td><td>");
+
+response += F("<input type=\"hidden\" name=\"");
+response += token;
+response += F("\" value=\"0\"/>");
+
+response += F("<input type=\"checkbox\" name=\"");
+response += token;
+response += F("\" class=\"");
+response += htmlClass;
+response += F("\" value=\"1\"");
+
+if (value)
+{
+response += F(" checked=\"checked\"");
+}
+
+response += F("/></td></tr>");
+}
+
+
+const std::vector<std::pair<String, String>> WebCfgServer::getNetworkDetectionOptions() const
+{
+    std::vector<std::pair<String, String>> options;
+
+    options.push_back(std::make_pair("1", "Wi-Fi"));
+    options.push_back(std::make_pair("2", "LAN module"));
+
+    return options;
 }
 
 void WebCfgServer::sendCss(WebServer *server)

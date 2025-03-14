@@ -42,9 +42,8 @@ public:
     void handleClient();
 
 private:
-
     void sendCss(WebServer *server);
-    void redirect(WebServer *server, const char* url, int code=301);
+    void redirect(WebServer *server, const char *url, int code = 301);
 
     std::vector<String> _ssidList;
     std::vector<int> _rssiList;
@@ -60,18 +59,48 @@ private:
     void buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect = false, String redirectTo = "/");
     void buildCoredumpHtml(WebServer *server);
     void buildInfoHtml(WebServer *server);
+    void buildNetworkConfigHtml(WebServer *server);
+    void buildCredHtml(WebServer *server);
     void waitAndProcess(const bool blocking, const uint32_t duration);
-    bool processWiFi(WebServer *server, String& message);
+    bool processWiFi(WebServer *server, String &message);
+
+    void printInputField(String &response,
+                         const char *token,
+                         const char *description,
+                         const char *value,
+                         const size_t &maxLength,
+                         const char *args,
+                         const bool &isPassword = false,
+                         const bool &showLengthRestriction = false);
+    void printInputField(String &response,
+                         const char *token,
+                         const char *description,
+                         const int value,
+                         size_t maxLength,
+                         const char *args);
+    void printDropDown(String &response,
+                       const char *token,
+                       const char *description,
+                       const String preselectedValue,
+                       const std::vector<std::pair<String, String>> &options,
+                       const String className);
+    void printCheckBox(String &response,
+                       const char *token,
+                       const char *description,
+                       const bool value,
+                       const char *htmlClass);
+
+    const std::vector<std::pair<String, String>> getNetworkDetectionOptions() const;
 
     void saveSessions();
     void loadSessions();
     void clearSessions();
 
     // --- Membervariablen ---
-    NukiWrapper* _nuki = nullptr;
+    NukiWrapper *_nuki = nullptr;
     Preferences *_preferences = nullptr; // externe Preferences, hier nur referenziert
-    WebServer *_webServer = nullptr;      // der eigentliche WebServer
-    NukiNetwork* _network = nullptr;
+    WebServer *_webServer = nullptr;     // der eigentliche WebServer
+    NukiNetwork *_network = nullptr;
     JsonDocument _httpSessions;
 
     String _confirmCode = "----";
