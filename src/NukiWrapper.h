@@ -85,6 +85,7 @@ public:
      *        (z.B. kann man hier NukiLock::LockState::Locked usw. auswerten.)
      */
     NukiLock::LockState getLockState() const;
+    const NukiLock::KeyTurnerState &keyTurnerState();
 
     void disableWatchdog();
 

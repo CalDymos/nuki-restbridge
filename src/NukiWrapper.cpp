@@ -538,6 +538,11 @@ NukiLock::LockState NukiWrapper::getLockState() const
     return _keyTurnerState.lockState;
 }
 
+const NukiLock::KeyTurnerState &NukiWrapper::keyTurnerState()
+{
+    return _keyTurnerState;
+}
+
 const bool NukiWrapper::isPaired() const
 {
     return _paired;

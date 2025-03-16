@@ -116,6 +116,8 @@ void NukiNetwork::initialize()
         case NetworkDeviceType::ETH:
             initializeEthernet();
             break;
+        case NetworkDeviceType::UNDEFINED:
+        break;
         }
 
         Log->print("Host name: ");
