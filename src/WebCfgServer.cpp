@@ -431,47 +431,126 @@ void WebCfgServer::waitAndProcess(const bool blocking, const uint32_t duration)
     }
 }
 
-void WebCfgServer::buildBypassHtml(WebServer *server)
+void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
 {
-    if (timeSynced)
+    String response;
+    response.reserve(8192); 
+
+    buildHtmlHeader(response);
+    response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
+    response += F("<h3>Advanced Configuration</h3>");
+    response += F("<h4 class=\"warning\">Warning: Changing these settings can lead to bootloops...</h4>");
+    response += F("<table>");
+
+    response += F("<tr><td>Current bootloop prevention state</td><td>");
+    response += _preferences->getBool(preference_enable_bootloop_reset, false) ? F("Enabled") : F("Disabled");
+    response += F("</td></tr>");
+
+    printCheckBox(response, "DISNTWNOCON", "Disable Network if not connected within 60s", _preferences->getBool(preference_disable_network_not_connected, false), "");
+    printCheckBox(response, "BTLPRST", "Enable Bootloop prevention (Try to reset these settings to default on bootloop)", true, "");
+
+    printInputField(response, "BUFFSIZE", "Char buffer size (min 4096, max 65536)", _preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE), 6, "");
+    response += F("<tr><td>Advised minimum char buffer size based on current settings</td><td id=\"mincharbuffer\"></td>");
+    printInputField(response, "TSKNTWK", "Task size Network (min 8192, max 65536)", _preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE), 6, "");
+    response += F("<tr><td>Advised minimum network task size based on current settings</td><td id=\"minnetworktask\"></td>");
+    printInputField(response, "TSKNUKI", "Task size Nuki (min 8192, max 65536)", _preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE), 6, "");
+
+    printInputField(response, "ALMAX", "Max auth log entries (min 1, max 100)", _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG), 3, "id=\"inputmaxauthlog\"");
+    printInputField(response, "KPMAX", "Max keypad entries (min 1, max 200)", _preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD), 3, "id=\"inputmaxkeypad\"");
+    printInputField(response, "TCMAX", "Max timecontrol entries (min 1, max 100)", _preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL), 3, "id=\"inputmaxtimecontrol\"");
+    printInputField(response, "AUTHMAX", "Max authorization entries (min 1, max 100)", _preferences->getInt(preference_auth_max_entries, MAX_AUTH), 3, "id=\"inputmaxauth\"");
+
+    printCheckBox(response, "SHOWSECRETS", "Show Pairing secrets on Info page", _preferences->getBool(preference_show_secrets), "");
+
+    if (_preferences->getBool(preference_lock_enabled, true))
     {
-        buildConfirmHtml(server, F("One-time bypass is only available if NTP time is not synced</a>"), 3, true, "/");
-        return;
+        printCheckBox(response, "LCKMANPAIR", "Manually set lock pairing data (enable to save values below)", false, "");
+        printInputField(response, "LCKBLEADDR", "currentBleAddress", "", 12, "");
+        printInputField(response, "LCKSECRETK", "secretKeyK", "", 64, "");
+        printInputField(response, "LCKAUTHID", "authorizationId", "", 8, "");
+        printCheckBox(response, "LCKISULTRA", "isUltra", false, "");
     }
 
-    String response = F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-    response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}input[type=password],input[type=text]{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;box-sizing:border-box}button{background-color:#04aa6d;color:#fff;padding:14px 20px;margin:8px 0;border:none;cursor:pointer;width:100%}button:hover{opacity:.8}.container{padding:16px}span.password{float:right;padding-top:16px}@media screen and (max-width:300px){span.psw{display:block;float:none}}</style>");
-    response += F("</head><body><center><h2>Nuki Hub One-time Bypass</h2>");
-    response += F("<form action=\"/post?page=bypass\" method=\"post\">");
-    response += F("<div class=\"container\">");
-    response += F("<label for=\"bypass\"><b>Bypass code</b></label><input type=\"text\" placeholder=\"Enter bypass code\" name=\"bypass\">");
-    response += F("<button type=\"submit\">Login</button></div>");
-    response += F("</form></center></body></html>");
+    if (_nuki != nullptr)
+    {
+        char uidString[20];
+        itoa(_preferences->getUInt(preference_nuki_id_lock, 0), uidString, 16);
+        printCheckBox(response, "LCKFORCEID", ((String) "Force Lock ID to current ID (" + uidString + ")").c_str(), _preferences->getBool(preference_lock_force_id, false), "");
+        printCheckBox(response, "LCKFORCEKP", "Force Lock Keypad connected", _preferences->getBool(preference_lock_force_keypad, false), "");
+        printCheckBox(response, "LCKFORCEDS", "Force Lock Doorsensor connected", _preferences->getBool(preference_lock_force_doorsensor, false), "");
+    }
 
-    server->send(200, F("text/html"), response);
+    printCheckBox(response, "DBGCONN", "Enable Nuki connect debug logging", _preferences->getBool(preference_debug_connect, false), "");
+    printCheckBox(response, "DBGCOMMU", "Enable Nuki communication debug logging", _preferences->getBool(preference_debug_communication, false), "");
+    printCheckBox(response, "DBGREAD", "Enable Nuki readable data debug logging", _preferences->getBool(preference_debug_readable_data, false), "");
+    printCheckBox(response, "DBGHEX", "Enable Nuki hex data debug logging", _preferences->getBool(preference_debug_hex_data, false), "");
+    printCheckBox(response, "DBGCOMM", "Enable Nuki command debug logging", _preferences->getBool(preference_debug_command, false), "");
+    printCheckBox(response, "DBGHEAP", "Send free heap to Home Automation", _preferences->getBool(preference_publish_debug_info, false), "");
+
+    response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
+    response += F("</form>");
+
+    response += F("<script>window.onload = function() {"
+                  "document.getElementById(\"inputmaxauthlog\").addEventListener(\"keyup\", calculate);"
+                  "document.getElementById(\"inputmaxkeypad\").addEventListener(\"keyup\", calculate);"
+                  "document.getElementById(\"inputmaxtimecontrol\").addEventListener(\"keyup\", calculate);"
+                  "document.getElementById(\"inputmaxauth\").addEventListener(\"keyup\", calculate);"
+                  "calculate(); };"
+                  "function calculate() {"
+                  "var auth = document.getElementById(\"inputmaxauth\").value;"
+                  "var authlog = document.getElementById(\"inputmaxauthlog\").value;"
+                  "var keypad = document.getElementById(\"inputmaxkeypad\").value;"
+                  "var timecontrol = document.getElementById(\"inputmaxtimecontrol\").value;"
+                  "var charbuf = 0, networktask = 0;"
+                  "var sizeauth = 300 * auth, sizeauthlog = 280 * authlog, sizekeypad = 350 * keypad, sizetimecontrol = 120 * timecontrol;"
+                  "charbuf = Math.max(sizeauth, sizeauthlog, sizekeypad, sizetimecontrol, 4096);"
+                  "charbuf = Math.min(charbuf, 65536);"
+                  "networktask = Math.max(10240 + charbuf, 12288);"
+                  "networktask = Math.min(networktask, 65536);"
+                  "document.getElementById(\"mincharbuffer\").innerHTML = charbuf;"
+                  "document.getElementById(\"minnetworktask\").innerHTML = networktask;"
+                  "}"
+                  "</script></html>");
+
+    server->send(200, "text/html", response);
 }
 
 void WebCfgServer::buildLoginHtml(WebServer *server)
 {
-    String response = F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-    response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}input[type=password],input[type=text]{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;box-sizing:border-box}button{background-color:#04aa6d;color:#fff;padding:14px 20px;margin:8px 0;border:none;cursor:pointer;width:100%}button:hover{opacity:.8}.container{padding:16px}span.password{float:right;padding-top:16px}@media screen and (max-width:300px){span.psw{display:block;float:none}}</style>");
-    response += F("</head><body><center><h2>Nuki Hub login</h2><form action=\"/post?page=login\" method=\"post\">");
-    response += F("<div class=\"container\"><label for=\"username\"><b>Username</b></label><input type=\"text\" placeholder=\"Enter Username\" name=\"username\" required>");
-    response += F("<label for=\"password\"><b>Password</b></label><input type=\"password\" placeholder=\"Enter Password\" name=\"password\" required>");
+    String response;
+    response.reserve(2048); 
+
+    response += F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+    response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}");
+    response += F("input[type=password],input[type=text]{width:100%;padding:12px 20px;margin:8px 0;");
+    response += F("display:inline-block;border:1px solid #ccc;box-sizing:border-box}");
+    response += F("button{background-color:#04aa6d;color:#fff;padding:14px 20px;margin:8px 0;");
+    response += F("border:none;cursor:pointer;width:100%}button:hover{opacity:.8}");
+    response += F(".container{padding:16px}span.password{float:right;padding-top:16px}");
+    response += F("@media screen and (max-width:300px){span.psw{display:block;float:none}}</style>");
+    response += F("</head><body><center><h2>Nuki Hub login</h2>");
+    response += F("<form action=\"/post?page=login\" method=\"post\">");
+    response += F("<div class=\"container\">");
+    response += F("<label for=\"username\"><b>Username</b></label>");
+    response += F("<input type=\"text\" placeholder=\"Enter Username\" name=\"username\" required>");
+    response += F("<label for=\"password\"><b>Password</b></label>");
+    response += F("<input type=\"password\" placeholder=\"Enter Password\" name=\"password\" required>");
 
     response += F("<button type=\"submit\">Login</button>");
 
     response += F("<label><input type=\"checkbox\" name=\"remember\"> Remember me</label></div>");
     response += F("</form></center></body></html>");
 
-    server->send(200, F("text/html"), response);
+    server->send(200, "text/html", response);
 }
 
 void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect, String redirectTo)
 {
-    String response = F("<html><head>");
-    String header;
+    String response;
+    response.reserve(1024); 
 
+    String header;
     if (!redirect)
     {
         header = "<meta http-equiv=\"Refresh\" content=\"" + String(redirectDelay) + "; url=/\" />";
@@ -481,13 +560,13 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
         header = "<script type=\"text/JavaScript\">function Redirect() { window.location.href = \"" + redirectTo + "\"; } setTimeout(function() { Redirect(); }, " + String(redirectDelay * 1000) + "); </script>";
     }
 
-    response += header;
-    response += F("<title>Confirmation</title></head><body>");
+    buildHtmlHeader(response, header);
     response += message;
-    response += F("</body></html>");
+    response += "</body></html>";
 
     server->send(200, "text/html", response);
 }
+
 
 void WebCfgServer::buildCoredumpHtml(WebServer *server)
 {
@@ -497,7 +576,7 @@ void WebCfgServer::buildCoredumpHtml(WebServer *server)
     }
     else
     {
-        File file = SPIFFS.open("/coredump.hex", "r");
+        File file = SPIFFS.open(F("/coredump.hex"), "r");
 
         if (!file || file.isDirectory())
         {
@@ -520,10 +599,9 @@ void WebCfgServer::buildCoredumpHtml(WebServer *server)
 void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 {
     String response;
-    response.reserve(4096); // Speicher reservieren, um Fragmentierung zu reduzieren
+    response.reserve(4096); 
 
-    response += F("<!DOCTYPE html><html><head><meta charset=\"UTF-8\">");
-    response += F("<title>Network Configuration</title></head><body>");
+    buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
     response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
     response += F("<h3>Network Configuration</h3>");
@@ -531,8 +609,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 
     printInputField(response, "HOSTNAME", "Host name", _preferences->getString(preference_hostname).c_str(), 100, "");
     printDropDown(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions(), "");
-    //printInputField(response, "HASSCUURL", "Home Assistant device configuration URL (empty to use http://LOCALIP; fill when using a reverse proxy for example)", _preferences->getString(preference_mqtt_hass_cu_url).c_str(), 261, "");
-
+    
 #ifndef CONFIG_IDF_TARGET_ESP32H2
     printInputField(response, "RSSI", "RSSI Publish interval (seconds; -1 to disable)", _preferences->getInt(preference_rssi_publish_interval), 6, "");
 #endif
@@ -561,8 +638,10 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 void WebCfgServer::buildCredHtml(WebServer *server)
 {
     // Generiere zufällige Strings für One-Time-Bypass & Admin-Schlüssel
-    auto generateRandomString = [](char* buffer, size_t length, const char* chars, size_t charSize) {
-        for (size_t i = 0; i < length; i++) {
+    auto generateRandomString = [](char *buffer, size_t length, const char *chars, size_t charSize)
+    {
+        for (size_t i = 0; i < length; i++)
+        {
             buffer[i] = chars[esp_random() % charSize];
         }
         buffer[length] = '\0';
@@ -582,10 +661,9 @@ void WebCfgServer::buildCredHtml(WebServer *server)
 
     // HTML-Antwort aufbauen
     String response;
-    response.reserve(8192); // Speicher reservieren, um Fragmentierung zu reduzieren
+    response.reserve(8192); 
 
-    response += F("<!DOCTYPE html><html><head><meta charset=\"UTF-8\">");
-    response += F("<title>Credentials</title></head><body>");
+    buildHtmlHeader(response);
     response += F("<form id=\"credfrm\" class=\"adapt\" onsubmit=\"return testcreds();\" method=\"post\" action=\"post\">");
     response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
     response += F("<h3>Credentials</h3><table>");
@@ -597,8 +675,7 @@ void WebCfgServer::buildCredHtml(WebServer *server)
     std::vector<std::pair<String, String>> httpAuthOptions = {
         {"0", "Basic"},
         {"1", "Digest"},
-        {"2", "Form"}
-    };
+        {"2", "Form"}};
     printDropDown(response, "CREDDIGEST", "HTTP Authentication type", String(_preferences->getInt(preference_http_auth_type, 0)), httpAuthOptions, "");
 
     printInputField(response, "CREDTRUSTPROXY", "Bypass authentication for reverse proxy with IP", _preferences->getString(preference_bypass_proxy, "").c_str(), 255, "");
@@ -614,9 +691,9 @@ void WebCfgServer::buildCredHtml(WebServer *server)
 
     printInputField(response, "CREDLFTM", "Session validity (in seconds)", _preferences->getInt(preference_cred_session_lifetime, 3600), 12, "");
     printInputField(response, "CREDLFTMRMBR", "Session validity remember (in hours)", _preferences->getInt(preference_cred_session_lifetime_remember, 720), 12, "");
-    
+
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form>");
-    
+
     // JavaScript Validierung
     response += F("<script>function testcreds() {"
                   "var input_user = document.getElementById(\"inputuser\").value;"
@@ -660,6 +737,205 @@ void WebCfgServer::buildCredHtml(WebServer *server)
 
     server->send(200, "text/html", response);
 }
+
+void WebCfgServer::buildHtml(WebServer *server)
+{
+    String header = F("<script>let intervalId; window.onload = function() { updateInfo(); intervalId = setInterval(updateInfo, 3000); }; function updateInfo() { var request = new XMLHttpRequest(); request.open('GET', '/get?page=status', true); request.onload = () => { const obj = JSON.parse(request.responseText); if (obj.stop == 1) { clearInterval(intervalId); } for (var key of Object.keys(obj)) { if(key=='ota' && document.getElementById(key) !== null) { document.getElementById(key).innerText = \"<a href='/ota'>\" + obj[key] + \"</a>\"; } else if(document.getElementById(key) !== null) { document.getElementById(key).innerText = obj[key]; } } }; request.send(); }</script>");
+
+    String response;
+    response.reserve(8192); 
+
+    buildHtmlHeader(response, header);
+
+    if (_rebootRequired)
+    {
+        response += F("<table><tbody><tr><td colspan=\"2\" style=\"border: 0; color: red; font-size: 32px; font-weight: bold; text-align: center;\">REBOOT REQUIRED TO APPLY SETTINGS</td></tr></tbody></table>");
+    }
+
+#ifdef DEBUG_NUKIHUB
+    response += F("<table><tbody><tr><td colspan=\"2\" style=\"border: 0; color: red; font-size: 32px; font-weight: bold; text-align: center;\">RUNNING DEBUG BUILD, SWITCH TO RELEASE BUILD ASAP</td></tr></tbody></table>");
+#endif
+
+    response += F("<h3>Info</h3><br><table>");
+    printParameter(response, "Hostname", _hostname.c_str(), "", "hostname");
+    printParameter(response, "REST API reachable", (_network->networkServicesState() == NetworkServiceStates::OK ||  _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? "Yes" : "No", "", "APIState");
+    printParameter(response, "Home Automation reachable", (_network->networkServicesState() == NetworkServiceStates::OK ||  _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? "Yes" : "No", "", "HAState");
+
+    if (_nuki != nullptr)
+    {
+        char lockStateArr[20];
+        NukiLock::lockstateToString(_nuki->keyTurnerState().lockState, lockStateArr);
+        printParameter(response, "Nuki Lock paired", _nuki->isPaired() ? ("Yes (BLE Address " + _nuki->getBleAddress().toString() + ")").c_str() : "No", "", "lockPaired");
+        printParameter(response, "Nuki Lock state", lockStateArr, "", "lockState");
+
+        if (_nuki->isPaired())
+        {
+            const String lockState = pinStateToString((NukiPinState)_preferences->getInt(preference_lock_pin_status, (int)NukiPinState::NotConfigured));
+            printParameter(response, "Nuki Lock PIN status", lockState.c_str(), "", "lockPin");
+        }
+    }
+
+    printParameter(response, "Firmware", NUKI_REST_BRIDGE_VERSION, "/get?page=info", "firmware");
+    response += F("</table><br><ul id=\"tblnav\">");
+
+    buildNavigationMenuEntry(response, "Network Configuration", "/get?page=ntwconfig");
+    buildNavigationMenuEntry(response, "REST API Configuration", "/get?page=apiconfig", _APIConfigured ? "" : "Please configure REST API");
+    buildNavigationMenuEntry(response, "Home Automation Configuration", "/get?page=harconfig", _HAConfigured ? "" : "Please configure Home Automation");
+    buildNavigationMenuEntry(response, "Nuki Configuration", "/get?page=nukicfg");
+    buildNavigationMenuEntry(response, "Access Level Configuration", "/get?page=acclvl");
+    buildNavigationMenuEntry(response, "Credentials", "/get?page=cred");
+
+    if (_preferences->getInt(preference_network_hardware, 0) == 11)
+    {
+        buildNavigationMenuEntry(response, "Custom Ethernet Configuration", "/get?page=custntw");
+    }
+
+    if (_preferences->getBool(preference_enable_debug_mode, false))
+    {
+        buildNavigationMenuEntry(response, "Advanced Configuration", "/get?page=advanced");
+    }
+
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+    if (_allowRestartToPortal)
+    {
+        buildNavigationMenuEntry(response, "Configure Wi-Fi", "/get?page=wifi");
+    }
+#endif
+
+    buildNavigationMenuEntry(response, "Info page", "/get?page=info");
+    String rebooturl = "/get?page=reboot&CONFIRMTOKEN=" + _confirmCode;
+    buildNavigationMenuEntry(response, "Reboot Nuki Hub", rebooturl.c_str());
+
+    if (_preferences->getInt(preference_http_auth_type, 0) == 2)
+    {
+        buildNavigationMenuEntry(response, "Logout", "/get?page=logout");
+    }
+
+    response += F("</ul></body></html>");
+
+    server->send(200, F("text/html"), response);
+}
+
+
+void WebCfgServer::buildBypassHtml(WebServer *server)
+{
+    if (timeSynced)
+    {
+        buildConfirmHtml(server, "One-time bypass is only available if NTP time is not synced</a>", 3, true);
+        return;
+    }
+
+    String response;
+    response.reserve(2048); 
+
+    response += F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+    response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}");
+    response += F("input[type=password],input[type=text]{width:100%;padding:12px 20px;margin:8px 0;");
+    response += F("display:inline-block;border:1px solid #ccc;box-sizing:border-box}");
+    response += F("button{background-color:#04aa6d;color:#fff;padding:14px 20px;margin:8px 0;");
+    response += F("border:none;cursor:pointer;width:100%}button:hover{opacity:.8}");
+    response += F(".container{padding:16px}span.password{float:right;padding-top:16px}");
+    response += F("@media screen and (max-width:300px){span.psw{display:block;float:none}}");
+    response += F("</style></head><body><center><h2>Nuki Hub One-time Bypass</h2>");
+    response += F("<form action=\"/post?page=bypass\" method=\"post\">");
+    response += F("<div class=\"container\">");
+    response += F("<label for=\"bypass\"><b>Bypass code</b></label>");
+    response += F("<input type=\"text\" placeholder=\"Enter bypass code\" name=\"bypass\">");
+    response += F("<button type=\"submit\">Login</button></div>");
+    response += F("</form></center></body></html>");
+
+    server->send(200, "text/html", response);
+}
+
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+void WebCfgServer::buildSSIDListHtml(WebServer *server)
+{
+    _network->scan(true, false);
+    createSsidList();
+
+    String response;
+    response.reserve(2048); 
+
+    for (size_t i = 0; i < _ssidList.size(); i++)
+    {
+        response += F("<tr class=\"trssid\" onclick=\"document.getElementById('inputssid').value = '");
+        response += _ssidList[i];
+        response += F("';\"><td colspan=\"2\">");
+        response += _ssidList[i];
+        response += F(" (");
+        response += String(_rssiList[i]);
+        response += F(" %)</td></tr>");
+    }
+
+    server->send(200, F("text/html"), response);
+}
+#endif
+
+
+void WebCfgServer::buildHtmlHeader(String& response, const String& additionalHeader)
+{
+    response += F("<html><head>");
+    response += F("<meta name='viewport' content='width=device-width, initial-scale=1'>");
+
+    if (!additionalHeader.isEmpty())
+    {
+        response += additionalHeader;
+    }
+
+    response += F("<link rel='stylesheet' href='/style.css'>");
+    response += F("<title>Nuki Bridge</title></head><body>");
+}
+
+void WebCfgServer::buildNavigationMenuEntry(String& response, const char *title, const char *targetPath, const char* warningMessage)
+{
+    response += F("<a class=\"naventry\" href=\"");
+    response += targetPath;
+    response += F("\"><li>");
+    response += title;
+
+    if (*warningMessage) // Statt strcmp(warningMessage, "") != 0
+    {
+        response += F("<span>");
+        response += warningMessage;
+        response += F("</span>");
+    }
+
+    response += F("</li></a>");
+}
+
+void WebCfgServer::printParameter(String& response, const char *description, const char *value, const char *link, const char *id)
+{
+    response += F("<tr><td>");
+    response += description;
+    response += F("</td>");
+
+    if (*id) // Statt strcmp(id, "") == 0
+    {
+        response += F("<td id=\"");
+        response += id;
+        response += F("\">");
+    }
+    else
+    {
+        response += F("<td>");
+    }
+
+    if (*link) // Statt strcmp(link, "") == 0
+    {
+        response += F("<a href=\"");
+        response += link;
+        response += F("\"> ");
+        response += value;
+        response += F("</a>");
+    }
+    else
+    {
+        response += value;
+    }
+
+    response += F("</td></tr>");
+}
+
 
 
 void WebCfgServer::printInputField(String &response,
@@ -760,34 +1036,33 @@ void WebCfgServer::printDropDown(String &response,
     response += F("</td></tr>");
 }
 
-void WebCfgServer::printCheckBox(String& response, 
-    const char *token, 
-    const char *description, 
-    const bool value, 
-    const char *htmlClass)
+void WebCfgServer::printCheckBox(String &response,
+                                 const char *token,
+                                 const char *description,
+                                 const bool value,
+                                 const char *htmlClass)
 {
-response += F("<tr><td>");
-response += description;
-response += F("</td><td>");
+    response += F("<tr><td>");
+    response += description;
+    response += F("</td><td>");
 
-response += F("<input type=\"hidden\" name=\"");
-response += token;
-response += F("\" value=\"0\"/>");
+    response += F("<input type=\"hidden\" name=\"");
+    response += token;
+    response += F("\" value=\"0\"/>");
 
-response += F("<input type=\"checkbox\" name=\"");
-response += token;
-response += F("\" class=\"");
-response += htmlClass;
-response += F("\" value=\"1\"");
+    response += F("<input type=\"checkbox\" name=\"");
+    response += token;
+    response += F("\" class=\"");
+    response += htmlClass;
+    response += F("\" value=\"1\"");
 
-if (value)
-{
-response += F(" checked=\"checked\"");
+    if (value)
+    {
+        response += F(" checked=\"checked\"");
+    }
+
+    response += F("/></td></tr>");
 }
-
-response += F("/></td></tr>");
-}
-
 
 const std::vector<std::pair<String, String>> WebCfgServer::getNetworkDetectionOptions() const
 {
@@ -813,24 +1088,6 @@ String WebCfgServer::generateConfirmCode()
 {
     int code = random(1000, 9999);
     return String(code);
-}
-
-void WebCfgServer::buildSSIDListHtml(WebServer *server)
-{
-    _network->scan(true, false);
-    createSsidList();
-
-    String response = "<html><body><table>";
-
-    for (size_t i = 0; i < _ssidList.size(); i++)
-    {
-        response += "<tr class=\"trssid\" onclick=\"document.getElementById('inputssid').value = '" + _ssidList[i] + "';\">";
-        response += "<td colspan=\"2\">" + _ssidList[i] + " (" + String(_rssiList[i]) + " %)</td></tr>";
-    }
-
-    response += "</table></body></html>";
-
-    server->send(200, "text/html", response);
 }
 
 bool WebCfgServer::processWiFi(WebServer *server, String &message)
@@ -1144,6 +1401,22 @@ void WebCfgServer::logoutSession(WebServer *server)
     }
 
     buildConfirmHtml(server, "Logging out", 3, true, "/");
+}
+
+const String WebCfgServer::pinStateToString(const NukiPinState& value) const
+{
+    switch(value)
+    {
+        case NukiPinState::NotSet:
+            return String("PIN not set");
+        case NukiPinState::Valid:
+            return String("PIN valid");
+        case NukiPinState::Invalid:
+            return String("PIN set but invalid");
+        case NukiPinState::NotConfigured:
+        default:
+            return String("Unknown");
+    }
 }
 
 void WebCfgServer::saveSessions()

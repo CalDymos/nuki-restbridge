@@ -1,6 +1,8 @@
 #pragma once
 #include <Preferences.h>
 
+#define preference_enable_bootloop_reset (char*)"enabtlprst"
+
 #define preference_ip_dhcp_enabled (char *)"dhcpena"
 #define preference_ip_address (char *)"ipaddr"
 #define preference_ip_subnet (char *)"ipsub"
@@ -12,6 +14,7 @@
 #define preference_wifi_ssid (char *)"wifiSSID"
 #define preference_wifi_pass (char *)"wifiPass"
 #define preference_find_best_rssi (char *)"nwbestrssi"
+#define preference_auth_max_entries (char*)"authmaxentry"
 
 #define preference_disable_network_not_connected (char *)"disNtwNoCon"
 
@@ -22,6 +25,10 @@
 #define preference_debug_command (char*)"dbgCommand"
 
 #define preference_connect_mode (char*)"nukiConnMode"
+
+#define preference_task_size_network (char*)"tsksznetw"
+#define preference_task_size_nuki (char*)"tsksznuki"
+#define preference_buffer_size (char*)"buffsize"
 
 #define preference_webcfgserver_enabled (char *)"webCfgSrvEna"  // enable/disable WebCfgserver 
 #define preference_cred_user (char*)"webCfgSrvCrdusr"
@@ -103,6 +110,7 @@
 #define preference_config_Auth (char *)"ConfAuth"
 #define preference_device_id_lock (char *)"deviceId"
 #define preference_restart_on_disconnect (char *)"restdisc"
+#define preference_publish_debug_info (char*)"pubdbg"
 #define preference_callback_key_prefix (char *)"cbUrl"
 
 #define preference_rssi_publish_interval (char *)"rssipb"          // seconds
@@ -111,6 +119,8 @@
 #define preference_restart_ble_beacon_lost (char *)"rstbcn"
 
 #define preference_authlog_max_entries (char*)"authmaxentry"
+#define preference_keypad_max_entries (char*)"kpmaxentry"
+#define preference_timecontrol_max_entries (char*)"tcmaxentry"
 
 #define preference_keypad_check_code_enabled (char*)"kpChkEna"
 #define preference_lock_force_id (char*)"lckForceId"
@@ -148,6 +158,7 @@
 #define preference_conf_lock_advanced_acl (char *)"confLckAdvAcl"
 
 #define preference_ble_tx_power (char*)"bleTxPwr"
+#define preference_show_secrets (char*)"showSecr"
 
 #define preference_keypad_info_enabled (char*)"kpInfoEnabled"
 #define preference_publish_authdata (char*)"pubAuth"

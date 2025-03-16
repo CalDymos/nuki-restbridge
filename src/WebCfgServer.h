@@ -2,6 +2,7 @@
 
 #include <Preferences.h>
 #include <WebServer.h>
+#include "NukiPinState.h"
 #include "Config.h"
 #include "NukiWrapper.h"
 #include "NukiNetwork.h"
@@ -53,6 +54,7 @@ private:
 
     bool isAuthenticated(WebServer *server);
     int doAuthentication(WebServer *server);
+    void buildAdvancedConfigHtml(WebServer *server);
     void buildSSIDListHtml(WebServer *server);
     void buildLoginHtml(WebServer *server);
     void buildBypassHtml(WebServer *server);
@@ -61,6 +63,10 @@ private:
     void buildInfoHtml(WebServer *server);
     void buildNetworkConfigHtml(WebServer *server);
     void buildCredHtml(WebServer *server);
+    void buildHtml(WebServer *server);
+    void buildHtmlHeader(String &response, const String &additionalHeader = "");
+    void buildNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage = "");
+    void printParameter(String &response, const char *description, const char *value, const char *link = "", const char *id = "");
     void waitAndProcess(const bool blocking, const uint32_t duration);
     bool processWiFi(WebServer *server, String &message);
 
@@ -92,6 +98,8 @@ private:
 
     const std::vector<std::pair<String, String>> getNetworkDetectionOptions() const;
 
+    const String pinStateToString(const NukiPinState& value) const;
+
     void saveSessions();
     void loadSessions();
     void clearSessions();
@@ -102,6 +110,10 @@ private:
     WebServer *_webServer = nullptr;     // der eigentliche WebServer
     NukiNetwork *_network = nullptr;
     JsonDocument _httpSessions;
+
+    bool _APIConfigured = false;
+    bool _HAConfigured = false;
+    bool _rebootRequired = false;
 
     String _confirmCode = "----";
 
