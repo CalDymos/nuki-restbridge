@@ -98,6 +98,8 @@
 #define preference_ha_path_ble_strength (char *)"haPathBleStr"
 #define preference_ha_query_ble_strength (char *)"haQueryBleStr"
 
+#define preference_publish_config (char*)"nhPubConfig"
+#define preference_config_from_api (char*)"nhCntrlEnabled"
 
 #define preference_hostname (char *)"hostname"
 

@@ -548,6 +548,11 @@ const bool NukiWrapper::isPaired() const
     return _paired;
 }
 
+const bool NukiWrapper::hasKeypad() const
+{
+    return (_forceKeypad || _hasKeypad);
+}
+
 const BLEAddress NukiWrapper::getBleAddress() const
 {
     return _nukiLock.getBleAddress();

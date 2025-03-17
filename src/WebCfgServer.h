@@ -54,6 +54,8 @@ private:
 
     bool isAuthenticated(WebServer *server);
     int doAuthentication(WebServer *server);
+    void buildAccLvlHtml(WebServer *server);
+    void buildNukiConfigHtml(WebServer *server);
     void buildAdvancedConfigHtml(WebServer *server);
     void buildSSIDListHtml(WebServer *server);
     void buildLoginHtml(WebServer *server);
@@ -66,11 +68,11 @@ private:
     void buildHtml(WebServer *server);
     void buildHtmlHeader(String &response, const String &additionalHeader = "");
     void buildNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage = "");
-    void printParameter(String &response, const char *description, const char *value, const char *link = "", const char *id = "");
+    void appendParameterRow(String &response, const char *description, const char *value, const char *link = "", const char *id = "");
     void waitAndProcess(const bool blocking, const uint32_t duration);
     bool processWiFi(WebServer *server, String &message);
 
-    void printInputField(String &response,
+    void appendInputFieldRow(String &response,
                          const char *token,
                          const char *description,
                          const char *value,
@@ -78,19 +80,19 @@ private:
                          const char *args,
                          const bool &isPassword = false,
                          const bool &showLengthRestriction = false);
-    void printInputField(String &response,
+    void appendInputFieldRow(String &response,
                          const char *token,
                          const char *description,
                          const int value,
                          size_t maxLength,
                          const char *args);
-    void printDropDown(String &response,
+    void appendDropDownRow(String &response,
                        const char *token,
                        const char *description,
                        const String preselectedValue,
                        const std::vector<std::pair<String, String>> &options,
                        const String className);
-    void printCheckBox(String &response,
+    void appendCheckBoxRow(String &response,
                        const char *token,
                        const char *description,
                        const bool value,
