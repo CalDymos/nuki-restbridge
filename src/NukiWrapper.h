@@ -90,6 +90,7 @@ public:
     void disableWatchdog();
 
     const bool isPaired() const;
+    const bool hasKeypad() const;
 
     const BLEAddress getBleAddress() const;
 
