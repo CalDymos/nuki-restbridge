@@ -80,6 +80,8 @@ public:
      */
     uint16_t getPin();
 
+    void unpair();
+    
     /**
      * @brief Liefert den zuletzt bekannten LockState zurück.
      *        (z.B. kann man hier NukiLock::LockState::Locked usw. auswerten.)

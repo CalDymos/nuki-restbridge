@@ -65,42 +65,55 @@ private:
     void buildInfoHtml(WebServer *server);
     void buildNetworkConfigHtml(WebServer *server);
     void buildCredHtml(WebServer *server);
+    void buildWifiConnectHtml(WebServer *server);
     void buildHtml(WebServer *server);
     void buildHtmlHeader(String &response, const String &additionalHeader = "");
     void buildNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage = "");
+    void buildConfigureWifiHtml(WebServer *server);
     void appendParameterRow(String &response, const char *description, const char *value, const char *link = "", const char *id = "");
     void waitAndProcess(const bool blocking, const uint32_t duration);
     bool processWiFi(WebServer *server, String &message);
+    bool processBypass(WebServer *server);
+    bool processLogin(WebServer *server);
+    bool processFactoryReset(WebServer *server);
+    bool processUnpair(WebServer *server);
 
     void appendInputFieldRow(String &response,
-                         const char *token,
-                         const char *description,
-                         const char *value,
-                         const size_t &maxLength,
-                         const char *args,
-                         const bool &isPassword = false,
-                         const bool &showLengthRestriction = false);
+                             const char *token,
+                             const char *description,
+                             const char *value,
+                             const size_t &maxLength,
+                             const char *args,
+                             const bool &isPassword = false,
+                             const bool &showLengthRestriction = false);
     void appendInputFieldRow(String &response,
-                         const char *token,
-                         const char *description,
-                         const int value,
-                         size_t maxLength,
-                         const char *args);
+                             const char *token,
+                             const char *description,
+                             const int value,
+                             size_t maxLength,
+                             const char *args);
     void appendDropDownRow(String &response,
-                       const char *token,
-                       const char *description,
-                       const String preselectedValue,
-                       const std::vector<std::pair<String, String>> &options,
-                       const String className);
+                           const char *token,
+                           const char *description,
+                           const String preselectedValue,
+                           const std::vector<std::pair<String, String>> &options,
+                           const String className);
+    void appendTextareaRow(String &response,
+                           const char *token,
+                           const char *description,
+                           const char *value,
+                           const size_t &maxLength,
+                           const bool &enabled = true,
+                           const bool &showLengthRestriction = false);
     void appendCheckBoxRow(String &response,
-                       const char *token,
-                       const char *description,
-                       const bool value,
-                       const char *htmlClass);
+                           const char *token,
+                           const char *description,
+                           const bool value,
+                           const char *htmlClass);
 
     const std::vector<std::pair<String, String>> getNetworkDetectionOptions() const;
 
-    const String pinStateToString(const NukiPinState& value) const;
+    const String pinStateToString(const NukiPinState &value) const;
 
     void saveSessions();
     void loadSessions();

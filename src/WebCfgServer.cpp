@@ -17,6 +17,10 @@ WebCfgServer::WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences 
 
 {
     _webServer = new WebServer(WEBCFGSERVER_PORT);
+    if (_webServer == nullptr)
+    {
+        Log->println(F("[ERROR] Failed to allocate memory for WebServer!"));
+    }
     _hostname = _preferences->getString(preference_hostname, "");
     String str = _preferences->getString(preference_cred_user, "");
     str = _preferences->getString(preference_cred_user, "");
@@ -46,6 +50,7 @@ WebCfgServer::~WebCfgServer()
 {
     _webServer->close();
     delete _webServer;
+    _webServer = nullptr;
 }
 
 bool WebCfgServer::isAuthenticated(WebServer *server)
@@ -80,7 +85,7 @@ bool WebCfgServer::isAuthenticated(WebServer *server)
                 }
                 else
                 {
-                    Log->println("Cookie found, but not valid anymore");
+                    Log->println(F("[DEBUG] Cookie found, but not valid anymore"));
                 }
             }
         }
@@ -101,7 +106,7 @@ int WebCfgServer::doAuthentication(WebServer *server)
         {
             if (!isAuthenticated(server))
             {
-                Log->println("Authentication Failed");
+                Log->println(F("[WARNING] Authentication Failed"));
                 return savedAuthType;
             }
         }
@@ -109,7 +114,7 @@ int WebCfgServer::doAuthentication(WebServer *server)
         {
             if (!server->authenticate(_credUser, _credPassword))
             {
-                Log->println("Authentication Failed");
+                Log->println(F("[WARNING] Authentication Failed"));
                 return savedAuthType;
             }
         }
@@ -120,6 +125,7 @@ int WebCfgServer::doAuthentication(WebServer *server)
 
 void WebCfgServer::initialize()
 {
+    Log->println(F("[DEBUG] WebCfgServer initializing..."));
 
     // Route für css Style
     _webServer->on("/style.css", HTTP_GET, [this]()
@@ -130,7 +136,10 @@ void WebCfgServer::initialize()
 
     if (_network->isApOpen())
     {
-
+        _webServer->on("/", HTTP_GET, [this]() {
+            _webServer->send(200, "text/html", "ESP32 Webserver läuft!");
+        });
+        
         _webServer->on("/ssidlist", HTTP_GET, [this]()
                        { buildSSIDListHtml(this->_webServer); });
 
@@ -228,7 +237,7 @@ void WebCfgServer::initialize()
             }
 
             bool adminKeyValid = false;
-            if(value == "export" && timeSynced && this->_webServer->hasArg("adminkey"))
+            if(timeSynced && this->_webServer->hasArg("adminkey"))
             {
                 String value2 = "";
                 if(this->_webServer->hasArg("adminkey"))
@@ -241,7 +250,7 @@ void WebCfgServer::initialize()
                 }
             }
 
-            if (!adminKeyValid && value != "status" && value != "login" && value != "duocheck" && value != "bypass")
+            if (!adminKeyValid && value != "status" && value != "login" && value != "bypass")
             {
                 int authReq = doAuthentication(this->_webServer);
 
@@ -354,11 +363,11 @@ void WebCfgServer::initialize()
             }
             else if (value == "nukicfg")
             {
-                //return buildNukiConfigHtml(this->_webServer);
+                return buildNukiConfigHtml(this->_webServer);
             }
             else if (value == "wifi")
             {
-                //return buildConfigureWifiHtml(this->_webServer);
+                return buildConfigureWifiHtml(this->_webServer);
             }
             else if (value == "wifimanager")
             {
@@ -380,23 +389,162 @@ void WebCfgServer::initialize()
                 {
                     return buildConfirmHtml(this->_webServer, "Can't reset WiFi when network device is Ethernet", 3, true);
                 }
-                buildConfirmHtml(this->_webServer, "Restarting. Connect to ESP access point (\"NukiHub\" with password \"NukiHubESP32\") to reconfigure Wi-Fi.", 0);
+                buildConfirmHtml(this->_webServer, "Restarting. Connect to ESP access point (\"NukiBridge\" with password \"NukiBridgeESP32\") to reconfigure Wi-Fi.", 0);
                 waitAndProcess(false, 1000);
-                _network->reconfigure();
-                return;
+                return _network->reconfigure();
             }
             else
             {
-                Log->println("Page not found, loading index");
+                Log->println(F("[WARNING] Page not found, loading index"));
                 this->_webServer->sendHeader("Cache-Control",  "no-cache");
                 this->redirect(this->_webServer, "/", 302);
                 return;
             } });
+
+        _webServer->on("/post", HTTP_POST, [this]()
+                       {
+                String value = "";
+
+                if(this->_webServer->hasArg("page"))
+                {
+                    value = this->_webServer->arg("page");
+                }
+    
+                bool adminKeyValid = false;
+                if(timeSynced && this->_webServer->hasArg("adminkey"))
+                {
+                    String value2 = "";
+                    if(this->_webServer->hasArg("adminkey"))
+                    {
+                        value2 = this->_webServer->arg("adminkey");
+                    }
+                    if (value2.length() > 0 && value2 == _preferences->getString(preference_admin_secret, ""))
+                    {
+                        adminKeyValid = true;
+                    }
+                }
+                if(!adminKeyValid && value != "login" && value != "bypass")
+                {
+                    int authReq = doAuthentication(this->_webServer);
+    
+                    switch (authReq)
+                    {
+                        case 0:
+                            return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki Hub", "You must log in.");
+                            break;
+                        case 1:
+                            return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
+                            break;
+                        case 2:
+                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        return this->redirect(this->_webServer, "/get?page=login", 302);
+                            break;
+                        case 3:
+                        case 5:
+                        case 4:
+                        default:
+                            break;
+                    }
+                }
+    
+                if (value == "login")
+                {
+                    bool loggedIn = processLogin(this->_webServer);
+                    if (loggedIn)
+                    {
+                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        return this->redirect(this->_webServer, "/", 302);
+                    }
+                    else
+                    {
+                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        return this->redirect(this->_webServer, "/get?page=login", 302);
+                    }
+                }
+                else if (value == "bypass")
+                {
+                    bool loggedIn = processBypass(this->_webServer);
+                    if (loggedIn)
+                    {
+                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        _newBypass = true;
+                        return this->redirect(this->_webServer, "/get?page=newbypass", 302);
+                    }
+                    else
+                    {
+                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        return this->redirect(this->_webServer, "/", 302);
+                    }
+                }
+                else if (value == "unpairlock")
+                {
+                    processUnpair(this->_webServer);
+                    return;
+                }
+                else if (value == "factoryreset")
+                {
+                    processFactoryReset(this->_webServer);
+                    return;
+                }
+                else
+                {
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+                    if(!_network->isApOpen())
+                    {
+#endif
+                        return buildHtml(this->_webServer);
+
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+                    }
+                    else
+                    {
+                        return buildWifiConnectHtml(this->_webServer);
+                    }
+#endif
+                } });
     }
+
+    _webServer->on("/", HTTP_GET, [this]()
+                   {
+                       int authReq = doAuthentication(this->_webServer);
+
+                       switch (authReq)
+                       {
+                       case 0:
+                           return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki Hub", "You must log in.");
+                           break;
+                       case 1:
+                           return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
+                           break;
+                       case 2:
+                           this->_webServer->sendHeader("Cache-Control", "no-cache");
+                           return this->redirect(this->_webServer, "/get?page=login", 302);
+                           break;
+                       case 3:
+                       case 5:
+                       case 4:
+                       default:
+                           break;
+                       }
+
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+                       if (!_network->isApOpen())
+                       {
+#endif
+                           return buildHtml(this->_webServer);
+
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+                       }
+                       else
+                       {
+                           return buildWifiConnectHtml(this->_webServer);
+                       }
+#endif
+                   });
 
     // Eigentliches Starten des Webservers
     _webServer->begin();
-    Log->println("WebCfgServer started on port: " + String(WEBCFGSERVER_PORT));
+    Log->println("[INFO] WebCfgServer started on http://" + WiFi.softAPIP().toString() + ":" + String(WEBCFGSERVER_PORT));
 
     if (MDNS.begin(_preferences->getString(preference_hostname, "nukibridge").c_str()))
     {
@@ -412,6 +560,11 @@ void WebCfgServer::redirect(WebServer *server, const char *url, int code)
 
 void WebCfgServer::handleClient()
 {
+    if (_webServer == nullptr)
+    {
+        Log->println("[ERROR] WebServer instance is NULL! Aborting handleClient.");
+        return;
+    }
     _webServer->handleClient();
 }
 
@@ -475,9 +628,8 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
 
         const char *lockActions[] = {
             "ACLLCKLCK", "ACLLCKUNLCK", "ACLLCKUNLTCH", "ACLLCKLNG", "ACLLCKLNGU",
-            "ACLLCKFLLCK", "ACLLCKFOB1", "ACLLCKFOB2", "ACLLCKFOB3"
-        };
-        
+            "ACLLCKFLLCK", "ACLLCKFOB1", "ACLLCKFOB2", "ACLLCKFOB3"};
+
         for (int i = 0; i < 9; i++)
         {
             appendCheckBoxRow(response, lockActions[i], lockActions[i] + 9, aclPrefs[i], "chk_access_lock");
@@ -490,8 +642,7 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
 
         const char *configActions[] = {
             "CONFLCKNAME", "CONFLCKLAT", "CONFLCKLONG", "CONFLCKAUNL", "CONFLCKPRENA",
-            "CONFLCKBTENA", "CONFLCKLEDENA", "CONFLCKLEDBR", "CONFLCKTZOFF", "CONFLCKDSTM"
-        };
+            "CONFLCKBTENA", "CONFLCKLEDENA", "CONFLCKLEDBR", "CONFLCKTZOFF", "CONFLCKDSTM"};
 
         for (int i = 0; i < 10; i++)
         {
@@ -550,12 +701,10 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
     server->send(200, F("text/html"), response);
 }
 
-
-
 void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
 {
     String response;
-    response.reserve(8192); 
+    response.reserve(8192);
 
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
@@ -640,7 +789,7 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
 void WebCfgServer::buildLoginHtml(WebServer *server)
 {
     String response;
-    response.reserve(2048); 
+    response.reserve(2048);
 
     response += F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
     response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}");
@@ -669,7 +818,7 @@ void WebCfgServer::buildLoginHtml(WebServer *server)
 void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect, String redirectTo)
 {
     String response;
-    response.reserve(1024); 
+    response.reserve(1024);
 
     String header;
     if (!redirect)
@@ -687,7 +836,6 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
 
     server->send(200, "text/html", response);
 }
-
 
 void WebCfgServer::buildCoredumpHtml(WebServer *server)
 {
@@ -720,7 +868,7 @@ void WebCfgServer::buildCoredumpHtml(WebServer *server)
 void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 {
     String response;
-    response.reserve(4096); 
+    response.reserve(4096);
 
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
@@ -730,7 +878,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 
     appendInputFieldRow(response, "HOSTNAME", "Host name", _preferences->getString(preference_hostname).c_str(), 100, "");
     appendDropDownRow(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions(), "");
-    
+
 #ifndef CONFIG_IDF_TARGET_ESP32H2
     appendInputFieldRow(response, "RSSI", "RSSI Publish interval (seconds; -1 to disable)", _preferences->getInt(preference_rssi_publish_interval), 6, "");
 #endif
@@ -755,6 +903,28 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 
     server->send(200, "text/html", response);
 }
+
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+void WebCfgServer::buildConfigureWifiHtml(WebServer *server)
+{
+    String response;
+    response.reserve(1024);
+
+    buildHtmlHeader(response);
+
+    response += F("<form method=\"get\" action=\"get\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"wifimanager\">");
+    response += F("<h3>Wi-Fi</h3>");
+    response += F("Click confirm to remove saved WiFi settings and restart ESP into Wi-Fi configuration mode. ");
+    response += F("After restart, connect to ESP access point to reconfigure Wi-Fi.<br><br><br>");
+    response += F("<input type=\"hidden\" name=\"CONFIRMTOKEN\" value=\"");
+    response += _confirmCode + "\" />";
+    response += F("<input type=\"submit\" value=\"Reboot\" /></form>");
+    response += F("</form></body></html>");
+
+    server->send(200, F("text/html"), response);
+}
+#endif
 
 void WebCfgServer::buildCredHtml(WebServer *server)
 {
@@ -782,7 +952,7 @@ void WebCfgServer::buildCredHtml(WebServer *server)
 
     // HTML-Antwort aufbauen
     String response;
-    response.reserve(8192); 
+    response.reserve(8192);
 
     buildHtmlHeader(response);
     response += F("<form id=\"credfrm\" class=\"adapt\" onsubmit=\"return testcreds();\" method=\"post\" action=\"post\">");
@@ -864,7 +1034,7 @@ void WebCfgServer::buildHtml(WebServer *server)
     String header = F("<script>let intervalId; window.onload = function() { updateInfo(); intervalId = setInterval(updateInfo, 3000); }; function updateInfo() { var request = new XMLHttpRequest(); request.open('GET', '/get?page=status', true); request.onload = () => { const obj = JSON.parse(request.responseText); if (obj.stop == 1) { clearInterval(intervalId); } for (var key of Object.keys(obj)) { if(key=='ota' && document.getElementById(key) !== null) { document.getElementById(key).innerText = \"<a href='/ota'>\" + obj[key] + \"</a>\"; } else if(document.getElementById(key) !== null) { document.getElementById(key).innerText = obj[key]; } } }; request.send(); }</script>");
 
     String response;
-    response.reserve(8192); 
+    response.reserve(8192);
 
     buildHtmlHeader(response, header);
 
@@ -873,14 +1043,10 @@ void WebCfgServer::buildHtml(WebServer *server)
         response += F("<table><tbody><tr><td colspan=\"2\" style=\"border: 0; color: red; font-size: 32px; font-weight: bold; text-align: center;\">REBOOT REQUIRED TO APPLY SETTINGS</td></tr></tbody></table>");
     }
 
-#ifdef DEBUG_NUKIHUB
-    response += F("<table><tbody><tr><td colspan=\"2\" style=\"border: 0; color: red; font-size: 32px; font-weight: bold; text-align: center;\">RUNNING DEBUG BUILD, SWITCH TO RELEASE BUILD ASAP</td></tr></tbody></table>");
-#endif
-
     response += F("<h3>Info</h3><br><table>");
     appendParameterRow(response, "Hostname", _hostname.c_str(), "", "hostname");
-    appendParameterRow(response, "REST API reachable", (_network->networkServicesState() == NetworkServiceStates::OK ||  _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? "Yes" : "No", "", "APIState");
-    appendParameterRow(response, "Home Automation reachable", (_network->networkServicesState() == NetworkServiceStates::OK ||  _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? "Yes" : "No", "", "HAState");
+    appendParameterRow(response, "REST API reachable", (_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? "Yes" : "No", "", "APIState");
+    appendParameterRow(response, "Home Automation reachable", (_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? "Yes" : "No", "", "HAState");
 
     if (_nuki != nullptr)
     {
@@ -937,7 +1103,6 @@ void WebCfgServer::buildHtml(WebServer *server)
     server->send(200, F("text/html"), response);
 }
 
-
 void WebCfgServer::buildBypassHtml(WebServer *server)
 {
     if (timeSynced)
@@ -947,7 +1112,7 @@ void WebCfgServer::buildBypassHtml(WebServer *server)
     }
 
     String response;
-    response.reserve(2048); 
+    response.reserve(2048);
 
     response += F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
     response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}");
@@ -975,7 +1140,7 @@ void WebCfgServer::buildSSIDListHtml(WebServer *server)
     createSsidList();
 
     String response;
-    response.reserve(2048); 
+    response.reserve(2048);
 
     for (size_t i = 0; i < _ssidList.size(); i++)
     {
@@ -992,370 +1157,55 @@ void WebCfgServer::buildSSIDListHtml(WebServer *server)
 }
 #endif
 
-
-void WebCfgServer::buildHtmlHeader(String& response, const String& additionalHeader)
+void WebCfgServer::buildWifiConnectHtml(WebServer *server)
 {
-    response += F("<html><head>");
-    response += F("<meta name='viewport' content='width=device-width, initial-scale=1'>");
+    String header = F("<style>.trssid:hover { cursor: pointer; color: blue; }</style>"
+                      "<script>let intervalId; window.onload = function() { intervalId = setInterval(updateSSID, 3000); };"
+                      "function updateSSID() { var request = new XMLHttpRequest(); request.open('GET', '/ssidlist', true);"
+                      "request.onload = () => { if (document.getElementById(\"aplist\") !== null) { document.getElementById(\"aplist\").innerHTML = request.responseText; } }; request.send(); }</script>");
 
-    if (!additionalHeader.isEmpty())
+    String response;
+    response.reserve(8192); // Speicher reservieren, um Fragmentierung zu reduzieren
+
+    buildHtmlHeader(response, header);
+
+    response += F("<h3>Available WiFi networks</h3><table id=\"aplist\">");
+
+    createSsidList();
+    for (size_t i = 0; i < _ssidList.size(); i++)
     {
-        response += additionalHeader;
+        response += F("<tr class=\"trssid\" onclick=\"document.getElementById('inputssid').value = '");
+        response += _ssidList[i];
+        response += F("';\"><td colspan=\"2\">");
+        response += _ssidList[i];
+        response += F(" (");
+        response += String(_rssiList[i]);
+        response += F(" %)</td></tr>");
     }
 
-    response += F("<link rel='stylesheet' href='/style.css'>");
-    response += F("<title>Nuki Bridge</title></head><body>");
-}
+    response += F("</table><form class=\"adapt\" method=\"post\" action=\"savewifi\">"
+                  "<h3>WiFi credentials</h3><table>");
 
-void WebCfgServer::buildNavigationMenuEntry(String& response, const char *title, const char *targetPath, const char* warningMessage)
-{
-    response += F("<a class=\"naventry\" href=\"");
-    response += targetPath;
-    response += F("\"><li>");
-    response += title;
+    appendInputFieldRow(response, "WIFISSID", "SSID", "", 32, "id=\"inputssid\"", false, true);
+    appendInputFieldRow(response, "WIFIPASS", "Secret key", "", 63, "id=\"inputpass\"", false, true);
+    appendCheckBoxRow(response, "FINDBESTRSSI", "Find AP with best signal (disable for hidden SSID)", _preferences->getBool(preference_find_best_rssi, true), "");
 
-    if (*warningMessage) // Statt strcmp(warningMessage, "") != 0
-    {
-        response += F("<span>");
-        response += warningMessage;
-        response += F("</span>");
-    }
+    response += F("</table><h3>IP Address assignment</h3><table>");
 
-    response += F("</li></a>");
-}
+    appendCheckBoxRow(response, "DHCPENA", "Enable DHCP", _preferences->getBool(preference_ip_dhcp_enabled), "");
+    appendInputFieldRow(response, "IPADDR", "Static IP address", _preferences->getString(preference_ip_address).c_str(), 15, "");
+    appendInputFieldRow(response, "IPSUB", "Subnet", _preferences->getString(preference_ip_subnet).c_str(), 15, "");
+    appendInputFieldRow(response, "IPGTW", "Default gateway", _preferences->getString(preference_ip_gateway).c_str(), 15, "");
+    appendInputFieldRow(response, "DNSSRV", "DNS Server", _preferences->getString(preference_ip_dns_server).c_str(), 15, "");
 
-void WebCfgServer::appendParameterRow(String& response, const char *description, const char *value, const char *link, const char *id)
-{
-    response += F("<tr><td>");
-    response += description;
-    response += F("</td>");
+    response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form>"
+                  "<form action=\"/reboot\" method=\"get\"><br>"
+                  "<input type=\"hidden\" name=\"CONFIRMTOKEN\" value=\"");
+    response += _confirmCode;
+    response += F("\" />");
+    response += F("<input type=\"submit\" value=\"Reboot\" /></form></body></html>");
 
-    if (*id) 
-    {
-        response += F("<td id=\"");
-        response += id;
-        response += F("\">");
-    }
-    else
-    {
-        response += F("<td>");
-    }
-
-    if (*link) 
-    {
-        response += F("<a href=\"");
-        response += link;
-        response += F("\"> ");
-        response += value;
-        response += F("</a>");
-    }
-    else
-    {
-        response += value;
-    }
-
-    response += F("</td></tr>");
-}
-
-
-
-void WebCfgServer::appendInputFieldRow(String &response,
-                                   const char *token,
-                                   const char *description,
-                                   const char *value,
-                                   const size_t &maxLength,
-                                   const char *args,
-                                   const bool &isPassword,
-                                   const bool &showLengthRestriction)
-{
-    char maxLengthStr[20];
-    itoa(maxLength, maxLengthStr, 10);
-
-    response += F("<tr><td>");
-    response += description;
-
-    if (showLengthRestriction)
-    {
-        response += F(" (Max. ");
-        response += maxLengthStr;
-        response += F(" characters)");
-    }
-
-    response += F("</td><td>");
-    response += F("<input type=");
-    response += isPassword ? F("\"password\"") : F("\"text\"");
-
-    if (strcmp(args, "") != 0)
-    {
-        response += F(" ");
-        response += args;
-    }
-
-    if (strcmp(value, "") != 0)
-    {
-        response += F(" value=\"");
-        response += value;
-        response += F("\"");
-    }
-
-    response += F(" name=\"");
-    response += token;
-    response += F("\" size=\"25\" maxlength=\"");
-    response += maxLengthStr;
-    response += F("\"/></td></tr>");
-}
-
-void WebCfgServer::appendInputFieldRow(String &response,
-                                   const char *token,
-                                   const char *description,
-                                   const int value,
-                                   size_t maxLength,
-                                   const char *args)
-{
-    char valueStr[20];
-    itoa(value, valueStr, 10);
-    appendInputFieldRow(response, token, description, valueStr, maxLength, args);
-}
-
-void WebCfgServer::appendDropDownRow(String &response,
-                                 const char *token,
-                                 const char *description,
-                                 const String preselectedValue,
-                                 const std::vector<std::pair<String, String>> &options,
-                                 const String className)
-{
-    response += F("<tr><td>");
-    response += description;
-    response += F("</td><td>");
-
-    response += F("<select ");
-    if (className.length() > 0)
-    {
-        response += F("class=\"");
-        response += className;
-        response += F("\" ");
-    }
-    response += F("name=\"");
-    response += token;
-    response += F("\">");
-
-    for (const auto &option : options)
-    {
-        response += F("<option ");
-        if (option.first == preselectedValue)
-        {
-            response += F("selected=\"selected\" ");
-        }
-        response += F("value=\"");
-        response += option.first;
-        response += F("\">");
-        response += option.second;
-        response += F("</option>");
-    }
-
-    response += F("</select>");
-    response += F("</td></tr>");
-}
-
-void WebCfgServer::appendCheckBoxRow(String &response,
-                                 const char *token,
-                                 const char *description,
-                                 const bool value,
-                                 const char *htmlClass)
-{
-    response += F("<tr><td>");
-    response += description;
-    response += F("</td><td>");
-
-    response += F("<input type=\"hidden\" name=\"");
-    response += token;
-    response += F("\" value=\"0\"/>");
-
-    response += F("<input type=\"checkbox\" name=\"");
-    response += token;
-    response += F("\" class=\"");
-    response += htmlClass;
-    response += F("\" value=\"1\"");
-
-    if (value)
-    {
-        response += F(" checked=\"checked\"");
-    }
-
-    response += F("/></td></tr>");
-}
-
-const std::vector<std::pair<String, String>> WebCfgServer::getNetworkDetectionOptions() const
-{
-    std::vector<std::pair<String, String>> options;
-
-    options.push_back(std::make_pair("1", "Wi-Fi"));
-    options.push_back(std::make_pair("2", "LAN module"));
-
-    return options;
-}
-
-void WebCfgServer::sendCss(WebServer *server)
-{
-    // Setze den Cache-Control Header
-    server->sendHeader("Cache-Control", "public, max-age=3600");
-
-    // Setze den Content-Type auf text/css
-    server->setContentLength(CONTENT_LENGTH_UNKNOWN); // Länge muss nicht im Voraus bekannt sein
-    server->send(200, "text/css", css);               // Antwortstatus 200 und Content-Type "text/css"
-}
-
-String WebCfgServer::generateConfirmCode()
-{
-    int code = random(1000, 9999);
-    return String(code);
-}
-
-bool WebCfgServer::processWiFi(WebServer *server, String &message)
-{
-    bool res = false;
-    String ssid;
-    String pass;
-
-    for (uint8_t i = 0; i < server->args(); i++) // WebServer nutzt args()
-    {
-        String key = server->argName(i);
-        String value = server->arg(i);
-
-        if (key == "WIFISSID")
-        {
-            ssid = value;
-        }
-        else if (key == "WIFIPASS")
-        {
-            pass = value;
-        }
-        else if (key == "DHCPENA")
-        {
-            if (_preferences->getBool(preference_ip_dhcp_enabled, true) != (value == "1"))
-            {
-                _preferences->putBool(preference_ip_dhcp_enabled, (value == "1"));
-            }
-        }
-        else if (key == "IPADDR")
-        {
-            if (_preferences->getString(preference_ip_address, "") != value)
-            {
-                _preferences->putString(preference_ip_address, value);
-            }
-        }
-        else if (key == "IPSUB")
-        {
-            if (_preferences->getString(preference_ip_subnet, "") != value)
-            {
-                _preferences->putString(preference_ip_subnet, value);
-            }
-        }
-        else if (key == "IPGTW")
-        {
-            if (_preferences->getString(preference_ip_gateway, "") != value)
-            {
-                _preferences->putString(preference_ip_gateway, value);
-            }
-        }
-        else if (key == "DNSSRV")
-        {
-            if (_preferences->getString(preference_ip_dns_server, "") != value)
-            {
-                _preferences->putString(preference_ip_dns_server, value);
-            }
-        }
-        else if (key == "FINDBESTRSSI")
-        {
-            if (_preferences->getBool(preference_find_best_rssi, false) != (value == "1"))
-            {
-                _preferences->putBool(preference_find_best_rssi, (value == "1"));
-            }
-        }
-    }
-
-    ssid.trim();
-    pass.trim();
-
-    if (ssid.length() > 0 && pass.length() > 0)
-    {
-        if (_preferences->getBool(preference_ip_dhcp_enabled, true) && _preferences->getString(preference_ip_address, "").length() <= 0)
-        {
-            const IPConfiguration *_ipConfiguration = new IPConfiguration(_preferences);
-
-            if (!_ipConfiguration->dhcpEnabled())
-            {
-                WiFi.config(_ipConfiguration->ipAddress(), _ipConfiguration->dnsServer(), _ipConfiguration->defaultGateway(), _ipConfiguration->subnet());
-            }
-        }
-
-        WiFi.begin(ssid, pass);
-
-        int loop = 0;
-        while (!_network->isConnected() && loop < 150)
-        {
-            delay(100);
-            loop++;
-        }
-
-        if (!_network->isConnected())
-        {
-            message = "Failed to connect to the given SSID with the given secret key, credentials not saved<br/>";
-            return res;
-        }
-        else
-        {
-            message = "Connection successful. Rebooting Nuki Hub.<br/>";
-            _preferences->putString(preference_wifi_ssid, ssid);
-            _preferences->putString(preference_wifi_pass, pass);
-            res = true;
-        }
-    }
-    else
-    {
-        message = "No SSID or secret key entered, credentials not saved<br/>";
-    }
-
-    return res;
-}
-
-void WebCfgServer::createSsidList()
-{
-    int _foundNetworks = WiFi.scanComplete();
-    std::vector<String> _tmpSsidList;
-    std::vector<int> _tmpRssiList;
-
-    for (int i = 0; i < _foundNetworks; i++)
-    {
-        int rssi = constrain((100.0 + WiFi.RSSI(i)) * 2, 0, 100);
-        auto it1 = std::find(_ssidList.begin(), _ssidList.end(), WiFi.SSID(i));
-        auto it2 = std::find(_tmpSsidList.begin(), _tmpSsidList.end(), WiFi.SSID(i));
-
-        if (it1 == _ssidList.end())
-        {
-            _ssidList.push_back(WiFi.SSID(i));
-            _rssiList.push_back(rssi);
-            _tmpSsidList.push_back(WiFi.SSID(i));
-            _tmpRssiList.push_back(rssi);
-        }
-        else if (it2 == _tmpSsidList.end())
-        {
-            _tmpSsidList.push_back(WiFi.SSID(i));
-            _tmpRssiList.push_back(rssi);
-            int index = it1 - _ssidList.begin();
-            _rssiList[index] = rssi;
-        }
-        else
-        {
-            int index = it1 - _ssidList.begin();
-            int index2 = it2 - _tmpSsidList.begin();
-            if (_tmpRssiList[index2] < rssi)
-            {
-                _tmpRssiList[index2] = rssi;
-                _rssiList[index] = rssi;
-            }
-        }
-    }
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildInfoHtml(WebServer *server)
@@ -1497,9 +1347,561 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     server->send(200, "text/html", response);
 }
 
+void WebCfgServer::buildHtmlHeader(String &response, const String &additionalHeader)
+{
+    response += F("<html><head>");
+    response += F("<meta name='viewport' content='width=device-width, initial-scale=1'>");
+
+    if (!additionalHeader.isEmpty())
+    {
+        response += additionalHeader;
+    }
+
+    response += F("<link rel='stylesheet' href='/style.css'>");
+    response += F("<title>Nuki Bridge</title></head><body>");
+}
+
+void WebCfgServer::buildNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage)
+{
+    response += F("<a class=\"naventry\" href=\"");
+    response += targetPath;
+    response += F("\"><li>");
+    response += title;
+
+    if (*warningMessage) // Statt strcmp(warningMessage, "") != 0
+    {
+        response += F("<span>");
+        response += warningMessage;
+        response += F("</span>");
+    }
+
+    response += F("</li></a>");
+}
+
+void WebCfgServer::appendParameterRow(String &response, const char *description, const char *value, const char *link, const char *id)
+{
+    response += F("<tr><td>");
+    response += description;
+    response += F("</td>");
+
+    if (*id)
+    {
+        response += F("<td id=\"");
+        response += id;
+        response += F("\">");
+    }
+    else
+    {
+        response += F("<td>");
+    }
+
+    if (*link)
+    {
+        response += F("<a href=\"");
+        response += link;
+        response += F("\"> ");
+        response += value;
+        response += F("</a>");
+    }
+    else
+    {
+        response += value;
+    }
+
+    response += F("</td></tr>");
+}
+
+void WebCfgServer::appendInputFieldRow(String &response,
+                                       const char *token,
+                                       const char *description,
+                                       const char *value,
+                                       const size_t &maxLength,
+                                       const char *args,
+                                       const bool &isPassword,
+                                       const bool &showLengthRestriction)
+{
+    char maxLengthStr[20];
+    itoa(maxLength, maxLengthStr, 10);
+
+    response += F("<tr><td>");
+    response += description;
+
+    if (showLengthRestriction)
+    {
+        response += F(" (Max. ");
+        response += maxLengthStr;
+        response += F(" characters)");
+    }
+
+    response += F("</td><td>");
+    response += F("<input type=");
+    response += isPassword ? F("\"password\"") : F("\"text\"");
+
+    if (strcmp(args, "") != 0)
+    {
+        response += F(" ");
+        response += args;
+    }
+
+    if (strcmp(value, "") != 0)
+    {
+        response += F(" value=\"");
+        response += value;
+        response += F("\"");
+    }
+
+    response += F(" name=\"");
+    response += token;
+    response += F("\" size=\"25\" maxlength=\"");
+    response += maxLengthStr;
+    response += F("\"/></td></tr>");
+}
+
+void WebCfgServer::appendInputFieldRow(String &response,
+                                       const char *token,
+                                       const char *description,
+                                       const int value,
+                                       size_t maxLength,
+                                       const char *args)
+{
+    char valueStr[20];
+    itoa(value, valueStr, 10);
+    appendInputFieldRow(response, token, description, valueStr, maxLength, args);
+}
+
+void WebCfgServer::appendDropDownRow(String &response,
+                                     const char *token,
+                                     const char *description,
+                                     const String preselectedValue,
+                                     const std::vector<std::pair<String, String>> &options,
+                                     const String className)
+{
+    response += F("<tr><td>");
+    response += description;
+    response += F("</td><td>");
+
+    response += F("<select ");
+    if (className.length() > 0)
+    {
+        response += F("class=\"");
+        response += className;
+        response += F("\" ");
+    }
+    response += F("name=\"");
+    response += token;
+    response += F("\">");
+
+    for (const auto &option : options)
+    {
+        response += F("<option ");
+        if (option.first == preselectedValue)
+        {
+            response += F("selected=\"selected\" ");
+        }
+        response += F("value=\"");
+        response += option.first;
+        response += F("\">");
+        response += option.second;
+        response += F("</option>");
+    }
+
+    response += F("</select>");
+    response += F("</td></tr>");
+}
+
+void WebCfgServer::appendTextareaRow(String &response,
+                                     const char *token,
+                                     const char *description,
+                                     const char *value,
+                                     const size_t &maxLength,
+                                     const bool &enabled,
+                                     const bool &showLengthRestriction)
+{
+    response += F("<tr><td>");
+    response += description;
+
+    if (showLengthRestriction)
+    {
+        response += F(" (Max. ");
+        response += String(maxLength);
+        response += F(" characters)");
+    }
+
+    response += F("</td><td> <textarea ");
+    if (!enabled)
+    {
+        response += F("disabled ");
+    }
+
+    response += F("name=\"");
+    response += token;
+    response += F("\" maxlength=\"");
+    response += String(maxLength);
+    response += F("\">");
+    response += value;
+    response += F("</textarea></td></tr>");
+}
+
+void WebCfgServer::appendCheckBoxRow(String &response,
+                                     const char *token,
+                                     const char *description,
+                                     const bool value,
+                                     const char *htmlClass)
+{
+    response += F("<tr><td>");
+    response += description;
+    response += F("</td><td>");
+
+    response += F("<input type=\"hidden\" name=\"");
+    response += token;
+    response += F("\" value=\"0\"/>");
+
+    response += F("<input type=\"checkbox\" name=\"");
+    response += token;
+    response += F("\" class=\"");
+    response += htmlClass;
+    response += F("\" value=\"1\"");
+
+    if (value)
+    {
+        response += F(" checked=\"checked\"");
+    }
+
+    response += F("/></td></tr>");
+}
+
+const std::vector<std::pair<String, String>> WebCfgServer::getNetworkDetectionOptions() const
+{
+    std::vector<std::pair<String, String>> options;
+
+    options.push_back(std::make_pair("1", "Wi-Fi"));
+    options.push_back(std::make_pair("2", "LAN module"));
+
+    return options;
+}
+
+void WebCfgServer::sendCss(WebServer *server)
+{
+    // Setze den Cache-Control Header
+    server->sendHeader("Cache-Control", "public, max-age=3600");
+
+    // Setze den Content-Type auf text/css
+    server->setContentLength(CONTENT_LENGTH_UNKNOWN); // Länge muss nicht im Voraus bekannt sein
+    server->send(200, "text/css", css);               // Antwortstatus 200 und Content-Type "text/css"
+}
+
+String WebCfgServer::generateConfirmCode()
+{
+    int code = random(1000, 9999);
+    return String(code);
+}
+
+bool WebCfgServer::processBypass(WebServer *server)
+{
+    if (!timeSynced && server->hasArg("bypass"))
+    {
+        String bypass = server->arg("bypass");
+        if (!bypass.isEmpty())
+        {
+            char buffer[33];
+            for (int i = 0; i < 4; i++)
+            {
+                snprintf(buffer + (i * 8), 9, "%08lx", (unsigned long)esp_random());
+            }
+
+            server->sendHeader("Set-Cookie", "bypassId=" + String(buffer) + "; Max-Age=3600; HttpOnly");
+
+            struct timeval time;
+            gettimeofday(&time, NULL);
+            int64_t time_us = (int64_t)time.tv_sec * 1000000L + (int64_t)time.tv_usec;
+
+            char randomstr2[33];
+            randomSeed(esp_random()); // Safer method for initializing the random number generator
+            const char chars[] = "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            for (int i = 0; i < 32; i++)
+            {
+                randomstr2[i] = chars[random(36)];
+            }
+            randomstr2[32] = '\0';
+
+            _preferences->putString(preference_bypass_secret, randomstr2);
+
+            return true;
+        }
+    }
+    return false;
+}
+
+bool WebCfgServer::processLogin(WebServer *server)
+{
+    if (server->hasArg("username") && server->hasArg("password"))
+    {
+        String username = server->arg("username");
+        String password = server->arg("password");
+
+        if (!username.isEmpty() && !password.isEmpty())
+        {
+            if (username == _preferences->getString(preference_cred_user, "") &&
+                password == _preferences->getString(preference_cred_password, ""))
+            {
+                char buffer[33];
+                int64_t durationLength = 60 * 60 * _preferences->getInt(preference_cred_session_lifetime_remember, 720);
+
+                for (int i = 0; i < 4; i++)
+                {
+                    snprintf(buffer + (i * 8), 9, "%08lx", (unsigned long)esp_random());
+                }
+
+                if (!server->hasArg("remember"))
+                {
+                    durationLength = _preferences->getInt(preference_cred_session_lifetime, 3600);
+                }
+
+                WiFiClient &client = server->client();
+
+                server->sendHeader("Set-Cookie", "sessionId=" + String(buffer) + "; Max-Age=" + String(durationLength) + "; HttpOnly");
+
+                struct timeval time;
+                gettimeofday(&time, NULL);
+                int64_t time_us = (int64_t)time.tv_sec * 1000000L + (int64_t)time.tv_usec;
+                _httpSessions[String(buffer)] = time_us + (durationLength * 1000000L);
+                saveSessions();
+
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool WebCfgServer::processWiFi(WebServer *server, String &message)
+{
+    bool res = false;
+    String ssid;
+    String pass;
+
+    for (uint8_t i = 0; i < server->args(); i++) // WebServer nutzt args()
+    {
+        String key = server->argName(i);
+        String value = server->arg(i);
+
+        if (key == "WIFISSID")
+        {
+            ssid = value;
+        }
+        else if (key == "WIFIPASS")
+        {
+            pass = value;
+        }
+        else if (key == "DHCPENA")
+        {
+            if (_preferences->getBool(preference_ip_dhcp_enabled, true) != (value == "1"))
+            {
+                _preferences->putBool(preference_ip_dhcp_enabled, (value == "1"));
+            }
+        }
+        else if (key == "IPADDR")
+        {
+            if (_preferences->getString(preference_ip_address, "") != value)
+            {
+                _preferences->putString(preference_ip_address, value);
+            }
+        }
+        else if (key == "IPSUB")
+        {
+            if (_preferences->getString(preference_ip_subnet, "") != value)
+            {
+                _preferences->putString(preference_ip_subnet, value);
+            }
+        }
+        else if (key == "IPGTW")
+        {
+            if (_preferences->getString(preference_ip_gateway, "") != value)
+            {
+                _preferences->putString(preference_ip_gateway, value);
+            }
+        }
+        else if (key == "DNSSRV")
+        {
+            if (_preferences->getString(preference_ip_dns_server, "") != value)
+            {
+                _preferences->putString(preference_ip_dns_server, value);
+            }
+        }
+        else if (key == "FINDBESTRSSI")
+        {
+            if (_preferences->getBool(preference_find_best_rssi, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_find_best_rssi, (value == "1"));
+            }
+        }
+    }
+
+    ssid.trim();
+    pass.trim();
+
+    if (ssid.length() > 0 && pass.length() > 0)
+    {
+        if (_preferences->getBool(preference_ip_dhcp_enabled, true) && _preferences->getString(preference_ip_address, "").length() <= 0)
+        {
+            const IPConfiguration *_ipConfiguration = new IPConfiguration(_preferences);
+
+            if (!_ipConfiguration->dhcpEnabled())
+            {
+                WiFi.config(_ipConfiguration->ipAddress(), _ipConfiguration->dnsServer(), _ipConfiguration->defaultGateway(), _ipConfiguration->subnet());
+            }
+        }
+
+        WiFi.begin(ssid, pass);
+
+        int loop = 0;
+        while (!_network->isConnected() && loop < 150)
+        {
+            delay(100);
+            loop++;
+        }
+
+        if (!_network->isConnected())
+        {
+            message = "Failed to connect to the given SSID with the given secret key, credentials not saved<br/>";
+            return res;
+        }
+        else
+        {
+            message = "Connection successful. Rebooting Nuki Hub.<br/>";
+            _preferences->putString(preference_wifi_ssid, ssid);
+            _preferences->putString(preference_wifi_pass, pass);
+            res = true;
+        }
+    }
+    else
+    {
+        message = "No SSID or secret key entered, credentials not saved<br/>";
+    }
+
+    return res;
+}
+
+bool WebCfgServer::processFactoryReset(WebServer *server)
+{
+    bool res = false;
+    String value = server->hasArg("CONFIRMTOKEN") ? server->arg("CONFIRMTOKEN") : "";
+
+    bool resetWifi = false;
+    if (value.isEmpty() || value != _confirmCode)
+    {
+        buildConfirmHtml(server, "Confirm code is invalid.", 3, true);
+        return false;
+    }
+    else
+    {
+        if (server->hasArg("WIFI") && server->arg("WIFI") == "1")
+        {
+            resetWifi = true;
+            buildConfirmHtml(server, "Factory resetting Nuki Hub, unpairing Nuki Lock and resetting WiFi.", 3, true);
+        }
+        else
+        {
+            buildConfirmHtml(server, "Factory resetting Nuki Hub, unpairing Nuki Lock.", 3, true);
+        }
+    }
+
+    waitAndProcess(false, 2000);
+
+    if (_nuki != nullptr)
+    {
+        _nuki->unpair();
+    }
+
+    String ssid = _preferences->getString(preference_wifi_ssid, "");
+    String pass = _preferences->getString(preference_wifi_pass, "");
+
+    _network->disableAPI();
+    _network->disableHAR();
+    _preferences->clear();
+
+#ifndef CONFIG_IDF_TARGET_ESP32H2
+    if (!resetWifi)
+    {
+        _preferences->putString(preference_wifi_ssid, ssid);
+        _preferences->putString(preference_wifi_pass, pass);
+    }
+#endif
+
+    waitAndProcess(false, 3000);
+    restartEsp(RestartReason::NukiBridgeReset);
+    return res;
+}
+
+bool WebCfgServer::processUnpair(WebServer *server)
+{
+    bool res = false;
+    String value = server->hasArg("CONFIRMTOKEN") ? server->arg("CONFIRMTOKEN") : "";
+
+    if (value != _confirmCode)
+    {
+        buildConfirmHtml(server, "Confirm code is invalid.", 3, true);
+        return false;
+    }
+
+    buildConfirmHtml(server, "Unpairing Nuki Lock and restarting.", 3, true);
+
+    if (_nuki)
+    {
+        _nuki->unpair();
+        _preferences->putInt(preference_lock_pin_status, (int)NukiPinState::NotConfigured);
+    }
+
+    _network->disableHAR();
+    waitAndProcess(false, 1000);
+    restartEsp(RestartReason::DeviceUnpaired);
+    return res;
+}
+
+
+void WebCfgServer::createSsidList()
+{
+    int _foundNetworks = WiFi.scanComplete();
+    std::vector<String> _tmpSsidList;
+    std::vector<int> _tmpRssiList;
+
+    for (int i = 0; i < _foundNetworks; i++)
+    {
+        int rssi = constrain((100.0 + WiFi.RSSI(i)) * 2, 0, 100);
+        auto it1 = std::find(_ssidList.begin(), _ssidList.end(), WiFi.SSID(i));
+        auto it2 = std::find(_tmpSsidList.begin(), _tmpSsidList.end(), WiFi.SSID(i));
+
+        if (it1 == _ssidList.end())
+        {
+            _ssidList.push_back(WiFi.SSID(i));
+            _rssiList.push_back(rssi);
+            _tmpSsidList.push_back(WiFi.SSID(i));
+            _tmpRssiList.push_back(rssi);
+        }
+        else if (it2 == _tmpSsidList.end())
+        {
+            _tmpSsidList.push_back(WiFi.SSID(i));
+            _tmpRssiList.push_back(rssi);
+            int index = it1 - _ssidList.begin();
+            _rssiList[index] = rssi;
+        }
+        else
+        {
+            int index = it1 - _ssidList.begin();
+            int index2 = it2 - _tmpSsidList.begin();
+            if (_tmpRssiList[index2] < rssi)
+            {
+                _tmpRssiList[index2] = rssi;
+                _rssiList[index] = rssi;
+            }
+        }
+    }
+}
+
 void WebCfgServer::logoutSession(WebServer *server)
 {
-    Log->println("Logging out");
+    Log->println(F("[DEBUG] Logging out from Web configurator"));
 
     // Setzen der Cookies auf leer und Ablaufzeit auf 0, um sie zu löschen
     server->sendHeader("Set-Cookie", "sessionId=; path=/; HttpOnly");
@@ -1518,25 +1920,25 @@ void WebCfgServer::logoutSession(WebServer *server)
     }
     else
     {
-        Log->println("No session cookie found");
+        Log->println(F("[INFO] No session cookie found"));
     }
 
     buildConfirmHtml(server, "Logging out", 3, true, "/");
 }
 
-const String WebCfgServer::pinStateToString(const NukiPinState& value) const
+const String WebCfgServer::pinStateToString(const NukiPinState &value) const
 {
-    switch(value)
+    switch (value)
     {
-        case NukiPinState::NotSet:
-            return String("PIN not set");
-        case NukiPinState::Valid:
-            return String("PIN valid");
-        case NukiPinState::Invalid:
-            return String("PIN set but invalid");
-        case NukiPinState::NotConfigured:
-        default:
-            return String("Unknown");
+    case NukiPinState::NotSet:
+        return String("PIN not set");
+    case NukiPinState::Valid:
+        return String("PIN valid");
+    case NukiPinState::Invalid:
+        return String("PIN set but invalid");
+    case NukiPinState::NotConfigured:
+    default:
+        return String("Unknown");
     }
 }
 
@@ -1546,7 +1948,7 @@ void WebCfgServer::saveSessions()
     {
         if (!SPIFFS.begin(true))
         {
-            Log->println("SPIFFS Mount Failed");
+            Log->println(F("[ERROR]SPIFFS Mount Failed"));
         }
         else
         {
@@ -1566,7 +1968,7 @@ void WebCfgServer::loadSessions()
     {
         if (!SPIFFS.begin(true))
         {
-            Log->println("SPIFFS Mount Failed");
+            Log->println(F("[ERROR] SPIFFS Mount Failed"));
         }
         else
         {
@@ -1576,7 +1978,7 @@ void WebCfgServer::loadSessions()
 
             if (!file || file.isDirectory())
             {
-                Log->println("sessions.json not found");
+                Log->println(F("[WARNING] sessions.json not found"));
             }
             else
             {
@@ -1592,7 +1994,7 @@ void WebCfgServer::clearSessions()
 {
     if (!SPIFFS.begin(true))
     {
-        Log->println("SPIFFS Mount Failed");
+        Log->println(F("[ERROR] SPIFFS Mount Failed"));
     }
     else
     {

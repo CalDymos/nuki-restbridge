@@ -55,24 +55,23 @@ TaskHandle_t webCfgTaskHandle = nullptr;
 
 void cbSyncTime(struct timeval *tv)
 {
-  Log->println(F("NTP time synced"));
+  Log->println(F("[INFO] NTP time synced"));
   timeSynced = true;
 }
 
-#ifdef DEBUG
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 {
-  Log->printf("Listing directory: %s\r\n", dirname);
+  Log->printf("[DEBUG] Listing directory: %s\r\n", dirname);
 
   File root = fs.open(dirname);
   if (!root)
   {
-    Log->println("- failed to open directory");
+    Log->println("[ERROR] - failed to open directory");
     return;
   }
   if (!root.isDirectory())
   {
-    Log->println(" - not a directory");
+    Log->println("[ERROR] - not a directory");
     return;
   }
 
@@ -81,7 +80,7 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
   {
     if (file.isDirectory())
     {
-      Log->print("  DIR : ");
+      Log->print("[DEBUG]  DIR : ");
       Log->println(file.name());
       if (levels)
       {
@@ -90,7 +89,7 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
     }
     else
     {
-      Log->print("  FILE: ");
+      Log->print("[DEBUG]  FILE: ");
       Log->print(file.name());
       Log->print("\tSIZE: ");
       Log->println(file.size());
@@ -104,7 +103,6 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
     file = root.openNextFile();
   }
 }
-#endif
 
 // ------------------------
 // Nuki-Task: führt update() aus
@@ -145,7 +143,7 @@ void nukiTask(void *parameter)
 
     if (espMillis() - nukiLoopTs > 120000)
     {
-      Log->println(F("nukiTask is running"));
+      Log->println(F("[DEBUG] nukiTask is running"));
       nukiLoopTs = espMillis();
     }
 
@@ -185,7 +183,7 @@ void networkTask(void *parameter)
 
     if (espMillis() - networkLoopTs > 120000)
     {
-      Log->println(F("networkTask is running"));
+      Log->println(F("[DEBUG] networkTask is running"));
       networkLoopTs = espMillis();
     }
 
@@ -206,10 +204,11 @@ void webCfgTask(void *parameter)
   while (true)
   {
 
-    webCfgServer->handleClient();
+    if (webCfgServer != nullptr)
+      webCfgServer->handleClient();
     if (espMillis() - webCfgLoopTs > 120000)
     {
-      Log->println(F("webCfgTask is running"));
+      Log->println(F("[DEBUG] webCfgTask is running"));
       webCfgLoopTs = espMillis();
     }
     vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -251,24 +250,26 @@ void setupTasks()
       &networkTaskHandle,    // Task-Handle (optional)
       (espCores > 1) ? 1 : 0 // Core 1
   );
+  esp_task_wdt_add(networkTaskHandle);
 
   xTaskCreatePinnedToCore(
-      webCfgTask,
-      "WebCfg",
-      WEBCFGSERVER_TASK_SIZE,
-      NULL,
-      1,
-      &webCfgTaskHandle,
-      (espCores > 1) ? 1 : 0);
+      webCfgTask,             // Task-Funktion
+      "WebCfg",               // Name des Tasks
+      WEBCFGSERVER_TASK_SIZE, // Stack-Größe (Wörter)
+      NULL,                   // Parameter
+      1,                      // Priorität
+      &webCfgTaskHandle,      // Task-Handle (optional)
+      (espCores > 1) ? 1 : 0  // Core 1
+  );
 
-  esp_task_wdt_add(networkTaskHandle);
+  esp_task_wdt_add(webCfgTaskHandle);
 }
 
 void logCoreDump()
 {
   coredumpPrinted = false;
   delay(500);
-  Log->println("Printing coredump and saving to coredump.hex on SPIFFS");
+  Log->println(F("[INFO] Printing coredump and saving to coredump.hex on SPIFFS"));
   size_t size = 0;
   size_t address = 0;
   if (esp_core_dump_image_get(&address, &size) == ESP_OK)
@@ -285,14 +286,14 @@ void logCoreDump()
 
       if (!SPIFFS.begin(true))
       {
-        Log->println("SPIFFS Mount Failed");
+        Log->println(F("[ERROR] SPIFFS Mount Failed"));
       }
       else
       {
         file = SPIFFS.open("/coredump.hex", FILE_WRITE);
         if (!file)
         {
-          Log->println("Failed to open /coredump.hex for writing");
+          Log->println(F("[ERROR] Failed to open /coredump.hex for writing"));
         }
         else
         {
@@ -347,12 +348,12 @@ void logCoreDump()
     }
     else
     {
-      Serial.println("Partition NULL");
+      Serial.println(F("[ERROR] Partition NULL"));
     }
   }
   else
   {
-    Serial.println("esp_core_dump_image_get() FAIL");
+    Serial.println(F("[ERROR] esp_core_dump_image_get() FAIL"));
   }
   coredumpPrinted = true;
 }
@@ -393,9 +394,9 @@ void setup()
     ethCriticalFailure = false;
   }
 
-  Log->print("Nuki Bridge version: ");
+  Log->print("[DEBUG] Nuki Bridge version: ");
   Log->println(NUKI_REST_BRIDGE_VERSION);
-  Log->print("Nuki Bridge build date: ");
+  Log->print("[DEBUG] Nuki Bridge build date: ");
   Log->println(NUKI_REST_BRIDGE_BUILD);
 
   deviceIdLock = new NukiDeviceId(preferences, preference_device_id_lock);
@@ -423,23 +424,24 @@ void setup()
     bleScanner->setScanDuration(0);
   }
 
-  Log->println(lockEnabled ? F("Nuki Lock enabled") : F("Nuki Lock disabled"));
+  Log->println(lockEnabled ? F("[DEBUG] Nuki Lock enabled") : F("[DEBUG] Nuki Lock disabled"));
   if (lockEnabled)
   {
     nuki = new NukiWrapper("NukiBridge", deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
     nuki->initialize();
   }
 
-  if (!disableNetwork && (forceEnableWebCfgServer || preferences->getBool(preference_webcfgserver_enabled, true), false))
+  if (!disableNetwork && (forceEnableWebCfgServer || preferences->getBool(preference_webcfgserver_enabled, true)))
   {
     webCfgServer = new WebCfgServer(nuki, network, preferences);
+    Log->println("[DEBUG] Start to initialize WebCfgServer...");
     webCfgServer->initialize();
   }
 
   String timeserver = preferences->getString(preference_time_server, "pool.ntp.org");
   esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(timeserver.c_str());
   config.start = false;
-  config.server_from_dhcp = true;
+  config.server_from_dhcp = true;       
   config.renew_servers_after_new_IP = true;
   config.index_of_first_server = 1;
 
