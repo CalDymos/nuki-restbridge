@@ -11,27 +11,23 @@
 #include <Print.h>
 #include <atomic>
 
-#ifdef DEBUG
+extern bool timeSynced; // External variable for checking the status of SNTP synchronization
 
 class DebugLog : public Print
 {
-private:
-  Preferences *_preferences;
-  Print *_serial;
-
-  bool isLogTooBig()
-  {
-    _serial->println(F("isLogTooBig() called - always returning false in debug mode"));
-    return false;
-  }
-
-  void toFile(const String &deviceType, String message)
-  {
-    _serial->println(F("Logging message (debug mode):"));
-    _serial->println(message);
-  }
 
 public:
+  enum msgtype
+  {
+    MSG_TRACE,    // Log everything
+    MSG_DEBUG,    // Everything except TRACE
+    MSG_INFO,     // Everything except DEBUG and TRACE
+    MSG_WARNING,  // Everything except INFO, DEBUG and TRACE
+    MSG_ERROR,    // Log ERROR and CRITICAL only
+    MSG_CRITICAL, // Log CRITICAL only
+  };
+
+#ifdef DEBUG
   DebugLog(Print *serial, Preferences *prefs)
       : _serial(serial),
         _preferences(prefs)
@@ -42,7 +38,12 @@ public:
 
   void clearLog()
   {
-    _serial->println(F("clearLog() called - no file operations in debug mode"));
+    _serial->println(F("[TRACE] clearLog() called - no file operations in debug mode"));
+  }
+
+  void setLogLevel(int level)
+  {
+    _serial->println(F("[TRACE] setLogLevel() called"));
   }
 
   size_t write(uint8_t c) override
@@ -54,16 +55,170 @@ public:
   {
     return _serial->write(buffer, size);
   }
+
+private:
+  Preferences *_preferences;
+  Print *_serial;
+
+  bool isLogTooBig()
+  {
+    _serial->println(F("[TRACE] isLogTooBig() called - always returning false in debug mode"));
+    return false;
+  }
+
+  void toFile(const String &deviceType, String message)
+  {
+    _serial->println(F("Logging message (debug mode):"));
+    _serial->println(message);
+  }
 };
 
 extern DebugLog *Log;
 
 #else // Production mode with SPIFFS logging
 
-extern bool timeSynced; // Externe Variable zur Statusprüfung der SNTP-Synchronisation
+  DebugLog(Print *serial, Preferences *prefs)
+      : _serial(serial),
+        _preferences(prefs)
+  {
 
-class DebugLog : public Print
-{
+    if (!_preferences)
+    {
+      println(F("[ERROR] Preferences not initialized! Using defaults."));
+      _logFile = "nukiBridge.log";
+      _maxMsgLen = 80;
+      _maxLogFileSize = 256;
+      _currentLogLevel = MSG_INFO;
+    }
+    else
+    {
+
+      _logFile = _preferences->getString(preference_log_filename, "nukiBridge.log");
+      _maxMsgLen = _preferences->getInt(preference_log_max_msg_len, 80);
+      _maxLogFileSize = _preferences->getInt(preference_log_max_file_size, 256); // in kb
+      _currentLogLevel = (msgtype)_preferences->getInt(preference_log_level, 2);
+    }
+
+    _buffer.reserve(_maxMsgLen + 2); // Reserves memory for up to _maxMsgLen characters
+  }
+
+  virtual ~DebugLog() {}
+
+  size_t write(const uint8_t *buffer, size_t size) override
+  {
+    if (_logBackupIsRunning.load() || _logFallBack.load())
+      return _serial->write(buffer, size);
+
+    if (size > 0 && size <= _maxMsgLen && buffer[size - 1] == '\n')
+    {
+      _buffer = String((const char *)buffer);
+      if (!_buffer.isEmpty()) // Prevents empty logs
+      {
+        toFile(_buffer);
+      }
+      _buffer = "";
+      return 1;
+    }
+    else
+    {
+
+      size_t n = 0;
+      while (size--)
+      {
+        n += write(*buffer++);
+      }
+      return n;
+    }
+  }
+
+  size_t write(uint8_t c) override
+  {
+    if (_logBackupIsRunning.load() || _logFallBack.load())
+      return _serial->write(c);
+
+    _buffer += (char)c;
+
+    if (c == '\n')
+    {
+      if (!_buffer.isEmpty()) // Prevents empty logs
+      {
+        toFile(_buffer);
+      }
+      _buffer = "";
+    }
+    return 1;
+  }
+  // -----------------------------------------------------------
+  // Deletes the current log file (if exists) and creates a new empty file
+  // -----------------------------------------------------------
+  void clearLog()
+  {
+    if (!SPIFFS.begin(true))
+    {
+      _logFallBack.store(true);
+      println(F("[ERROR] SPIFFS not initialized!"));
+      return;
+    }
+    if (SPIFFS.exists(_logFile))
+    {
+      SPIFFS.remove(_logFile);
+    }
+
+    File f = SPIFFS.open(_logFile, FILE_WRITE);
+    if (f)
+    {
+      f.close();
+    }
+  }
+
+  void resetFallBack()
+  {
+    _logFallBack.store(false);
+  }
+
+  String logLevelToString(msgtype level)
+  {
+    switch (level)
+    {
+    case MSG_TRACE:
+      return "TRACE";
+    case MSG_DEBUG:
+      return "DEBUG";
+    case MSG_INFO:
+      return "INFO";
+    case MSG_WARNING:
+      return "WARNING";
+    case MSG_ERROR:
+      return "ERROR";
+    case MSG_CRITICAL:
+      return "CRITICAL";
+    default:
+      return "UNKNOWN";
+    }
+  }
+
+  msgtype stringToLogLevel(const String &levelStr)
+  {
+    if (levelStr == "TRACE")
+      return MSG_TRACE;
+    if (levelStr == "DEBUG")
+      return MSG_DEBUG;
+    if (levelStr == "INFO")
+      return MSG_INFO;
+    if (levelStr == "WARNING")
+      return MSG_WARNING;
+    if (levelStr == "ERROR")
+      return MSG_ERROR;
+    if (levelStr == "CRITICAL")
+      return MSG_CRITICAL;
+    return (msgtype)-1; // if unknown type
+  }
+
+  void setLogLevel(msgtype level)
+  {
+    _currentLogLevel = level;
+  }
+
 private:
   Print *_serial;
   Preferences *_preferences;
@@ -73,6 +228,7 @@ private:
   int _maxLogFileSize;
   std::atomic<bool> _logFallBack{false};        // Flag to prevent LogFile overflow
   std::atomic<bool> _logBackupIsRunning{false}; // Flag to prevent write to LogFile while Backup is running
+  msgtype _currentLogLevel;                     // Default value (debug level)
 
   // -----------------------------------------------------------
   // Converts milliseconds into days, hours, minutes, seconds (ISO 8601)
@@ -82,7 +238,7 @@ private:
   {
     if (timeSynced)
     {
-      // Wenn die Zeit synchronisiert wurde, hole die aktuelle Uhrzeit
+      // If the time has been synchronized, get the current time
       struct tm timeinfo;
       time_t now = time(NULL);
       localtime_r(&now, &timeinfo);
@@ -93,7 +249,7 @@ private:
     }
     else
     {
-      // Falls keine Zeit-Synchronisation vorliegt, verwende den alten Code (Uptime)
+      // If there is no time synchronization, use the old code (Uptime)
       int64_t millis = espMillis();
       int days = millis / (1000LL * 60 * 60 * 24);
       millis %= (1000LL * 60 * 60 * 24);
@@ -234,7 +390,7 @@ private:
     ftp.CloseFile();
     ftp.CloseConnection();
 
-    println("[OK] FTP Backup successful!");
+    println("[INFO] FTP Backup successful!");
     _logBackupIsRunning.store(false);
     return true;
   }
@@ -245,7 +401,7 @@ private:
   // -----------------------------------------------------------
   void toFile(String message)
   {
-    String msgType = "INFO"; // Standardwert
+    String msgType = logLevelToString(_currentLogLevel); // Default value
 
     // Trim message if it exceeds max length
     if (message.length() > _maxMsgLen)
@@ -253,17 +409,30 @@ private:
       message = message.substring(0, _maxMsgLen);
     }
 
-    // Prüfe, ob die Nachricht mit [XYZ] beginnt
+    // Check whether the message begins with [XYZ] and extract the type
     if (message.startsWith("["))
     {
       int endBracket = message.indexOf("]");
       if (endBracket > 1)
-      { // Mindestens 1 Zeichen zwischen [ und ]
+      { // At least 1 character between [ and ]
         msgType = message.substring(1, endBracket);
-        message = message.substring(endBracket + 1);
+        message = message.substring(endBracket + 1); // Extract the rest of the message
         message.trim();
       }
     }
+
+    // Convert msgtype from string
+    msgtype level = stringToLogLevel(msgType);
+
+    // Check whether this log level is within the set level
+    if (_currentLogLevel > level && (_currentLogLevel != (int)MSG_DEBUG && level == -1))
+    {
+      return; // Do not log message if it is not relevant
+    }
+
+    // additional output on the serial interface in debug or trace mode
+    if (_currentLogLevel == MSG_TRACE || _currentLogLevel == MSG_DEBUG)
+      Serial.println(message);
 
     // Check file size, clear if too big
     if (isLogTooBig())
@@ -308,104 +477,6 @@ private:
     }
     f.println(line);
     f.close();
-  }
-
-public:
-  DebugLog(Print *serial, Preferences *prefs)
-      : _serial(serial),
-        _preferences(prefs)
-  {
-
-    if (!_preferences)
-    {
-      println(F("[ERROR] Preferences not initialized! Using defaults."));
-      _logFile = "nukiBridge.log";
-      _maxMsgLen = 80;
-      _maxLogFileSize = 256;
-    }
-    else
-    {
-
-      _logFile = _preferences->getString(preference_log_filename, "nukiBridge.log");
-      _maxMsgLen = _preferences->getInt(preference_log_max_msg_len, 80);
-      _maxLogFileSize = _preferences->getInt(preference_log_max_file_size, 256); // in kb
-    }
-
-    _buffer.reserve(_maxMsgLen + 2); // Reserviert Speicher für bis _maxMsgLen Zeichen
-  }
-
-  virtual ~DebugLog() {}
-
-  size_t write(const uint8_t *buffer, size_t size) override
-  {
-    if (_logBackupIsRunning.load() || _logFallBack.load())
-      return _serial->write(buffer, size);
-
-    if (size > 0 && size <= _maxMsgLen && buffer[size - 1] == '\n')
-    {
-      _buffer = String((const char *)buffer);
-      if (!_buffer.isEmpty()) // Verhindert leere Logs
-      {
-        toFile(_buffer);
-      }
-      _buffer = "";
-      return 1;
-    }
-    else
-    {
-
-      size_t n = 0;
-      while (size--)
-      {
-        n += write(*buffer++);
-      }
-      return n;
-    }
-  }
-
-  size_t write(uint8_t c) override
-  {
-    if (_logBackupIsRunning.load() || _logFallBack.load())
-      return _serial->write(c);
-
-    _buffer += (char)c;
-
-    if (c == '\n')
-    {
-      if (!_buffer.isEmpty()) // Verhindert leere Logs
-      {
-        toFile(_buffer);
-      }
-      _buffer = "";
-    }
-    return 1;
-  }
-  // -----------------------------------------------------------
-  // Deletes the current log file (if exists) and creates a new empty file
-  // -----------------------------------------------------------
-  void clearLog()
-  {
-    if (!SPIFFS.begin(true))
-    {
-      _logFallBack.store(true);
-      println(F("[ERROR] SPIFFS not initialized!"));
-      return;
-    }
-    if (SPIFFS.exists(_logFile))
-    {
-      SPIFFS.remove(_logFile);
-    }
-
-    File f = SPIFFS.open(_logFile, FILE_WRITE);
-    if (f)
-    {
-      f.close();
-    }
-  }
-
-  void resetFallBack()
-  {
-    _logFallBack.store(false);
   }
 };
 

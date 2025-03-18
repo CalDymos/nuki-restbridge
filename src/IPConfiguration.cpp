@@ -7,7 +7,7 @@ IPConfiguration::IPConfiguration(Preferences *preferences)
 {
     if(!dhcpEnabled() && _preferences->getString(preference_ip_address, "").length() <= 0)
     {
-        Log->println("IP address empty, falling back to DHCP.");
+        Log->println("[DEBUG] IP address empty, falling back to DHCP.");
         _preferences->putBool(preference_ip_dhcp_enabled, true);
     }
 
@@ -16,14 +16,14 @@ IPConfiguration::IPConfiguration(Preferences *preferences)
     _gateway.fromString(_preferences->getString(preference_ip_gateway, ""));
     _dnsServer.fromString(_preferences->getString(preference_ip_dns_server, ""));
 
-    Log->print("IP configuration: ");
+    Log->print("[DEBUG] IP configuration: ");
     if(dhcpEnabled())
     {
         Log->println("DHCP");
     }
     else
     {
-        Log->print("IP address: ");
+        Log->print("[DEBUG] IP address: ");
         Log->print(ipAddress());
         Log->print(", Subnet: ");
         Log->print(subnet());

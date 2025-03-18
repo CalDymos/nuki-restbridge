@@ -146,6 +146,7 @@
 #define preference_ntw_reconfigure (char *)"ntwRECONF"
 
 #define preference_log_max_file_size (char *)"logMaxFileSize"
+#define preference_log_level (char *)"loglvl"
 #define preference_log_max_msg_len (char *)"logMaxMsgLen"
 #define preference_log_filename (char *)"logFile"
 #define preference_log_backup_enabled (char *)"logBckEna"

@@ -125,6 +125,16 @@ public:
     void disableAutoRestarts();
 
     /**
+     * @brief Deaktiviert REST Api schnittstelle.
+     */
+    void disableAPI();
+
+    /**
+     * @brief Deaktiviert Home Automation .
+     */
+    void disableHAR();
+
+    /**
      * @brief Getter für Netzwerk-Dienstestatus (z.B. Webserver, HTTPClient).
      */
     NetworkServiceStates networkServicesState();
@@ -142,7 +152,7 @@ public:
     void sendResponse(const char *jsonResultStr);
     void sendResponse(JsonDocument &jsonResult, bool success = true, int httpCode = 200);
 
-    void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char* value));
+    void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value));
 
 private:
     /**
@@ -226,6 +236,7 @@ private:
     bool _webEnabled = true;
     bool _apiEnabled = false;
     bool _openAP = false;
+    bool _APisReady = false;
     bool _startAP = true;
     bool _connected = false;
     bool _lockEnabled = false;

@@ -19,7 +19,7 @@ NukiWrapper::NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, 
       _buffer(buffer),
       _bufferSize(bufferSize)
 {
-    Log->print("Device id lock: ");
+    Log->print(F("[DEBUG] Device id lock: "));
     Log->println(_deviceId->get());
 
     nukiInst = this;
@@ -145,52 +145,52 @@ void NukiWrapper::readSettings()
 
     if (_nrOfRetries < 0 || _nrOfRetries == 200)
     {
-        Log->println("Invalid nrOfRetries, revert to default (3)");
+        Log->println(F("[DEBUG] Invalid nrOfRetries, revert to default (3)"));
         _nrOfRetries = 3;
         _preferences->putInt(preference_command_nr_of_retries, _nrOfRetries);
     }
     if (_retryDelay < 100)
     {
-        Log->println("Invalid retryDelay, revert to default (100)");
+        Log->println(F("[DEBUG] Invalid retryDelay, revert to default (100)"));
         _retryDelay = 100;
         _preferences->putInt(preference_command_retry_delay, _retryDelay);
     }
     if (_intervalLockstate == 0)
     {
-        Log->println("Invalid intervalLockstate, revert to default (1800)");
+        Log->println(F("[DEBUG] Invalid intervalLockstate, revert to default (1800)"));
         _intervalLockstate = 60 * 30;
         _preferences->putInt(preference_query_interval_lockstate, _intervalLockstate);
     }
     if (_intervalConfig == 0)
     {
-        Log->println("Invalid intervalConfig, revert to default (3600)");
+        Log->println(F("[DEBUG] Invalid intervalConfig, revert to default (3600)"));
         _intervalConfig = 60 * 60;
         _preferences->putInt(preference_query_interval_configuration, _intervalConfig);
     }
     if (_intervalBattery == 0)
     {
-        Log->println("Invalid intervalBattery, revert to default (1800)");
+        Log->println(F("[DEBUG] Invalid intervalBattery, revert to default (1800)"));
         _intervalBattery = 60 * 30;
         _preferences->putInt(preference_query_interval_battery, _intervalBattery);
     }
     if (_intervalKeypad == 0)
     {
-        Log->println("Invalid intervalKeypad, revert to default (1800)");
+        Log->println(F("[DEBUG] Invalid intervalKeypad, revert to default (1800)"));
         _intervalKeypad = 60 * 30;
         _preferences->putInt(preference_query_interval_keypad, _intervalKeypad);
     }
     if (_restartBeaconTimeout != -1 && _restartBeaconTimeout < 10)
     {
-        Log->println("Invalid restartBeaconTimeout, revert to default (-1)");
+        Log->println(F("[DEBUG] Invalid restartBeaconTimeout, revert to default (-1)"));
         _restartBeaconTimeout = -1;
         _preferences->putInt(preference_restart_ble_beacon_lost, _restartBeaconTimeout);
     }
 
-    Log->print("Lock state interval: ");
+    Log->print(F("[DEBUG] Lock state interval: "));
     Log->print(_intervalLockstate);
-    Log->print(" | Battery interval: ");
+    Log->print(F(" | Battery interval: "));
     Log->print(_intervalBattery);
-    Log->print(" | Publish auth data: ");
+    Log->print(F(" | Publish auth data: "));
     Log->println(_publishAuthData ? "yes" : "no");
 
     if (!_publishAuthData)
@@ -210,13 +210,13 @@ void NukiWrapper::update(bool reboot)
 
     if (!_paired)
     {
-        Log->println(F("Nuki lock start pairing"));
+        Log->println(F("[INFO] Nuki lock start pairing"));
 
         Nuki::AuthorizationIdType idType = Nuki::AuthorizationIdType::Bridge;
 
         if (_nukiLock.pairNuki(idType) == Nuki::PairingResult::Success)
         {
-            Log->println(F("Nuki paired"));
+            Log->println(F("[INFO] Nuki paired"));
             _paired = true;
             _network->sendToHALockBleAddress(_nukiLock.getBleAddress().toString());
         }
@@ -237,9 +237,9 @@ void NukiWrapper::update(bool reboot)
         _disableBleWatchdogTs < ts &&
         (ts - lastReceivedBeaconTs > _restartBeaconTimeout * 1000))
     {
-        Log->print("No BLE beacon received from the lock for ");
+        Log->print(F("[INFO] No BLE beacon received from the lock for "));
         Log->print((ts - lastReceivedBeaconTs) / 1000);
-        Log->println(" seconds, restarting device.");
+        Log->println(F(" seconds, restarting device."));
         delay(200);
         restartEsp(RestartReason::BLEBeaconWatchdog);
     }
@@ -257,12 +257,12 @@ void NukiWrapper::update(bool reboot)
             char resultStr[15] = {0};
             NukiLock::cmdResultToString(cmdResult, resultStr);
 
-            Log->print("Lock action result: ");
+            Log->print(F("[INFO] Lock action result: "));
             Log->println(resultStr);
 
             if (cmdResult != Nuki::CmdResult::Success)
             {
-                Log->print("Lock: Last command failed, retrying after ");
+                Log->print(F("[WARNING] Lock: Last command failed, retrying after "));
                 Log->print(_retryDelay);
                 Log->print(" milliseconds. Retry ");
                 Log->print(retryCount + 1);
@@ -283,7 +283,7 @@ void NukiWrapper::update(bool reboot)
             retryCount = 0;
             _statusUpdated = true;
 
-            Log->println("Lock: updating status after action");
+            Log->println(F("[DEBUG] Lock: updating status after action"));
             _statusUpdatedTs = ts;
             if (_intervalLockstate > 10)
             {
@@ -292,7 +292,7 @@ void NukiWrapper::update(bool reboot)
         }
         else
         {
-            Log->println("Lock: Maximum number of retries exceeded, aborting.");
+            Log->println(F("[WARNING] Lock: Maximum number of retries exceeded, aborting."));
 
             retryCount = 0;
             _nextLockAction = (NukiLock::LockAction)0xff;
@@ -300,7 +300,7 @@ void NukiWrapper::update(bool reboot)
     }
     if (_statusUpdated || _nextLockStateUpdateTs == 0 || ts >= _nextLockStateUpdateTs || (queryCommands & QUERY_COMMAND_LOCKSTATE) > 0)
     {
-        Log->println("Updating Lock state based on status, timer or query");
+        Log->println(F("[DEBUG] Updating Lock state based on status, timer or query"));
         _statusUpdated = updateKeyTurnerState();
         _nextLockStateUpdateTs = ts + _intervalLockstate * 1000;
     }
@@ -362,11 +362,26 @@ uint16_t NukiWrapper::getPin()
     return _nukiLock.getSecurityPincode();
 }
 
+void NukiWrapper::unpair()
+{
+    _nukiLock.unPairNuki();
+    Preferences nukiBlePref;
+    nukiBlePref.begin("NukiBridge", false);
+    nukiBlePref.clear();
+    nukiBlePref.end();
+    _deviceId->assignNewId();
+    if (!_forceId)
+    {
+        _preferences->remove(preference_nuki_id_lock);
+    }
+    _paired = false;
+}
+
 void NukiWrapper::updateAuthData(bool retrieved)
 {
     if(!isPinValid())
     {
-        Log->println("No valid Nuki Lock PIN set");
+        Log->println(F("[INFO] No valid Nuki Lock PIN set"));
         return;
     }
 
@@ -377,7 +392,7 @@ void NukiWrapper::updateAuthData(bool retrieved)
 
         while(retryCount < _nrOfRetries + 1)
         {
-            Log->print("Retrieve log entries: ");
+            Log->print(F("[INFO] Retrieve log entries: "));
             result = _nukiLock.retrieveLogEntries(0, _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG), 1, false);
             if(result != Nuki::CmdResult::Success)
             {
@@ -429,7 +444,7 @@ void NukiWrapper::updateAuthData(bool retrieved)
             return a.index < b.index;
         });
 
-        Log->print("Log size: ");
+        Log->print(F("[DEBUG] Log size: "));
         Log->println(log.size());
 
         if(log.size() > 0)
@@ -447,11 +462,11 @@ bool NukiWrapper::updateKeyTurnerState()
     Nuki::CmdResult result = (Nuki::CmdResult)-1;
     int retryCount = 0;
 
-    Log->println("Querying lock state");
+    Log->println(F("[INFO] Querying lock state"));
 
     while(result != Nuki::CmdResult::Success && retryCount < _nrOfRetries + 1)
     {
-        Log->print("Result (attempt ");
+        Log->print(F("[DEBUG] Result (attempt "));
         Log->print(retryCount + 1);
         Log->print("): ");
         result =_nukiLock.requestKeyTurnerState(&_keyTurnerState);
@@ -464,12 +479,12 @@ bool NukiWrapper::updateKeyTurnerState()
 
     if(result != Nuki::CmdResult::Success)
     {
-        Log->println("Query lock state failed");
+        Log->println(F("[WARNING] Query lock state failed"));
         _retryLockstateCount++;
         postponeBleWatchdog();
         if(_retryLockstateCount < _nrOfRetries + 1)
         {
-            Log->print("Query lock state retrying in ");
+            Log->print(F("[DEBUG] Query lock state retrying in "));
             Log->print(_retryDelay);
             Log->println("ms");
             _nextLockStateUpdateTs = espMillis() + _retryDelay;
@@ -495,9 +510,9 @@ bool NukiWrapper::updateKeyTurnerState()
     {
         if(_publishAuthData && (lockState == NukiLock::LockState::Locked || lockState == NukiLock::LockState::Unlocked))
         {
-            Log->println("Publishing auth data");
+            Log->println(F("[DEBUG] Publishing auth data"));
             updateAuthData(false);
-            Log->println("Done publishing auth data");
+            Log->println(F("[DEBUG] Done publishing auth data"));
         }
 
     }
