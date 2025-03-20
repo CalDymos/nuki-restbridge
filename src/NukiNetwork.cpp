@@ -339,11 +339,11 @@ void NukiNetwork::scan(bool passive, bool async)
 
         if (async)
         {
-            Log->println(F("[INFO] Wi-Fi async scan started"));
+            Log->println(F("[DEBUG] Wi-Fi async scan started"));
         }
         else
         {
-            Log->println(F("[INFO] Wi-Fi sync scan started"));
+            Log->println(F("[DEBUG] Wi-Fi sync scan started"));
         }
         if (passive)
         {
@@ -1572,7 +1572,7 @@ void NukiNetwork::openAP()
         delay(500);
         WiFi.softAPsetHostname(_hostname.c_str());
         delay(500);
-        WiFi.softAP("NukiBridge", "NukiBridgeESP32");
+        WiFi.softAP(F("NukiBridge"), F("NukiBridgeESP32"));
     }
 }
 

@@ -105,12 +105,15 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 }
 
 // ------------------------
-// Nuki-Task: führt update() aus
+// Nuki-Task: handle Nuki events()
 // ------------------------
 void nukiTask(void *parameter)
 {
   int64_t nukiLoopTs = 0;
   bool whiteListed = false;
+
+  if (!nukiLoopTs)
+    Log->println(F("[DEBUG] run nukiTask()"));
 
   while (true)
   {
@@ -147,17 +150,24 @@ void nukiTask(void *parameter)
       nukiLoopTs = espMillis();
     }
 
-    esp_task_wdt_reset();
+    vTaskDelay(1 / portTICK_PERIOD_MS);
+    if (esp_task_wdt_status(NULL) == ESP_OK)
+    {
+      esp_task_wdt_reset();
+    }
   }
 }
 
 // ------------------------
-// Netzwerk-Task: führt update() aus
+// Netzwerk-Task: processes HTTP REST API requests and updates to HA
 // ------------------------
 void networkTask(void *parameter)
 {
   int64_t networkLoopTs = 0;
   bool updateTime = true;
+
+  if (!networkLoopTs)
+    Log->println(F("[DEBUG] run networkTask()"));
 
   while (true)
   {
@@ -191,78 +201,174 @@ void networkTask(void *parameter)
     {
       restartEsp(RestartReason::RestartTimer);
     }
-    esp_task_wdt_reset();
+
+    vTaskDelay(1 / portTICK_PERIOD_MS);
+    if (esp_task_wdt_status(networkTaskHandle) == ESP_OK)
+    {
+      esp_task_wdt_reset();
+    }
   }
 }
 
 // ------------------------
-// WebConfig-Task: bearbeitet HTTP-Anfragen
+// WebConfig task: processes HTTP requests to Web Configurator
 // ------------------------
 void webCfgTask(void *parameter)
 {
   int64_t webCfgLoopTs = 0;
+  if (!webCfgLoopTs)
+    Log->println(F("[DEBUG] run webCfgTask()"));
   while (true)
   {
 
     if (webCfgServer != nullptr)
+    {
       webCfgServer->handleClient();
+    }
     if (espMillis() - webCfgLoopTs > 120000)
     {
       Log->println(F("[DEBUG] webCfgTask is running"));
       webCfgLoopTs = espMillis();
     }
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-    esp_task_wdt_reset();
+    vTaskDelay(2 / portTICK_PERIOD_MS);
+    if (esp_task_wdt_status(webCfgTaskHandle) == ESP_OK)
+    {
+      esp_task_wdt_reset();
+    }
+  }
+}
+
+void printTaskInfo()
+{
+  const UBaseType_t numTasks = uxTaskGetNumberOfTasks();
+  TaskStatus_t *taskArray = (TaskStatus_t *)malloc(numTasks * sizeof(TaskStatus_t));
+
+  if (taskArray)
+  {
+    uint32_t totalRunTime;
+    UBaseType_t numTasksRecorded = uxTaskGetSystemState(taskArray, numTasks, &totalRunTime);
+
+    Log->println(F("\n=== Task List ==="));
+    Log->println(F("Name\t\tState\tPrio\tStack\tTask Number"));
+    for (UBaseType_t i = 0; i < numTasksRecorded; i++)
+    {
+      Log->printf("%s\t\t%d\t%d\t%d\t%d\n",
+                  taskArray[i].pcTaskName,
+                  taskArray[i].eCurrentState,
+                  taskArray[i].uxCurrentPriority,
+                  taskArray[i].usStackHighWaterMark,
+                  (int)taskArray[i].xTaskNumber);
+    }
+    Log->println(F("=================\n"));
+    free(taskArray);
+  }
+  else
+  {
+    Log->println(F("[ERROR] malloc failed for task list!"));
   }
 }
 
 void setupTasks()
 {
+  Log->println(F("[DEBUG] setup Tasks"));
+
+  esp_chip_info_t info;
+  esp_chip_info(&info);
+  uint8_t espCores = info.cores;
 
   esp_task_wdt_config_t twdt_config = {
       .timeout_ms = 300000,
       .idle_core_mask = 0,
       .trigger_panic = true,
   };
-  esp_task_wdt_reconfigure(&twdt_config);
+  esp_err_t err = esp_task_wdt_reconfigure(&twdt_config);
 
-  esp_chip_info_t info;
-  esp_chip_info(&info);
-  uint8_t espCores = info.cores;
+  if (err != ESP_OK)
+  {
+    Log->printf("[ERROR] esp_task_wdt_reconfigure failed: %d\n", err);
+  }
+  else
+  {
+    Log->println(F("[DEBUG] Watchdog successfully reconfigured"));
+  }
 
-  xTaskCreatePinnedToCore(
-      nukiTask,        // Task-Funktion
-      "nuki",          // Name des Tasks
-      NUKI_TASK_SIZE,  // Stack-Größe (Wörter)
-      NULL,            // Parameter
-      1,               // Priorität
-      &nukiTaskHandle, // Task-Handle (optional)
-      0                // Core 0 für Lastverteilung
-  );
-  esp_task_wdt_add(nukiTaskHandle);
+  Log->println(F("[DEBUG] Create webCfgTask"));
+  if (xTaskCreatePinnedToCore(webCfgTask, "WebCfg", WEBCFGSERVER_TASK_SIZE, NULL, 2, &webCfgTaskHandle, (espCores > 1) ? 1 : 0) != pdPASS)
+  {
+    Log->println(F("[ERROR] webCfgTask could not be started!"));
+  }
+  Log->printf("[DEBUG] Created webCfgTaskHandle: %p\n", webCfgTaskHandle);
 
-  xTaskCreatePinnedToCore(
-      networkTask,           // Task-Funktion
-      "ntw",                 // Name des Tasks
-      NETWORK_TASK_SIZE,     // Stack-Größe (Wörter)
-      NULL,                  // Parameter
-      1,                     // Priorität
-      &networkTaskHandle,    // Task-Handle (optional)
-      (espCores > 1) ? 1 : 0 // Core 1
-  );
-  esp_task_wdt_add(networkTaskHandle);
+  Log->println(F("[DEBUG] Adding webCfgTask to Watchdog..."));
+  if (webCfgTaskHandle != NULL)
+  {
+    esp_err_t err = esp_task_wdt_add(webCfgTaskHandle);
+    if (err != ESP_OK)
+    {
+      Log->printf("[ERROR] esp_task_wdt_add failed for webCfgTask: %d\n", err);
+    }
+    else
+    {
+      Log->println(F("[DEBUG] webCfgTask successfully added to Watchdog"));
+    }
+  }
+  else
+  {
+    Log->println(F("[ERROR] Failed to create webCfgTask"));
+  }
 
-  xTaskCreatePinnedToCore(
-      webCfgTask,             // Task-Funktion
-      "WebCfg",               // Name des Tasks
-      WEBCFGSERVER_TASK_SIZE, // Stack-Größe (Wörter)
-      NULL,                   // Parameter
-      1,                      // Priorität
-      &webCfgTaskHandle,      // Task-Handle (optional)
-      (espCores > 1) ? 1 : 0  // Core 1
-  );
+  if (!disableNetwork)
+  {
+    Log->println(F("[DEBUG] Create networkTask"));
+    if (xTaskCreatePinnedToCore(networkTask, "ntw", NETWORK_TASK_SIZE, NULL, 3, &networkTaskHandle, (espCores > 1) ? 1 : 0) != pdPASS)
+    {
+      Log->println(F("[ERROR] networkTask could not be started!"));
+    }
+    Log->printf("[DEBUG] Created networkTaskHandle: %p\n", networkTaskHandle);
+    Log->println(F("[DEBUG] Adding networkTask to Watchdog..."));
+    if (networkTaskHandle != NULL)
+    {
+      esp_err_t err = esp_task_wdt_add(networkTaskHandle);
+      if (err != ESP_OK)
+      {
+        Log->printf("[ERROR] esp_task_wdt_add failed for networkTask: %d\n", err);
+      }
+      else
+      {
+        Log->println(F("[DEBUG] networkTask successfully added to Watchdog"));
+      }
+    }
+    else
+    {
+      Log->println(F("[ERROR] Failed to create networkTas"));
+    }
+  }
 
-  esp_task_wdt_add(webCfgTaskHandle);
+  if (!network->isApOpen() && lockEnabled)
+  {
+    Log->println(F("[DEBUG] Create nukiTask"));
+    if (xTaskCreatePinnedToCore(nukiTask, "nuki", NUKI_TASK_SIZE, NULL, 2, &nukiTaskHandle, 0) != pdPASS)
+    {
+      Log->println(F("[ERROR] nukiTask could not be started!"));
+    }
+
+    if (nukiTaskHandle != NULL)
+    {
+      esp_err_t err = esp_task_wdt_add(nukiTaskHandle);
+      if (err != ESP_OK)
+      {
+        Log->printf("[ERROR] esp_task_wdt_add failed for nukiTask: %d\n", err);
+      }
+      else
+      {
+        Log->println(F("[DEBUG] nukiTask successfully added to Watchdog"));
+      }
+    }
+    else
+    {
+      Log->println(F("[ERROR] Failed to create nukiTask"));
+    }
+  }
 }
 
 void logCoreDump()
@@ -441,7 +547,7 @@ void setup()
   String timeserver = preferences->getString(preference_time_server, "pool.ntp.org");
   esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(timeserver.c_str());
   config.start = false;
-  config.server_from_dhcp = true;       
+  config.server_from_dhcp = true;
   config.renew_servers_after_new_IP = true;
   config.index_of_first_server = 1;
 
@@ -456,11 +562,21 @@ void setup()
   config.sync_cb = cbSyncTime;
   esp_netif_sntp_init(&config);
 
+#ifdef DEBUG
+  Log->printf("[DEBUG] Heap before setupTasks: %d bytes\n", ESP.getFreeHeap());
+#endif
+
   setupTasks();
+
+#ifdef DEBUG
+  Log->printf("[DEBUG] Heap after setupTasks: %d bytes\n", ESP.getFreeHeap());
+  printTaskInfo();
+#endif
 }
 
 void loop()
 {
+  Log->println(F("[DEBUG] run loop()"));
   // deletes the Arduino loop task
   vTaskDelete(NULL);
 }

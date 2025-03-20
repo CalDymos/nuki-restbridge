@@ -6,18 +6,18 @@ from pathlib import Path
 import subprocess, psutil
 import serial.tools.list_ports
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import Checkbutton, messagebox, simpledialog, ttk
 import time
 
 global partOffsets
 global partSizes
 
-def parse_offsets_in_partitions_csv(env):
+def get_partition_offsets(env):
     """
     Reads partitions.csv and extracts offsets
 
     Returns:
-        dict: {"bootloader": "0x1000", "partition": "0x9000", "otadata": "0x19000",
+        dict: {"otadata": "0x19000",
                "firmware": "0x20000", "spiffs": "0x220000"}
     """
     partitions_file = env.GetProjectOption("board_build.partitions", "partitions.csv")
@@ -25,11 +25,12 @@ def parse_offsets_in_partitions_csv(env):
 
     # Set default values if `partitions.csv` does not exist
     offsets = {
-        "bootloader": "0x1000",
-        "partition": "0x9000",
+        "bootloader": "0x1000",  # Standard Offset für den Bootloader
+        "partition": "0x8000",   # Standard Offset für die Partitionstabelle
+        "nvs": "0x9000",
         "otadata": None,
         "firmware": "0x10000",  # Default for firmware (if not found)
-        "spiffs": "0x220000",
+        "spiffs": "0x230000",
         "coredump": None
     }
     
@@ -47,7 +48,7 @@ def parse_offsets_in_partitions_csv(env):
 
             # Bootloader is fixed, we don't need to read them
             if type_.strip() == "data" and subtype.strip() == "nvs":
-                offsets["partition"] = offset
+                offsets["nvs"] = offset
             elif type_.strip() == "data" and subtype.strip() == "ota":
                 offsets["otadata"] = offset
             elif type_.strip() == "app" and subtype.strip() == "factory":
@@ -63,7 +64,7 @@ def parse_offsets_in_partitions_csv(env):
 
     return offsets
     
-def parse_sizes_in_partitions_csv(env):
+def get_partition_sizes(env):
     """
     Reads partitions.csv and extracts sizes
 
@@ -76,10 +77,12 @@ def parse_sizes_in_partitions_csv(env):
 
     # Set default values if `partitions.csv` does not exist
     sizes = {
-        "partition": "0x5000",
+        "bootloader": "0x7000",  # Standardgröße für Bootloader (normalerweise 28KB)
+        "partition": "0x1000",   # Standardgröße für die Partitionstabelle (4KB)
+        "nvs": "0x5000",
         "otadata": None,
-        "firmware": "0x200000",  # Default for firmware (if not found)
-        "spiffs": "0x1E0000",
+        "firmware": "0x220000",  # Default for firmware (if not found)
+        "spiffs": "0x180000",
         "coredump": None
     }
 
@@ -97,7 +100,7 @@ def parse_sizes_in_partitions_csv(env):
 
             # Bootloader is fixed, we don't need to read them
             if type_.strip() == "data" and subtype.strip() == "nvs":
-                sizes["partition"] = size
+                sizes["nvs"] = size
             elif type_.strip() == "data" and subtype.strip() == "ota":
                 sizes["otadata"] = size
             elif type_.strip() == "app" and subtype.strip() == "factory":
@@ -115,21 +118,38 @@ def parse_sizes_in_partitions_csv(env):
     return sizes
 
 
-partOffsets:dict = parse_offsets_in_partitions_csv(env) # type: ignore
-partSizes:dict = parse_sizes_in_partitions_csv(env) # type: ignore
+partOffsets:dict = get_partition_offsets(env) # type: ignore
+partSizes:dict = get_partition_sizes(env) # type: ignore
 
 def kill_serial_monitor(port):
-    """ Beendet den laufenden seriellen Monitor, der den angegebenen Port verwendet """
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-        try:
-            # Check whether 'platformio.exe' is included in the process name and whether the port appears in the command line arguments
-            if 'platformio.exe' in proc.info['name'] and any(port in arg for arg in proc.info['cmdline']):
-                print(f"[INFO] End running serial monitor on {port}...")
-                proc.kill()
-                proc.wait(timeout=3)
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
+    """ Terminates the running serial monitor using the specified port """
+    
+    # Terminate all processes that could block the COM port
+    def kill_processes():
+        blocked_processes = ["platformio.exe", "python.exe", "esptool.exe"]
+        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+            try:
+                if any(proc_name in proc.info["name"].lower() for proc_name in blocked_processes):
+                    if proc.info["cmdline"] and any(port in arg for arg in proc.info["cmdline"]):
+                        print(f"[INFO] Killing process {proc.info['name']} (PID: {proc.pid}) using {port}...")
+                        proc.kill()
+                        proc.wait(timeout=2)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
 
+    # 1. Beende blockierende Prozesse
+    kill_processes()
+
+    # 2. Versuche die serielle Verbindung zu schließen
+    try:
+        with serial.Serial(port, baudrate=115200, timeout=1) as ser:
+            ser.close()
+        print(f"[INFO] Serial port {port} successfully released.")
+    except serial.SerialException as e:
+        print(f"[WARNING] Could not close {port}: {e}")
+
+    # 3. Warte, um sicherzustellen, dass der Port wirklich frei ist
+    time.sleep(2)
         
 def get_board_name(env):
     """ Gibt den richtigen Board-Namen für die Firmware-Dateien zurück """
@@ -190,6 +210,17 @@ def package_last_files(source, target, env):
         file = Path(file)
         shutil.copy(file, f"{target_dir}/{file.name}")
 
+def center_window(window, width=300, height=150):
+    """ Centers a Tkinter window on the screen """
+    window.update_idletasks()  # Refreshes the window to get the correct sizes
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+    
+    x = (screen_width // 2) - (width // 2)
+    y = (screen_height // 2) - (height // 2)
+    
+    window.geometry(f"{width}x{height}+{x}+{y}")
+        
 def select_serial_port():
     """ Zeigt ein Fenster mit allen verfügbaren seriellen Ports zur Auswahl """
     ports = list(serial.tools.list_ports.comports())
@@ -198,16 +229,42 @@ def select_serial_port():
         messagebox.showerror("Fehler", "Kein serieller Port gefunden! Überprüfen Sie die Verbindung.")
         return None
 
-    # Liste der verfügbaren Ports
+    # List of available ports
     port_list = [f"{port.device} - {port.description}" for port in ports]
-
-    # Auswahlfenster anzeigen
+    port_devices = [port.device for port in ports]  # Extract COM ports only
+    
+    def on_confirm():
+        nonlocal selected_port
+        selected_index = port_list.index(port_var.get())  # Index of the selected entry
+        selected_port = port_devices[selected_index]  # Extract only the COM port
+        root.destroy()
+    
     root = tk.Tk()
-    root.withdraw()  # Hauptfenster ausblenden
-    selected_port = simpledialog.askstring("Port auswählen", "Wählen Sie einen seriellen Port:", initialvalue=ports[0].device)
-
+    root.withdraw()  # Hide main window
+    root.attributes('-topmost', True)  # Always set windows in the foreground
+    
+    selected_port = None
+    dialog = tk.Toplevel(root)
+    dialog.title("Select port")
+    center_window(dialog)
+    
+    label = tk.Label(dialog, text="Select a serial port:")
+    label.pack(pady=10)
+    
+    port_var = tk.StringVar(value=port_list[0])
+    port_combo = ttk.Combobox(dialog, textvariable=port_var, values=port_list, state="readonly", width=40)
+    port_combo.pack()
+    
+    button_frame = tk.Frame(dialog)
+    button_frame.pack(pady=10)
+    
+    confirm_button = tk.Button(button_frame, text="OK", command=on_confirm)
+    confirm_button.pack()
+    
+    root.wait_window(dialog)
+    
     return selected_port if selected_port else None
-
+    
 def upload_firmware(source, target, env):
     """ Flasht die generierte Firmware automatisch auf das ESP32-Board """
 
@@ -220,13 +277,44 @@ def upload_firmware(source, target, env):
     monitor_speed = env.GetProjectOption("monitor_speed", "115200")  # Default: 115200 Baud
     upload_speed =  env.GetProjectOption("upload_speed", "115200")  # Default: 115200 Baud
         
-    # GUI dialog to confirm the upload
+    # GUI dialog to confirm the upload with checkbox for flash erase
+    def on_confirm():
+        nonlocal erase_flash, upload_confirmed
+        erase_flash = erase_var.get()
+        upload_confirmed = True
+        root.destroy()
+
     root = tk.Tk()
     root.withdraw()  # Hide main window
     root.attributes('-topmost', True)  # Fenster immer im Vordergrund setzen
-    confirm = messagebox.askyesno("Firmware-Upload", f"Should the firmware be uploaded to {board}?")
     
-    if not confirm:
+    erase_flash = False
+    upload_confirmed = False
+    
+    dialog = tk.Toplevel(root)
+    dialog.title("Firmware Upload")
+    center_window(dialog)
+        
+    
+    label = tk.Label(dialog, text=f"Should the firmware be uploaded to {board}?")
+    label.pack(pady=10)
+    
+    erase_var = tk.BooleanVar()
+    erase_checkbox = Checkbutton(dialog, text="Erase Flash before upload", variable=erase_var)
+    erase_checkbox.pack()
+
+    button_frame = tk.Frame(dialog)
+    button_frame.pack(pady=10)
+
+    confirm_button = tk.Button(button_frame, text="Yes", command=on_confirm)
+    confirm_button.pack(side=tk.LEFT, padx=5)
+    
+    cancel_button = tk.Button(button_frame, text="No", command=dialog.destroy)
+    cancel_button.pack(side=tk.RIGHT, padx=5)
+    
+    root.wait_window(dialog)
+            
+    if not upload_confirmed:
         print("[INFO] Upload canceled.")
         return
 
@@ -240,9 +328,16 @@ def upload_firmware(source, target, env):
         if not upload_port:
             print("[ERROR] No valid port selected. Upload canceled.")
             return
+        
     # Exit serial monitor if active   
     kill_serial_monitor(upload_port)
     time.sleep(1)
+    
+    # Optional: Erase flash before upload
+    if erase_flash:
+        cmd = f"esptool.py --chip {chip} --port {upload_port} erase_flash"
+        print("[INFO] Erasing flash before upload...")
+        env.Execute(cmd)
     
     # Upload the firmware with `esptool.py`.
     cmd = f"esptool.py --chip {chip} --port {upload_port} --baud {upload_speed} write_flash -z "
@@ -266,8 +361,8 @@ def generate_spiffs(source, target, env):
 
     # Ensure that the data/ directory exists
     if not os.path.exists(data_path):
-        print(f"[WARNING] SPIFFS data folder {data_path} does not exist, will be skipped!")
-        return
+        print(f"[INFO] SPIFFS data folder {data_path} does not exist, will be create!")
+        os.mkdir(data_path)
     
     # get SPIFFS offset address
     spiffs_size = partSizes["spiffs"] if partSizes["spiffs"] else "0x1E0000"

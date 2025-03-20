@@ -1,7 +1,14 @@
 # Espressif ESP32 Partition Table
+# Name,	    Size, 
+# nvs,	    20480 byte,   (20KB)
+# otadata,  8192 byte,    (8KB)
+# app0,     2228224 byte, (2.125Mb)
+# spiffs,   1572864 byte, (1.5Mb)
+# coredump, 65536 byte,   (64KB)
+#
 # Name,   Type, SubType, Offset,   Size,     Flags
 nvs,      data, nvs,     0x9000,   0x5000,
-otadata,  data, ota,     0x19000,  0x2000,
-app0,     app,  factory, 0x20000,  0x200000,
-spiffs,   data, spiffs,  0x220000, 0x1D0000,
+otadata,  data, ota,     0xe000,   0x2000,
+app0,     app,  ota_0,   0x10000,  0x220000,
+spiffs,   data, spiffs,  0x230000, 0x180000,
 coredump, data, coredump,0x3F0000, 0x10000,
