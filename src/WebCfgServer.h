@@ -13,32 +13,32 @@ extern TaskHandle_t nukiTaskHandle;
 extern TaskHandle_t webCfgTaskHandle;
 
 /**
- * @brief Minimaler Web-Config-Server, der Konfiguration über / und /save entgegennimmt.
- *        Läuft auf einem eigenen Port (z.B. 8080).
+ * @brief Minimal Web Configuration Server that accepts configuration via / and /save.
+ *        Runs on a separate port (e.g., 8080).
  */
 class WebCfgServer
 {
 public:
     /**
-     * @brief Konstruktor für den Web-Konfigurationsserver.
-     * @param nuki         Pointer auf die NukiWrapper-Instanz zur Steuerung des Smart Locks.
-     * @param network      Pointer auf die NukiNetwork-Instanz für die Netzwerkkommunikation.
-     * @param preferences  Pointer auf die Preferences-Instanz zur Speicherung von Einstellungen.
+     * @brief Constructor for the Web Configuration Server.
+     * @param nuki         Pointer to the NukiWrapper instance for controlling the smart lock.
+     * @param network      Pointer to the NukiNetwork instance for network communication.
+     * @param preferences  Pointer to the Preferences instance for storing settings.
      */
     WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences *preferences);
 
     /**
-     * @brief Destruktor
+     * @brief Destructor
      */
     ~WebCfgServer();
 
     /**
-     * @brief Startet den Webserver (setzt Routen und ruft webServer.begin() auf)
+     * @brief Starts the web server (sets routes and calls webServer.begin()).
      */
     void initialize();
 
     /**
-     * @brief Muss regelmäßig in loop() aufgerufen werden, damit Anfragen verarbeitet werden.
+     * @brief Must be called regularly in loop() to process requests.
      */
     void handleClient();
 
@@ -119,10 +119,10 @@ private:
     void loadSessions();
     void clearSessions();
 
-    // --- Membervariablen ---
+    // --- Member variables ---
     NukiWrapper *_nuki = nullptr;
-    Preferences *_preferences = nullptr; // externe Preferences, hier nur referenziert
-    WebServer *_webServer = nullptr;     // der eigentliche WebServer
+    Preferences *_preferences = nullptr; 
+    WebServer *_webServer = nullptr;     
     NukiNetwork *_network = nullptr;
     JsonDocument _httpSessions;
 
