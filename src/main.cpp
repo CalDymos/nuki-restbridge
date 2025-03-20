@@ -572,6 +572,7 @@ void setup()
   Log->printf("[DEBUG] Heap after setupTasks: %d bytes\n", ESP.getFreeHeap());
   printTaskInfo();
 #endif
+
 }
 
 void loop()

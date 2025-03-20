@@ -335,11 +335,11 @@ void WebCfgServer::initialize()
             }
             else if (value == "acclvl")
             {
-                //return buildAccLvlHtml(this->_webServer);
+                return buildAccLvlHtml(this->_webServer);
             }
             else if (value == "advanced")
             {
-                //return buildAdvancedConfigHtml(this->_webServer);
+                return buildAdvancedConfigHtml(this->_webServer);
             }
             else if (value == "cred")
             {
