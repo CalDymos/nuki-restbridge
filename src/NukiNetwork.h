@@ -22,43 +22,43 @@
 #include "LockActionResult.h"
 
 /**
- * @brief Kapselt sämtliche Netzwerkkommunikation (WiFi/Ethernet, HTTP/REST) in einer eigenen Klasse.
+ * @brief Encapsulates all network communication (WiFi/Ethernet, HTTP/REST) in a separate class.
  */
 class NukiNetwork
 {
 public:
     /**
-     * @brief Konstruktor für die Netzwerkklasse
-     * @param preferences  Pointer auf Preferences (Speicherung von SSID, PW etc.)
-     * @param buffer       Ein Buffer für JSON-Responses o.ä.
-     * @param bufferSize   Größe des Buffers
+     * @brief Constructor for the network class
+     * @param preferences  Pointer to preferences (storage of SSID, PW etc.)
+     * @param buffer       A buffer for JSON responses or similar.
+     * @param bufferSize   Size of the buffer
      */
     NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize);
 
     /**
-     * @brief Destruktor – hier ggf. Aufräumarbeiten (z.B. WebServer stoppen).
+     * @brief Destructor
      */
     virtual ~NukiNetwork();
 
     /**
-     * @brief Initialisiert das Netzwerk (z.B. WiFi starten, Ethernet einrichten usw.).
+     * @brief Initializes the network (start WiFi, set up Ethernet, etc.).
      */
     void initialize();
 
     /**
-     * @brief Regelt die periodischen Abläufe, z.B. Watchdog-Checks,
-     *        Neuverbinden, IP-Konfiguration, WebServer-Annahme, usw.
-     * @return true, wenn Netzwerk aktiv ist und Verbindung besteht, sonst false.
+     * @brief Controls the periodic processes, watchdog checks,
+     *        reconnection, IP configuration, web server acceptance, etc.
+     * @return true if network is active and connection exists, otherwise false.
      */
     bool update();
 
     /**
-     * @brief Führt eine erneute Konfiguration / Reconnect durch (z.B. bei neuer SSID).
+     * @brief Performs a new configuration / reconnect (e.g. with a new SSID).
      */
     void reconfigure();
 
     /**
-     * @brief Startet einen WiFi-Scan (synchron oder asynchron).
+     * @brief Starts a WiFi scan (synchronous or asynchronous).
      */
     void scan(bool passive = false, bool async = true);
 
@@ -154,16 +154,16 @@ public:
 
     void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value));
 
+    /**
+     * @brief Liest gespeicherte WiFi-Konfiguration / IP-Konfiguration etc.
+     */
+    void readSettings();
+
 private:
     /**
      * @brief Device setup and initialization
      */
     void setupDevice();
-
-    /**
-     * @brief Liest gespeicherte WiFi-Konfiguration / IP-Konfiguration etc.
-     */
-    void readSettings();
 
     /**
      * @brief Initialisiert WiFi (und ruft ggf. connect() auf).

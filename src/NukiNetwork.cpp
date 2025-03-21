@@ -742,21 +742,17 @@ void NukiNetwork::sendResponse(const char *jsonResultStr)
     _server->send(200, F("application/json"), jsonResultStr);
 }
 
-// -----------------------------------------------------------------------------
-//  PRIVATE METHODEN
-// -----------------------------------------------------------------------------
-
 void NukiNetwork::readSettings()
 {
     _disableNetworkIfNotConnected = _preferences->getBool(preference_disable_network_not_connected, false);
     _restartOnDisconnect = _preferences->getBool(preference_restart_on_disconnect, false);
-    _rssiPublishInterval = _preferences->getInt(preference_rssi_publish_interval, 0) * 1000;
+    _rssiPublishInterval = _preferences->getInt(preference_rssi_send_interval, 0) * 1000;
     _MaintenancePublishIntervall = _preferences->getInt(preference_Maintenance_publish_interval, 0) * 1000;
 
     if (_rssiPublishInterval == 0)
     {
         _rssiPublishInterval = 60000;
-        _preferences->putInt(preference_rssi_publish_interval, 60);
+        _preferences->putInt(preference_rssi_send_interval, 60);
     }
 
     _networkTimeout = _preferences->getInt(preference_network_timeout, 0);
@@ -765,7 +761,12 @@ void NukiNetwork::readSettings()
         _networkTimeout = -1;
         _preferences->putInt(preference_network_timeout, _networkTimeout);
     }
+    _publishDebugInfo = _preferences->getBool(preference_send_debug_info, false);
 }
+
+// -----------------------------------------------------------------------------
+//  PRIVATE METHODEN
+// -----------------------------------------------------------------------------
 
 void NukiNetwork::initializeWiFi()
 {
