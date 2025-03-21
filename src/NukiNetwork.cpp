@@ -185,14 +185,14 @@ bool NukiNetwork::update()
         }
     }
 
-    if (isConnected())
+    if (isConnected() && (_apiEnabled || _homeAutomationEnabled))
     {
         if (ts - _lastNetworkServiceTs > 30000)
         { // test all 30 seconds
             _lastNetworkServiceTs = ts;
             _networkServicesState = testNetworkServices();
             if (_networkServicesState != NetworkServiceStates::OK)
-            { // error in networ Services
+            { // error in network Services
                 restartNetworkServices(_networkServicesState);
                 delay(1000);
                 _networkServicesState = testNetworkServices(); // test network services again
@@ -914,14 +914,17 @@ void NukiNetwork::initializeEthernet()
 
 void NukiNetwork::startNetworkServices()
 {
-
-    _httpClient = new HTTPClient();
-    _server = new WebServer(_apiPort);
-    if (_server)
+    if (_apiEnabled)
+        _httpClient = new HTTPClient();
+    if (_homeAutomationEnabled)
     {
-        _server->onNotFound([this]()
-                            { onRestDataReceivedCallback(this->_server->uri().c_str(), *this->_server); });
-        _server->begin();
+        _server = new WebServer(_apiPort);
+        if (_server)
+        {
+            _server->onNotFound([this]()
+                                { onRestDataReceivedCallback(this->_server->uri().c_str(), *this->_server); });
+            _server->begin();
+        }
     }
 }
 
@@ -1222,13 +1225,14 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
     bool webServerOk = true;
 
     // 1. check whether _httpClient exists
-    if (_httpClient == nullptr)
-    {
-        Log->println(F("[ERROR] _httpClient is NULL!"));
-        httpClientOk = false;
-    }
     if (_homeAutomationEnabled)
     {
+        if (_httpClient == nullptr)
+        {
+            Log->println(F("[ERROR] _httpClient is NULL!"));
+            httpClientOk = false;
+        }
+
         // 2. ping test for _homeAutomationAdress
         if (!_homeAutomationAdress.isEmpty() && httpClientOk)
         {
@@ -1268,25 +1272,27 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
     }
 
     // 4. check whether Rest Server (_server) exists
-    if (_server == nullptr)
+    if (_apiEnabled)
     {
-        Log->println(F("[ERROR] _server is NULL!"));
-        webServerOk = false;
-    }
+        if (_server == nullptr)
+        {
+            Log->println(F("[ERROR] _server is NULL!"));
+            webServerOk = false;
+        }
 
-    // 5. test whether the local REST web server can be reached on the port
-    WiFiClient client;
-    if (!client.connect(WiFi.localIP(), _apiPort))
-    {
-        Log->println(F("[ERROR] WebServer is not responding!"));
-        webServerOk = false;
+        // 5. test whether the local REST web server can be reached on the port
+        WiFiClient client;
+        if (!client.connect(WiFi.localIP(), _apiPort))
+        {
+            Log->println(F("[ERROR] WebServer is not responding!"));
+            webServerOk = false;
+        }
+        else
+        {
+            Log->println(F("[DEBUG] WebServer is responding."));
+            client.stop();
+        }
     }
-    else
-    {
-        Log->println(F("[DEBUG] WebServer is responding."));
-        client.stop();
-    }
-
     // 6. return error code
     if (webServerOk && httpClientOk)
         return NetworkServiceStates::OK; // all OK
@@ -1299,6 +1305,9 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
 
 void NukiNetwork::restartNetworkServices(NetworkServiceStates status)
 {
+    if (!_homeAutomationEnabled && !_apiEnabled)
+        return;
+        
     if (status == NetworkServiceStates::UNDEFINED)
     {
         status = testNetworkServices();
@@ -1311,49 +1320,53 @@ void NukiNetwork::restartNetworkServices(NetworkServiceStates status)
     }
 
     // If _httpClient is not reachable (-2 or -3), reinitialize
-    if (status == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE || status == NetworkServiceStates::BOTH_NOT_REACHABLE)
+    if (_homeAutomationEnabled)
     {
-        Log->println(F("[INFO] Reinitialization of HTTP client..."));
-        if (_httpClient)
+        if (status == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE || status == NetworkServiceStates::BOTH_NOT_REACHABLE)
         {
-            delete _httpClient;
-            _httpClient = nullptr;
-        }
-        _httpClient = new HTTPClient();
-        if (_httpClient)
-        {
-            Log->println(F("[INFO] HTTP client successfully reinitialized."));
-        }
-        else
-        {
-            Log->println(F("[ERROR] HTTP client cannot be initialized."));
+            Log->println(F("[INFO] Reinitialization of HTTP client..."));
+            if (_httpClient)
+            {
+                delete _httpClient;
+                _httpClient = nullptr;
+            }
+            _httpClient = new HTTPClient();
+            if (_httpClient)
+            {
+                Log->println(F("[INFO] HTTP client successfully reinitialized."));
+            }
+            else
+            {
+                Log->println(F("[ERROR] HTTP client cannot be initialized."));
+            }
         }
     }
-
     // If the REST web server cannot be reached (-1 or -3), restart it
-    if (status == NetworkServiceStates::WEBSERVER_NOT_REACHABLE || status == NetworkServiceStates::BOTH_NOT_REACHABLE)
+    if (_apiEnabled)
     {
-        Log->println(F("[INFO] Restarting the REST WebServer..."));
-        if (_server)
+        if (status == NetworkServiceStates::WEBSERVER_NOT_REACHABLE || status == NetworkServiceStates::BOTH_NOT_REACHABLE)
         {
-            _server->stop();
-            delete _server;
-            _server = nullptr;
-        }
-        _server = new WebServer(_apiPort);
-        if (_server)
-        {
-            _server->onNotFound([this]()
-                                { onRestDataReceivedCallback(this->_server->uri().c_str(), *this->_server); });
-            _server->begin();
-            Log->println(F("[INFO] REST WebServer successfully restarted."));
-        }
-        else
-        {
-            Log->println(F("[ERROR] REST Web Server cannot be initialized."));
+            Log->println(F("[INFO] Restarting the REST WebServer..."));
+            if (_server)
+            {
+                _server->stop();
+                delete _server;
+                _server = nullptr;
+            }
+            _server = new WebServer(_apiPort);
+            if (_server)
+            {
+                _server->onNotFound([this]()
+                                    { onRestDataReceivedCallback(this->_server->uri().c_str(), *this->_server); });
+                _server->begin();
+                Log->println(F("[INFO] REST WebServer successfully restarted."));
+            }
+            else
+            {
+                Log->println(F("[ERROR] REST Web Server cannot be initialized."));
+            }
         }
     }
-
     Log->println(F("[DEBUG] Network services have been checked and reinit/restarted if necessary."));
 }
 
