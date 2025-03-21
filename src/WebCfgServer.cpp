@@ -351,11 +351,17 @@ void WebCfgServer::initialize()
             }
             else if (value == "apiconfig")
             {
-                //return buildApiConfigHtml(this->_webServer);
+                if (this->_webServer->hasArg("genapitoken") && this->_webServer->arg("genapitoken") == "1")
+                {
+                    _network->assignNewApiToken();
+                    this->_webServer->sendHeader("Cache-Control", "no-cache");
+                    return this->redirect(this->_webServer, "/get?page=apiconfig", 302);
+                }
+                return buildApiConfigHtml(this->_webServer);
             }
             else if (value == "harconfig")
             {
-                //return buildHARConfigHtml(this->_webServer);
+                //return buildHARConfigHtml(this->_webServer); // Site to Configure the Home Automation (enable, Adress, Port, Mode [udp, rest], user, password)
             }
             else if (value == "nukicfg")
             {
@@ -1025,6 +1031,59 @@ void WebCfgServer::buildCredHtml(WebServer *server)
     server->send(200, "text/html", response);
 }
 
+void WebCfgServer::buildApiConfigHtml(WebServer *server)
+{
+    String response;
+    response.reserve(4096); // reduce fragmentation
+
+    buildHtmlHeader(response);
+    response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
+    response += F("<h3>REST API Configuration</h3><table>");
+
+    appendCheckBoxRow(response, "APIENA", "Enable REST API", _preferences->getBool(preference_api_enabled, false), "");
+    appendInputFieldRow(response, "APIPORT", "API Port", _preferences->getInt(preference_api_port, 8080), 6, "");
+
+    const char* currentToken = _network->getApiToken(); 
+
+    response += F("<tr><td>Access Token</td><td>");
+    response += "<input type=\"text\" value=\"" + String(currentToken) + "\" readonly>";
+    response += F("&nbsp;<a href=\"/get?page=apiconfig&genapitoken=1\"><input type=\"button\" value=\"Generate new token\"></a>");
+    response += F("</td></tr>");
+
+    response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
+
+    server->send(200, "text/html", response);
+}
+
+void WebCfgServer::buildHARConfigHtml(WebServer *server)
+{
+    String response;
+    response.reserve(4096); // reduce fragmentation
+
+    buildHtmlHeader(response);
+    response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
+    response += F("<h3>Home Automation Configuration</h3><table>");
+
+    appendCheckBoxRow(response, "HAENA", "Enable Home Automation", _preferences->getBool(preference_ha_enabled, false), "");
+    appendInputFieldRow(response, "HAHOST", "Address", _preferences->getString(preference_ha_address, "").c_str(), 64, "");
+    appendInputFieldRow(response, "HAPORT", "Port", _preferences->getInt(preference_ha_port, 8081), 6, "");
+
+    std::vector<std::pair<String, String>> modeOptions = {
+        {"0", "UDP"},
+        {"1", "REST"}};
+    appendDropDownRow(response, "HAMODE", "Mode", String(_preferences->getInt(preference_ha_mode, 0)), modeOptions, "");
+
+    appendInputFieldRow(response, "HAUSER", "Username", _preferences->getString(preference_ha_user, "").c_str(), 32, "");
+    appendInputFieldRow(response, "HAPASS", "Password", _preferences->getString(preference_ha_password, "").c_str(), 32, "", true, true);
+
+    response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
+
+    server->send(200, "text/html", response);
+}
+
+
 void WebCfgServer::buildHtml(WebServer *server)
 {
     String header = F("<script>let intervalId; window.onload = function() { updateInfo(); intervalId = setInterval(updateInfo, 3000); }; function updateInfo() { var request = new XMLHttpRequest(); request.open('GET', '/get?page=status', true); request.onload = () => { const obj = JSON.parse(request.responseText); if (obj.stop == 1) { clearInterval(intervalId); } for (var key of Object.keys(obj)) { if(key=='ota' && document.getElementById(key) !== null) { document.getElementById(key).innerText = \"<a href='/ota'>\" + obj[key] + \"</a>\"; } else if(document.getElementById(key) !== null) { document.getElementById(key).innerText = obj[key]; } } }; request.send(); }</script>");
@@ -1309,7 +1368,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += "API enabled: " + String(_preferences->getBool(preference_api_enabled, false) != false ? "Yes" : "No") + "\n";
     response += "API connected: " + String((_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? "Yes" : "No") + "\n";
     response += "API Port: " + String(_preferences->getInt(preference_api_port, 0)) + "\n";
-    response += "API auth token: " + _preferences->getString(preference_api_Token, "not defined") + "\n";
+    response += "API auth token: " + _preferences->getString(preference_api_token, "not defined") + "\n";
 
     // HomeAutomation
     response += "\n------------ Home Automation Reporting ------------\n";
@@ -1626,7 +1685,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if (_preferences->getString(preference_ha_address, "") != value)
             {
                 _preferences->putString(preference_ha_address, value);
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1636,7 +1695,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if (_preferences->getInt(preference_ha_port, 0) != value.toInt())
             {
                 _preferences->putInt(preference_ha_port, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1652,7 +1711,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if (_preferences->getString(preference_ha_user, "") != value)
                 {
                     _preferences->putString(preference_ha_user, value);
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
                 }
@@ -1663,7 +1722,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if (_preferences->getString(preference_ha_password, "") != value)
             {
                 _preferences->putString(preference_ha_password, value);
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1674,7 +1733,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 _network->disableHAR();
                 _preferences->putBool(preference_ha_enabled, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1684,7 +1743,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_update_time, false) != (value == "1"))
             {
                 _preferences->putBool(preference_update_time, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1694,7 +1753,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getString(preference_time_server, "pool.ntp.org") != value)
             {
                 _preferences->putString(preference_time_server, value);
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1712,7 +1771,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                     }
                 }
                 _preferences->putInt(preference_network_hardware, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1723,7 +1782,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_phy, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1734,7 +1793,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_addr, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1745,7 +1804,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_irq, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1756,7 +1815,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_rst, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1767,7 +1826,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_cs, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1778,7 +1837,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_sck, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1789,7 +1848,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_miso, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1800,7 +1859,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_mosi, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1811,7 +1870,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_pwr, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1822,7 +1881,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_mdio, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1833,7 +1892,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_mdc, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1844,7 +1903,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_clk, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1854,7 +1913,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_rssi_send_interval, 60) != value.toInt())
             {
                 _preferences->putInt(preference_rssi_send_interval, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -1864,7 +1923,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_cred_session_lifetime, 3600) != value.toInt())
             {
                 _preferences->putInt(preference_cred_session_lifetime, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
                 clearSession = true;
@@ -1875,7 +1934,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_cred_session_lifetime_remember, 720) != value.toInt())
             {
                 _preferences->putInt(preference_cred_session_lifetime_remember, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
                 clearSession = true;
@@ -1886,7 +1945,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getString(preference_hostname, "") != value)
             {
                 _preferences->putString(preference_hostname, value);
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1896,7 +1955,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_network_timeout, 60) != value.toInt())
             {
                 _preferences->putInt(preference_network_timeout, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -1906,7 +1965,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_find_best_rssi, false) != (value == "1"))
             {
                 _preferences->putBool(preference_find_best_rssi, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -1916,7 +1975,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_restart_on_disconnect, false) != (value == "1"))
             {
                 _preferences->putBool(preference_restart_on_disconnect, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -1926,7 +1985,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_ip_dhcp_enabled, true) != (value == "1"))
             {
                 _preferences->putBool(preference_ip_dhcp_enabled, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1936,7 +1995,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getString(preference_ip_address, "") != value)
             {
                 _preferences->putString(preference_ip_address, value);
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1946,7 +2005,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getString(preference_ip_subnet, "") != value)
             {
                 _preferences->putString(preference_ip_subnet, value);
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1956,7 +2015,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getString(preference_ip_gateway, "") != value)
             {
                 _preferences->putString(preference_ip_gateway, value);
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1966,7 +2025,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getString(preference_ip_dns_server, "") != value)
             {
                 _preferences->putString(preference_ip_dns_server, value);
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -1976,7 +2035,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_query_interval_lockstate, 1800) != value.toInt())
             {
                 _preferences->putInt(preference_query_interval_lockstate, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -1986,7 +2045,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_query_interval_configuration, 3600) != value.toInt())
             {
                 _preferences->putInt(preference_query_interval_configuration, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -1996,7 +2055,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_query_interval_battery, 1800) != value.toInt())
             {
                 _preferences->putInt(preference_query_interval_battery, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -2006,7 +2065,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_query_interval_keypad, 1800) != value.toInt())
             {
                 _preferences->putInt(preference_query_interval_keypad, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -2016,7 +2075,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_command_nr_of_retries, 3) != value.toInt())
             {
                 _preferences->putInt(preference_command_nr_of_retries, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -2026,7 +2085,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_command_retry_delay, 100) != value.toInt())
             {
                 _preferences->putInt(preference_command_retry_delay, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -2042,7 +2101,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if(_preferences->getInt(preference_ble_tx_power, 9) != value.toInt())
                 {
                     _preferences->putInt(preference_ble_tx_power, value.toInt());
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     //configChanged = true;
                 }
@@ -2053,7 +2112,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_restart_ble_beacon_lost, 60) != value.toInt())
             {
                 _preferences->putInt(preference_restart_ble_beacon_lost, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -2065,7 +2124,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if(_preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE) != value.toInt())
                 {
                     _preferences->putInt(preference_task_size_network, value.toInt());
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
                 }
@@ -2078,7 +2137,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if(_preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE) != value.toInt())
                 {
                     _preferences->putInt(preference_task_size_nuki, value.toInt());
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
                 }
@@ -2091,7 +2150,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if(_preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG) != value.toInt())
                 {
                     _preferences->putInt(preference_authlog_max_entries, value.toInt());
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     //configChanged = true;
                 }
@@ -2104,7 +2163,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if(_preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD) != value.toInt())
                 {
                     _preferences->putInt(preference_keypad_max_entries, value.toInt());
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     //configChanged = true;
                 }
@@ -2117,7 +2176,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if(_preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL) != value.toInt())
                 {
                     _preferences->putInt(preference_timecontrol_max_entries, value.toInt());
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     //configChanged = true;
                 }
@@ -2130,7 +2189,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if(_preferences->getInt(preference_auth_max_entries, MAX_AUTH) != value.toInt())
                 {
                     _preferences->putInt(preference_auth_max_entries, value.toInt());
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     //configChanged = true;
                 }
@@ -2143,7 +2202,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if(_preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE) != value.toInt())
                 {
                     _preferences->putInt(preference_buffer_size, value.toInt());
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
                 }
@@ -2154,7 +2213,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_enable_bootloop_reset, false) != (value == "1"))
             {
                 _preferences->putBool(preference_enable_bootloop_reset, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -2164,7 +2223,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_disable_network_not_connected, false) != (value == "1"))
             {
                 _preferences->putBool(preference_disable_network_not_connected, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2174,7 +2233,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_show_secrets, false) != (value == "1"))
             {
                 _preferences->putBool(preference_show_secrets, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 //configChanged = true;
             }
@@ -2184,7 +2243,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_debug_connect, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_connect, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2194,7 +2253,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_debug_communication, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_communication, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2204,7 +2263,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_send_debug_info, false) != (value == "1"))
             {
                 _preferences->putBool(preference_send_debug_info, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2214,7 +2273,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_debug_readable_data, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_readable_data, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2224,7 +2283,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_debug_hex_data, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_hex_data, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2234,7 +2293,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_debug_command, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_command, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2244,7 +2303,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_lock_force_id, false) != (value == "1"))
             {
                 _preferences->putBool(preference_lock_force_id, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
             }
         }
@@ -2253,7 +2312,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_lock_force_keypad, false) != (value == "1"))
             {
                 _preferences->putBool(preference_lock_force_keypad, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
             }
         }
@@ -2262,7 +2321,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getBool(preference_lock_force_doorsensor, false) != (value == "1"))
             {
                 _preferences->putBool(preference_lock_force_doorsensor, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
             }
         }
@@ -2275,7 +2334,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if(_preferences->getInt(preference_http_auth_type, 0) != value.toInt())
             {
                 _preferences->putInt(preference_http_auth_type, value.toInt());
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
                 clearSession = true;
@@ -2288,7 +2347,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if(_preferences->getString(preference_bypass_proxy, "") != value)
                 {
                     _preferences->putString(preference_bypass_proxy, value);
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
                     clearSession = true;
@@ -2496,7 +2555,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if (_preferences->getBool(preference_lock_enabled, true) != (value == "1"))
             {
                 _preferences->putBool(preference_lock_enabled, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2506,7 +2565,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if (_preferences->getBool(preference_connect_mode, true) != (value == "1"))
             {
                 _preferences->putBool(preference_connect_mode, (value == "1"));
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2522,7 +2581,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if (_preferences->getString(preference_cred_user, "") != value)
                 {
                     _preferences->putString(preference_cred_user, value);
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
                     clearSession = true;
@@ -2544,7 +2603,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if (_preferences->getString(preference_bypass_secret, "") != value)
                 {
                     _preferences->putString(preference_bypass_secret, value);
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
                 }
@@ -2557,7 +2616,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 if (_preferences->getString(preference_admin_secret, "") != value)
                 {
                     _preferences->putString(preference_admin_secret, value);
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
                 }
@@ -2571,7 +2630,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 message = "Nuki Lock PIN cleared";
                 _nuki->setPin(0xffff);
 
-                Log->print("Setting changed: ");
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -2582,7 +2641,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 {
                     message = "Nuki Lock PIN saved";
                     _nuki->setPin(value.toInt());
-                    Log->print("Setting changed: ");
+                    Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
                 }
@@ -2627,7 +2686,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
 
     if (manPairLck)
     {
-        Log->println("Changing lock pairing");
+        Log->println(F("[DEBUG] Changing lock pairing"));
         Preferences nukiBlePref;
         nukiBlePref.begin("NukiBridge", false);
         nukiBlePref.putBytes("bleAddress", currentBleAddress, 6);
@@ -2636,8 +2695,8 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         nukiBlePref.putBytes("securityPinCode", pincode, 2);
 
         nukiBlePref.end();
-        Log->print("Setting changed: ");
-        Log->println("Lock pairing data");
+        Log->print(F("[DEBUG] Setting changed: "));
+        Log->println(F("Lock pairing data"));
         configChanged = true;
     }
 
@@ -2646,8 +2705,8 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         if (_preferences->getString(preference_cred_password, "") != pass1)
         {
             _preferences->putString(preference_cred_password, pass1);
-            Log->print("Setting changed: ");
-            Log->println("CREDPASS");
+            Log->print(F("[DEBUG] Setting changed: "));
+            Log->println(F("CREDPASS"));
             configChanged = true;
             clearSession = true;
         }
@@ -2658,14 +2717,14 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         if (_preferences->getString(preference_ha_user, "") != "")
         {
             _preferences->putString(preference_ha_user, "");
-            Log->print("Setting changed: ");
-            Log->println("HARUSER");
+            Log->print(F("[DEBUG] Setting changed: "));
+            Log->println(F("HARUSER"));
             configChanged = true;
         }
         if (_preferences->getString(preference_ha_password, "") != "")
         {
             _preferences->putString(preference_ha_password, "");
-            Log->print("Setting changed: ");
+            Log->print(F("[DEBUG] Setting changed: "));
             Log->println("HARPASS");
             configChanged = true;
         }
@@ -2676,7 +2735,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         if (_preferences->getString(preference_cred_user, "") != "")
         {
             _preferences->putString(preference_cred_user, "");
-            Log->print("Setting changed: ");
+            Log->print(F("[DEBUG] Setting changed: "));
             Log->println("CREDUSER");
             configChanged = true;
             clearSession = true;
@@ -2684,7 +2743,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         if (_preferences->getString(preference_cred_password, "") != "")
         {
             _preferences->putString(preference_cred_password, "");
-            Log->print("Setting changed: ");
+            Log->print(F("[DEBUG] Setting changed: "));
             Log->println("CREDPASS");
             configChanged = true;
             clearSession = true;
