@@ -1,9 +1,9 @@
-![Alpha Status](https://img.shields.io/badge/status-alpha-red)
+![Beta Status](https://img.shields.io/badge/status-beta-yellow)
 [![Project Maintenance](https://img.shields.io/maintenance/yes/2024.svg)](https://github.com/CalDymos/nuki_RESTbridge 'GitHub Repository')
 [![License](https://img.shields.io/github/license/CalDymos/nuki_RESTbridge.svg)](https://github.com/CalDymos/nuki_RESTbridge/blob/main/LICENSE 'License')
 
 
-🚧 **Alpha-Status**: This project is in the alpha phase. It is not yet stable and complete.
+🚧 **Beta-Status**: This project is in the **beta phase**. Most features are implemented, but there may still be bugs or incomplete parts. Use with caution.
 
 ## About
 
