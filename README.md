@@ -37,23 +37,12 @@ As an alternative to Wi-Fi (which is available on any supported ESP32), the foll
 - [Olimex ESP32-POE-ISO](https://www.olimex.com/Products/IoT/ESP32/ESP32-POE-ISO/open-source-hardware)
 - [WT32-ETH01](http://en.wireless-tag.com/product-item-2.html)
 
-In principle all ESP32 (and variants) devices with built-in ethernet port are supported, but might require additional setup using the "Custom LAN setup" option.
-See the "[Connecting via Ethernet](#connecting-via-ethernet-optional)" section for more information.
+In principle all ESP32 (and variants) devices with built-in ethernet port are supported, but might require additional setup in platformio.ini.
 
 ## Recommended ESP32 devices
 
 We don't recommend using single-core ESP32 devices (ESP32-C3, ESP32-C6, ESP32-H2, ESP32-Solo1).<br>
 Although Nuki Hub supports single-core devices, Nuki Hub uses both CPU cores (if available) to process tasks (e.g. HTTP server/BLE scanner/BLE client) and thus runs much better on dual-core devices.<br>
-
-When buying a new device in 2025 we can only recommend the ESP32-S3 with PSRAM (look for an ESP32-S3 with the designation N>=4 and R>=2 such as an ESP32-S3 N16R8).<br>
-The ESP32-S3 is a dual-core CPU with many GPIO's, ability to enlarge RAM using PSRAM, ability to connect Ethernet modules over SPI and optionally power the device with a PoE splitter.<br>
-The only functions missing from the ESP32-S3 as compared to other ESP devices is the ability to use some Ethernet modules only supported by the original ESP32 (and ESP32-P4) and the ability to connect over WIFI6 (C6 or ESP32-P4 with C6 module)
-
-If/When the ESP32-P4 with ESP32-C6-MINI-1 module for BLE/WiFi is supported this will probably become the preferred device for Nuki Hub.
-
-Other considerations:
-- If Ethernet/PoE is required: An ESP32-S3 with PSRAM in combination with a SPI Ethernet module ([W5500](https://www.aliexpress.com/w/wholesale-w5500.html)) and [PoE to Ethernet and USB type B/C splitter](https://aliexpress.com/w/wholesale-poe-splitter-usb-c.html) or the LilyGO-T-ETH ELite, LilyGO-T-ETH-Lite-ESP32S3 or M5stack Atom S3R with the M5stack AtomPoe W5500 module
-- If WIFI6 is absolutely required (it probably isn't): ESP32-C6
 
 ## First time installation
 

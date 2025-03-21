@@ -1,13 +1,13 @@
 #include "IPConfiguration.h"
 #include "PreferencesKeys.h"
-#include "Logger.h"
+#include "Logger.hpp"
 
 IPConfiguration::IPConfiguration(Preferences *preferences)
     : _preferences(preferences)
 {
     if(!dhcpEnabled() && _preferences->getString(preference_ip_address, "").length() <= 0)
     {
-        Log->println("IP address empty, falling back to DHCP.");
+        Log->println(F("[DEBUG] IP address empty, falling back to DHCP."));
         _preferences->putBool(preference_ip_dhcp_enabled, true);
     }
 
@@ -16,20 +16,20 @@ IPConfiguration::IPConfiguration(Preferences *preferences)
     _gateway.fromString(_preferences->getString(preference_ip_gateway, ""));
     _dnsServer.fromString(_preferences->getString(preference_ip_dns_server, ""));
 
-    Log->print("IP configuration: ");
+    Log->print(F("[DEBUG] IP configuration: "));
     if(dhcpEnabled())
     {
-        Log->println("DHCP");
+        Log->println(F("DHCP"));
     }
     else
     {
-        Log->print("IP address: ");
+        Log->print(F("[DEBUG] IP address: "));
         Log->print(ipAddress());
-        Log->print(", Subnet: ");
+        Log->print(F(", Subnet: "));
         Log->print(subnet());
-        Log->print(", Gateway: ");
+        Log->print(F(", Gateway: "));
         Log->print(defaultGateway());
-        Log->print(", DNS: ");
+        Log->print(F(", DNS: "));
         Log->println(dnsServer());
     }
 }
