@@ -127,14 +127,14 @@ void NukiWrapper::readSettings()
     _intervalBattery = _preferences->getInt(preference_query_interval_battery);
     _intervalKeypad = _preferences->getInt(preference_query_interval_keypad);
     _keypadEnabled = _preferences->getBool(preference_keypad_info_enabled);
-    _publishAuthData = _preferences->getBool(preference_publish_authdata);
+    _sendAuthData = _preferences->getBool(preference_send_authdata);
     _maxKeypadCodeCount = _preferences->getUInt(preference_lock_max_keypad_code_count);
     _maxTimeControlEntryCount = _preferences->getUInt(preference_lock_max_timecontrol_entry_count);
     _maxAuthEntryCount = _preferences->getUInt(preference_lock_max_auth_entry_count);
     _restartBeaconTimeout = _preferences->getInt(preference_restart_ble_beacon_lost);
     _nrOfRetries = _preferences->getInt(preference_command_nr_of_retries, 200);
     _retryDelay = _preferences->getInt(preference_command_retry_delay);
-    _rssiPublishInterval = _preferences->getInt(preference_rssi_publish_interval) * 1000;
+    _rssiPublishInterval = _preferences->getInt(preference_rssi_send_interval) * 1000;
     _checkKeypadCodes = _preferences->getBool(preference_keypad_check_code_enabled, false);
     _forceDoorsensor = _preferences->getBool(preference_lock_force_doorsensor, false);
     _forceKeypad = _preferences->getBool(preference_lock_force_keypad, false);
@@ -191,9 +191,9 @@ void NukiWrapper::readSettings()
     Log->print(F(" | Battery interval: "));
     Log->print(_intervalBattery);
     Log->print(F(" | Publish auth data: "));
-    Log->println(_publishAuthData ? "yes" : "no");
+    Log->println(_sendAuthData ? "yes" : "no");
 
-    if (!_publishAuthData)
+    if (!_sendAuthData)
     {
         _clearAuthData = true;
     }
@@ -508,7 +508,7 @@ bool NukiWrapper::updateKeyTurnerState()
             lockState == NukiLock::LockState::BootRun ||
             lockState == NukiLock::LockState::MotorBlocked)
     {
-        if(_publishAuthData && (lockState == NukiLock::LockState::Locked || lockState == NukiLock::LockState::Unlocked))
+        if(_sendAuthData && (lockState == NukiLock::LockState::Locked || lockState == NukiLock::LockState::Unlocked))
         {
             Log->println(F("[DEBUG] Publishing auth data"));
             updateAuthData(false);

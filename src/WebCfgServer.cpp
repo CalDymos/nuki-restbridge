@@ -597,9 +597,7 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
     response += F("<input type=\"hidden\" name=\"ACLLVLCHANGED\" value=\"1\">");
     response += F("<h3>Nuki General Access Control</h3><table><tr><th>Setting</th><th>Enabled</th></tr>");
 
-    appendCheckBoxRow(response, "CONFNHPUB", "Report Nuki Hub configuration information to Home Automation", _preferences->getBool(preference_publish_config, false), "");
     appendCheckBoxRow(response, "CONFNHCTRL", "Modify Nuki Hub configuration over REST API", _preferences->getBool(preference_config_from_api, false), "");
-    appendCheckBoxRow(response, "CONFPUB", "Report Nuki configuration information to Home Automation", _preferences->getBool(preference_conf_info_enabled, true), "");
 
     if ((_nuki && _nuki->hasKeypad()))
     {
@@ -754,7 +752,7 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
     appendCheckBoxRow(response, "DBGREAD", "Enable Nuki readable data debug logging", _preferences->getBool(preference_debug_readable_data, false), "");
     appendCheckBoxRow(response, "DBGHEX", "Enable Nuki hex data debug logging", _preferences->getBool(preference_debug_hex_data, false), "");
     appendCheckBoxRow(response, "DBGCOMM", "Enable Nuki command debug logging", _preferences->getBool(preference_debug_command, false), "");
-    appendCheckBoxRow(response, "DBGHEAP", "Send free heap to Home Automation", _preferences->getBool(preference_publish_debug_info, false), "");
+    appendCheckBoxRow(response, "DBGHEAP", "Send free heap to Home Automation", _preferences->getBool(preference_send_debug_info, false), "");
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
     response += F("</form>");
@@ -878,7 +876,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
     appendDropDownRow(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions(), "");
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
-    appendInputFieldRow(response, "RSSI", "RSSI Publish interval (seconds; -1 to disable)", _preferences->getInt(preference_rssi_publish_interval), 6, "");
+    appendInputFieldRow(response, "RSSI", "RSSI Publish interval (seconds; -1 to disable)", _preferences->getInt(preference_rssi_send_interval), 6, "");
 #endif
 
     appendCheckBoxRow(response, "RSTDISC", "Restart on disconnect", _preferences->getBool(preference_restart_on_disconnect), "");
@@ -1163,7 +1161,7 @@ void WebCfgServer::buildWifiConnectHtml(WebServer *server)
                       "request.onload = () => { if (document.getElementById(\"aplist\") !== null) { document.getElementById(\"aplist\").innerHTML = request.responseText; } }; request.send(); }</script>");
 
     String response;
-    response.reserve(8192); 
+    response.reserve(8192);
 
     buildHtmlHeader(response, header);
 
@@ -1292,13 +1290,13 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     {
         response += "RSSI Publish interval (s): ";
 
-        if (_preferences->getInt(preference_rssi_publish_interval, 60) < 0)
+        if (_preferences->getInt(preference_rssi_send_interval, 60) < 0)
         {
             response += "Disabled\n";
         }
         else
         {
-            response += String(_preferences->getInt(preference_rssi_publish_interval, 60)) + "\n";
+            response += String(_preferences->getInt(preference_rssi_send_interval, 60)) + "\n";
         }
 
         response += "Find WiFi AP with strongest signal: " + String(_preferences->getBool(preference_find_best_rssi, false) ? "Yes" : "No") + "\n";
@@ -1592,6 +1590,1169 @@ String WebCfgServer::generateConfirmCode()
 {
     int code = random(1000, 9999);
     return String(code);
+}
+
+bool WebCfgServer::processArgs(WebServer *server, String &message)
+{
+    bool configChanged = false;
+    bool aclLvlChanged = false;
+    bool clearHARCredentials = false;
+    bool clearCredentials = false;
+    bool manPairLck = false;
+    bool networkReconfigure = false;
+    bool clearSession = false;
+
+    unsigned char currentBleAddress[6];
+    unsigned char authorizationId[4] = {0x00};
+    unsigned char secretKeyK[32] = {0x00};
+    unsigned char pincode[2] = {0x00};
+
+    uint32_t aclPrefs[17] = {0};
+    uint32_t basicLockConfigAclPrefs[16] = {0};
+    uint32_t advancedLockConfigAclPrefs[25] = {0};
+
+    String pass1 = "";
+    String pass2 = "";
+
+    int paramCount = server->args();
+
+    for (int i = 0; i < paramCount; ++i)
+    {
+        String key = server->argName(i);
+        String value = server->arg(i);
+
+        if (key == "HARADDRESS")
+        {
+            if (_preferences->getString(preference_ha_address, "") != value)
+            {
+                _preferences->putString(preference_ha_address, value);
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "HARPORT")
+        {
+            if (_preferences->getInt(preference_ha_port, 0) != value.toInt())
+            {
+                _preferences->putInt(preference_ha_port, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "HARUSER")
+        {
+            if (value == "#")
+            {
+                clearHARCredentials = true;
+            }
+            else
+            {
+                if (_preferences->getString(preference_ha_user, "") != value)
+                {
+                    _preferences->putString(preference_ha_user, value);
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+        else if (key == "HARPASS")
+        {
+            if (_preferences->getString(preference_ha_password, "") != value)
+            {
+                _preferences->putString(preference_ha_password, value);
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "ENHAR")
+        {
+            if(_preferences->getBool(preference_ha_enabled, false) != (value == "1"))
+            {
+                _network->disableHAR();
+                _preferences->putBool(preference_ha_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "UPTIME")
+        {
+            if(_preferences->getBool(preference_update_time, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_update_time, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "TIMESRV")
+        {
+            if(_preferences->getString(preference_time_server, "pool.ntp.org") != value)
+            {
+                _preferences->putString(preference_time_server, value);
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWHW")
+        {
+            if(_preferences->getInt(preference_network_hardware, 0) != value.toInt())
+            {
+                if(value.toInt() > 1)
+                {
+                    networkReconfigure = true;
+                    if(value.toInt() != 11)
+                    {
+                        _preferences->putInt(preference_network_custom_phy, 0);
+                    }
+                }
+                _preferences->putInt(preference_network_hardware, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTPHY")
+        {
+            if(_preferences->getInt(preference_network_custom_phy, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_phy, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTADDR")
+        {
+            if(_preferences->getInt(preference_network_custom_addr, -1) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_addr, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTIRQ")
+        {
+            if(_preferences->getInt(preference_network_custom_irq, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_irq, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTRST")
+        {
+            if(_preferences->getInt(preference_network_custom_rst, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_rst, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTCS")
+        {
+            if(_preferences->getInt(preference_network_custom_cs, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_cs, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTSCK")
+        {
+            if(_preferences->getInt(preference_network_custom_sck, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_sck, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTMISO")
+        {
+            if(_preferences->getInt(preference_network_custom_miso, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_miso, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTMOSI")
+        {
+            if(_preferences->getInt(preference_network_custom_mosi, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_mosi, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTPWR")
+        {
+            if(_preferences->getInt(preference_network_custom_pwr, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_pwr, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTMDIO")
+        {
+            if(_preferences->getInt(preference_network_custom_mdio, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_mdio, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTMDC")
+        {
+            if(_preferences->getInt(preference_network_custom_mdc, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_mdc, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NWCUSTCLK")
+        {
+            if(_preferences->getInt(preference_network_custom_clk, 0) != value.toInt())
+            {
+                networkReconfigure = true;
+                _preferences->putInt(preference_network_custom_clk, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "RSSI")
+        {
+            if(_preferences->getInt(preference_rssi_send_interval, 60) != value.toInt())
+            {
+                _preferences->putInt(preference_rssi_send_interval, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "CREDLFTM")
+        {
+            if(_preferences->getInt(preference_cred_session_lifetime, 3600) != value.toInt())
+            {
+                _preferences->putInt(preference_cred_session_lifetime, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+                clearSession = true;
+            }
+        }
+        else if(key == "CREDLFTMRMBR")
+        {
+            if(_preferences->getInt(preference_cred_session_lifetime_remember, 720) != value.toInt())
+            {
+                _preferences->putInt(preference_cred_session_lifetime_remember, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+                clearSession = true;
+            }
+        }
+        else if(key == "HOSTNAME")
+        {
+            if(_preferences->getString(preference_hostname, "") != value)
+            {
+                _preferences->putString(preference_hostname, value);
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "NETTIMEOUT")
+        {
+            if(_preferences->getInt(preference_network_timeout, 60) != value.toInt())
+            {
+                _preferences->putInt(preference_network_timeout, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "FINDBESTRSSI")
+        {
+            if(_preferences->getBool(preference_find_best_rssi, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_find_best_rssi, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "RSTDISC")
+        {
+            if(_preferences->getBool(preference_restart_on_disconnect, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_restart_on_disconnect, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "DHCPENA")
+        {
+            if(_preferences->getBool(preference_ip_dhcp_enabled, true) != (value == "1"))
+            {
+                _preferences->putBool(preference_ip_dhcp_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "IPADDR")
+        {
+            if(_preferences->getString(preference_ip_address, "") != value)
+            {
+                _preferences->putString(preference_ip_address, value);
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "IPSUB")
+        {
+            if(_preferences->getString(preference_ip_subnet, "") != value)
+            {
+                _preferences->putString(preference_ip_subnet, value);
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "IPGTW")
+        {
+            if(_preferences->getString(preference_ip_gateway, "") != value)
+            {
+                _preferences->putString(preference_ip_gateway, value);
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "DNSSRV")
+        {
+            if(_preferences->getString(preference_ip_dns_server, "") != value)
+            {
+                _preferences->putString(preference_ip_dns_server, value);
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "LSTINT")
+        {
+            if(_preferences->getInt(preference_query_interval_lockstate, 1800) != value.toInt())
+            {
+                _preferences->putInt(preference_query_interval_lockstate, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "CFGINT")
+        {
+            if(_preferences->getInt(preference_query_interval_configuration, 3600) != value.toInt())
+            {
+                _preferences->putInt(preference_query_interval_configuration, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "BATINT")
+        {
+            if(_preferences->getInt(preference_query_interval_battery, 1800) != value.toInt())
+            {
+                _preferences->putInt(preference_query_interval_battery, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "KPINT")
+        {
+            if(_preferences->getInt(preference_query_interval_keypad, 1800) != value.toInt())
+            {
+                _preferences->putInt(preference_query_interval_keypad, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "NRTRY")
+        {
+            if(_preferences->getInt(preference_command_nr_of_retries, 3) != value.toInt())
+            {
+                _preferences->putInt(preference_command_nr_of_retries, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "TRYDLY")
+        {
+            if(_preferences->getInt(preference_command_retry_delay, 100) != value.toInt())
+            {
+                _preferences->putInt(preference_command_retry_delay, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "TXPWR")
+        {
+            #if defined(CONFIG_IDF_TARGET_ESP32)
+            if(value.toInt() >= -12 && value.toInt() <= 9)
+            #else
+            if(value.toInt() >= -12 && value.toInt() <= 20)
+            #endif
+            {
+                if(_preferences->getInt(preference_ble_tx_power, 9) != value.toInt())
+                {
+                    _preferences->putInt(preference_ble_tx_power, value.toInt());
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    //configChanged = true;
+                }
+            }
+        }
+        else if(key == "RSBC")
+        {
+            if(_preferences->getInt(preference_restart_ble_beacon_lost, 60) != value.toInt())
+            {
+                _preferences->putInt(preference_restart_ble_beacon_lost, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "TSKNTWK")
+        {
+            if(value.toInt() > 12287 && value.toInt() < 65537)
+            {
+                if(_preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE) != value.toInt())
+                {
+                    _preferences->putInt(preference_task_size_network, value.toInt());
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+        else if(key == "TSKNUKI")
+        {
+            if(value.toInt() > 8191 && value.toInt() < 65537)
+            {
+                if(_preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE) != value.toInt())
+                {
+                    _preferences->putInt(preference_task_size_nuki, value.toInt());
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+        else if(key == "ALMAX")
+        {
+            if(value.toInt() > 0 && value.toInt() < 101)
+            {
+                if(_preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG) != value.toInt())
+                {
+                    _preferences->putInt(preference_authlog_max_entries, value.toInt());
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    //configChanged = true;
+                }
+            }
+        }
+        else if(key == "KPMAX")
+        {
+            if(value.toInt() > 0 && value.toInt() < 201)
+            {
+                if(_preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD) != value.toInt())
+                {
+                    _preferences->putInt(preference_keypad_max_entries, value.toInt());
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    //configChanged = true;
+                }
+            }
+        }
+        else if(key == "TCMAX")
+        {
+            if(value.toInt() > 0 && value.toInt() < 101)
+            {
+                if(_preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL) != value.toInt())
+                {
+                    _preferences->putInt(preference_timecontrol_max_entries, value.toInt());
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    //configChanged = true;
+                }
+            }
+        }
+        else if(key == "AUTHMAX")
+        {
+            if(value.toInt() > 0 && value.toInt() < 101)
+            {
+                if(_preferences->getInt(preference_auth_max_entries, MAX_AUTH) != value.toInt())
+                {
+                    _preferences->putInt(preference_auth_max_entries, value.toInt());
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    //configChanged = true;
+                }
+            }
+        }
+        else if(key == "BUFFSIZE")
+        {
+            if(value.toInt() > 4095 && value.toInt() < 65537)
+            {
+                if(_preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE) != value.toInt())
+                {
+                    _preferences->putInt(preference_buffer_size, value.toInt());
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+        else if(key == "BTLPRST")
+        {
+            if(_preferences->getBool(preference_enable_bootloop_reset, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_enable_bootloop_reset, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "DISNTWNOCON")
+        {
+            if(_preferences->getBool(preference_disable_network_not_connected, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_disable_network_not_connected, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "SHOWSECRETS")
+        {
+            if(_preferences->getBool(preference_show_secrets, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_show_secrets, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "DBGCONN")
+        {
+            if(_preferences->getBool(preference_debug_connect, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_debug_connect, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "DBGCOMMU")
+        {
+            if(_preferences->getBool(preference_debug_communication, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_debug_communication, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "DBGHEAP")
+        {
+            if(_preferences->getBool(preference_send_debug_info, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_send_debug_info, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "DBGREAD")
+        {
+            if(_preferences->getBool(preference_debug_readable_data, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_debug_readable_data, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "DBGHEX")
+        {
+            if(_preferences->getBool(preference_debug_hex_data, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_debug_hex_data, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "DBGCOMM")
+        {
+            if(_preferences->getBool(preference_debug_command, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_debug_command, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "LCKFORCEID")
+        {
+            if(_preferences->getBool(preference_lock_force_id, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_lock_force_id, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+            }
+        }
+        else if(key == "LCKFORCEKP")
+        {
+            if(_preferences->getBool(preference_lock_force_keypad, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_lock_force_keypad, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+            }
+        }
+        else if(key == "LCKFORCEDS")
+        {
+            if(_preferences->getBool(preference_lock_force_doorsensor, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_lock_force_doorsensor, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+            }
+        }
+        else if(key == "ACLLVLCHANGED")
+        {
+            aclLvlChanged = true;
+        }
+        else if(key == "CREDDIGEST")
+        {
+            if(_preferences->getInt(preference_http_auth_type, 0) != value.toInt())
+            {
+                _preferences->putInt(preference_http_auth_type, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+                clearSession = true;
+            }
+        }        
+        else if(key == "CREDTRUSTPROXY")
+        {
+            if(value != "*")
+            {
+                if(_preferences->getString(preference_bypass_proxy, "") != value)
+                {
+                    _preferences->putString(preference_bypass_proxy, value);
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                    clearSession = true;
+                }
+            }
+        }
+        else if(key == "ACLLCKLCK")
+        {
+            aclPrefs[0] = ((value == "1") ? 1 : 0);
+        }
+        else if(key == "ACLLCKUNLCK")
+        {
+            aclPrefs[1] = ((value == "1") ? 1 : 0);
+        }
+        else if(key == "ACLLCKUNLTCH")
+        {
+            aclPrefs[2] = ((value == "1") ? 1 : 0);
+        }
+        else if(key == "ACLLCKLNG")
+        {
+            aclPrefs[3] = ((value == "1") ? 1 : 0);
+        }
+        else if(key == "ACLLCKLNGU")
+        {
+            aclPrefs[4] = ((value == "1") ? 1 : 0);
+        }
+        else if(key == "ACLLCKFLLCK")
+        {
+            aclPrefs[5] = ((value == "1") ? 1 : 0);
+        }
+        else if(key == "ACLLCKFOB1")
+        {
+            aclPrefs[6] = ((value == "1") ? 1 : 0);
+        }
+        else if(key == "ACLLCKFOB2")
+        {
+            aclPrefs[7] = ((value == "1") ? 1 : 0);
+        }
+        else if(key == "ACLLCKFOB3")
+        {
+            aclPrefs[8] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKNAME")
+        {
+            basicLockConfigAclPrefs[0] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKLAT")
+        {
+            basicLockConfigAclPrefs[1] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKLONG")
+        {
+            basicLockConfigAclPrefs[2] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKAUNL")
+        {
+            basicLockConfigAclPrefs[3] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKPRENA")
+        {
+            basicLockConfigAclPrefs[4] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKBTENA")
+        {
+            basicLockConfigAclPrefs[5] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKLEDENA")
+        {
+            basicLockConfigAclPrefs[6] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKLEDBR")
+        {
+            basicLockConfigAclPrefs[7] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKTZOFF")
+        {
+            basicLockConfigAclPrefs[8] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKDSTM")
+        {
+            basicLockConfigAclPrefs[9] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKFOB1")
+        {
+            basicLockConfigAclPrefs[10] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKFOB2")
+        {
+            basicLockConfigAclPrefs[11] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKFOB3")
+        {
+            basicLockConfigAclPrefs[12] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKSGLLCK")
+        {
+            basicLockConfigAclPrefs[13] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKADVM")
+        {
+            basicLockConfigAclPrefs[14] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKTZID")
+        {
+            basicLockConfigAclPrefs[15] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKUPOD")
+        {
+            advancedLockConfigAclPrefs[0] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKLPOD")
+        {
+            advancedLockConfigAclPrefs[1] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKSLPOD")
+        {
+            advancedLockConfigAclPrefs[2] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKUTLTOD")
+        {
+            advancedLockConfigAclPrefs[3] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKLNGT")
+        {
+            advancedLockConfigAclPrefs[4] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKSBPA")
+        {
+            advancedLockConfigAclPrefs[5] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKDBPA")
+        {
+            advancedLockConfigAclPrefs[6] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKDC")
+        {
+            advancedLockConfigAclPrefs[7] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKBATT")
+        {
+            advancedLockConfigAclPrefs[8] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKABTD")
+        {
+            advancedLockConfigAclPrefs[9] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKUNLD")
+        {
+            advancedLockConfigAclPrefs[10] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKALT")
+        {
+            advancedLockConfigAclPrefs[11] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKAUNLD")
+        {
+            advancedLockConfigAclPrefs[12] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKNMENA")
+        {
+            advancedLockConfigAclPrefs[13] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKNMST")
+        {
+            advancedLockConfigAclPrefs[14] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKNMET")
+        {
+            advancedLockConfigAclPrefs[15] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKNMALENA")
+        {
+            advancedLockConfigAclPrefs[16] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKNMAULD")
+        {
+            advancedLockConfigAclPrefs[17] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKNMLOS")
+        {
+            advancedLockConfigAclPrefs[18] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKALENA")
+        {
+            advancedLockConfigAclPrefs[19] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKIALENA")
+        {
+            advancedLockConfigAclPrefs[20] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKAUENA")
+        {
+            advancedLockConfigAclPrefs[21] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKRBTNUKI")
+        {
+            advancedLockConfigAclPrefs[22] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "CONFLCKMTRSPD")
+        {
+            advancedLockConfigAclPrefs[23] = ((value == "1") ? 1 : 0);
+        }
+        else if (key == "LOCKENA")
+        {
+            if (_preferences->getBool(preference_lock_enabled, true) != (value == "1"))
+            {
+                _preferences->putBool(preference_lock_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "CONNMODE")
+        {
+            if (_preferences->getBool(preference_connect_mode, true) != (value == "1"))
+            {
+                _preferences->putBool(preference_connect_mode, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "CREDUSER")
+        {
+            if (value == "#")
+            {
+                clearCredentials = true;
+            }
+            else
+            {
+                if (_preferences->getString(preference_cred_user, "") != value)
+                {
+                    _preferences->putString(preference_cred_user, value);
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                    clearSession = true;
+                }
+            }
+        }
+        else if (key == "CREDPASS")
+        {
+            pass1 = value;
+        }
+        else if (key == "CREDPASSRE")
+        {
+            pass2 = value;
+        }
+        else if (key == "CREDBYPASS")
+        {
+            if (value != "*")
+            {
+                if (_preferences->getString(preference_bypass_secret, "") != value)
+                {
+                    _preferences->putString(preference_bypass_secret, value);
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+        else if (key == "CREDADMIN")
+        {
+            if (value != "*")
+            {
+                if (_preferences->getString(preference_admin_secret, "") != value)
+                {
+                    _preferences->putString(preference_admin_secret, value);
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+        else if (key == "NUKIPIN" && _nuki != nullptr)
+        {
+            if (value == "#")
+            {
+
+                message = "Nuki Lock PIN cleared";
+                _nuki->setPin(0xffff);
+
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+            else
+            {
+
+                if (_nuki->getPin() != value.toInt())
+                {
+                    message = "Nuki Lock PIN saved";
+                    _nuki->setPin(value.toInt());
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+        else if (key == "LCKMANPAIR" && (value == "1"))
+        {
+            manPairLck = true;
+        }
+        else if (key == "LCKBLEADDR")
+        {
+            if (value.length() == 12)
+                for (int i = 0; i < value.length(); i += 2)
+                {
+                    currentBleAddress[(i / 2)] = std::stoi(value.substring(i, i + 2).c_str(), nullptr, 16);
+                }
+        }
+        else if (key == "LCKSECRETK")
+        {
+            if (value.length() == 64)
+                for (int i = 0; i < value.length(); i += 2)
+                {
+                    secretKeyK[(i / 2)] = std::stoi(value.substring(i, i + 2).c_str(), nullptr, 16);
+                }
+        }
+        else if (key == "LCKAUTHID")
+        {
+            if (value.length() == 8)
+                for (int i = 0; i < value.length(); i += 2)
+                {
+                    authorizationId[(i / 2)] = std::stoi(value.substring(i, i + 2).c_str(), nullptr, 16);
+                }
+        }
+
+        // TODO: further else if for other parameters, analogous to above...
+    }
+
+    if (networkReconfigure)
+    {
+        _preferences->putBool(preference_ntw_reconfigure, true);
+    }
+
+    if (manPairLck)
+    {
+        Log->println("Changing lock pairing");
+        Preferences nukiBlePref;
+        nukiBlePref.begin("NukiBridge", false);
+        nukiBlePref.putBytes("bleAddress", currentBleAddress, 6);
+        nukiBlePref.putBytes("secretKeyK", secretKeyK, 32);
+        nukiBlePref.putBytes("authorizationId", authorizationId, 4);
+        nukiBlePref.putBytes("securityPinCode", pincode, 2);
+
+        nukiBlePref.end();
+        Log->print("Setting changed: ");
+        Log->println("Lock pairing data");
+        configChanged = true;
+    }
+
+    if (pass1 != "" && pass1 != "*" && pass1 == pass2)
+    {
+        if (_preferences->getString(preference_cred_password, "") != pass1)
+        {
+            _preferences->putString(preference_cred_password, pass1);
+            Log->print("Setting changed: ");
+            Log->println("CREDPASS");
+            configChanged = true;
+            clearSession = true;
+        }
+    }
+
+    if (clearHARCredentials)
+    {
+        if (_preferences->getString(preference_ha_user, "") != "")
+        {
+            _preferences->putString(preference_ha_user, "");
+            Log->print("Setting changed: ");
+            Log->println("HARUSER");
+            configChanged = true;
+        }
+        if (_preferences->getString(preference_ha_password, "") != "")
+        {
+            _preferences->putString(preference_ha_password, "");
+            Log->print("Setting changed: ");
+            Log->println("HARPASS");
+            configChanged = true;
+        }
+    }
+
+    if (clearCredentials)
+    {
+        if (_preferences->getString(preference_cred_user, "") != "")
+        {
+            _preferences->putString(preference_cred_user, "");
+            Log->print("Setting changed: ");
+            Log->println("CREDUSER");
+            configChanged = true;
+            clearSession = true;
+        }
+        if (_preferences->getString(preference_cred_password, "") != "")
+        {
+            _preferences->putString(preference_cred_password, "");
+            Log->print("Setting changed: ");
+            Log->println("CREDPASS");
+            configChanged = true;
+            clearSession = true;
+        }
+    }
+
+    // Save ACL changes (only if flag is set)
+    if (aclLvlChanged)
+    {
+        uint32_t curAclPrefs[17] = {0};
+        uint32_t curBasicLockConfigAclPrefs[16] = {0};
+        uint32_t curAdvancedLockConfigAclPrefs[25] = {0};
+        uint32_t curBasicOpenerConfigAclPrefs[14] = {0};
+        uint32_t curAdvancedOpenerConfigAclPrefs[21] = {0};
+
+        _preferences->getBytes(preference_acl, curAclPrefs, sizeof(curAclPrefs));
+        _preferences->getBytes(preference_conf_lock_basic_acl, curBasicLockConfigAclPrefs, sizeof(curBasicLockConfigAclPrefs));
+        _preferences->getBytes(preference_conf_lock_advanced_acl, curAdvancedLockConfigAclPrefs, sizeof(curAdvancedLockConfigAclPrefs));
+
+        for (int i = 0; i < 17; ++i)
+        {
+            if (curAclPrefs[i] != aclPrefs[i])
+            {
+                _preferences->putBytes(preference_acl, (byte *)aclPrefs, sizeof(aclPrefs));
+                Log->println("Setting changed: ACLPREFS");
+                break;
+            }
+        }
+        for (int i = 0; i < 16; ++i)
+        {
+            if (curBasicLockConfigAclPrefs[i] != basicLockConfigAclPrefs[i])
+            {
+                _preferences->putBytes(preference_conf_lock_basic_acl, (byte *)basicLockConfigAclPrefs, sizeof(basicLockConfigAclPrefs));
+                Log->println("Setting changed: ACLCONFBASICLOCK");
+                break;
+            }
+        }
+        for (int i = 0; i < 25; ++i)
+        {
+            if (curAdvancedLockConfigAclPrefs[i] != advancedLockConfigAclPrefs[i])
+            {
+                _preferences->putBytes(preference_conf_lock_advanced_acl, (byte *)advancedLockConfigAclPrefs, sizeof(advancedLockConfigAclPrefs));
+                Log->println("Setting changed: ACLCONFADVANCEDLOCK");
+                break;
+            }
+        }
+    }
+
+    if (clearSession)
+    {
+        clearSessions();
+    }
+
+    if (configChanged)
+    {
+        message = F("Configuration saved, reboot required to apply");
+        _rebootRequired = true;
+    }
+    else
+    {
+        message = F("Configuration saved.");
+    }
+
+    _network->readSettings();
+    if (_nuki)
+        _nuki->readSettings();
+
+    return configChanged;
 }
 
 bool WebCfgServer::processBypass(WebServer *server)

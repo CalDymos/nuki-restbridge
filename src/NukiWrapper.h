@@ -150,7 +150,7 @@ private:
     bool _nukiAdvancedConfigValid = false;
     bool _paired = false;
     bool _statusUpdated = false;
-    bool _publishAuthData = false;
+    bool _sendAuthData = false;
     bool _clearAuthData = false;
     bool _checkKeypadCodes = false;
 

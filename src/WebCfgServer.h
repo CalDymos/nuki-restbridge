@@ -73,6 +73,7 @@ private:
     void appendParameterRow(String &response, const char *description, const char *value, const char *link = "", const char *id = "");
     void waitAndProcess(const bool blocking, const uint32_t duration);
     bool processWiFi(WebServer *server, String &message);
+    bool processArgs(WebServer *server, String &message);
     bool processBypass(WebServer *server);
     bool processLogin(WebServer *server);
     bool processFactoryReset(WebServer *server);
