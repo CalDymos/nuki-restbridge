@@ -38,24 +38,24 @@
 #define preference_rssi_send_interval (char *)"rssipb"
 #define preference_time_server (char *)"timeServer"
 #define preference_network_hardware (char *)"nwhw"
-#define preference_network_custom_phy (char*)"ntwPHY"
-#define preference_network_custom_addr (char*)"ntwADDR"
-#define preference_network_custom_irq (char*)"ntwIRQ"
-#define preference_network_custom_rst (char*)"ntwRST"
-#define preference_network_custom_cs (char*)"ntwCS"
-#define preference_network_custom_sck (char*)"ntwSCK"
-#define preference_network_custom_miso (char*)"ntwMISO"
-#define preference_network_custom_mosi (char*)"ntwMOSI"
-#define preference_network_custom_pwr (char*)"ntwPWR"
-#define preference_network_custom_mdio (char*)"ntwMDIO"
-#define preference_network_custom_mdc (char*)"ntwMDC"
-#define preference_network_custom_clk (char*)"ntwCLK"
+#define preference_network_custom_phy (char *)"ntwPHY"
+#define preference_network_custom_addr (char *)"ntwADDR"
+#define preference_network_custom_irq (char *)"ntwIRQ"
+#define preference_network_custom_rst (char *)"ntwRST"
+#define preference_network_custom_cs (char *)"ntwCS"
+#define preference_network_custom_sck (char *)"ntwSCK"
+#define preference_network_custom_miso (char *)"ntwMISO"
+#define preference_network_custom_mosi (char *)"ntwMOSI"
+#define preference_network_custom_pwr (char *)"ntwPWR"
+#define preference_network_custom_mdio (char *)"ntwMDIO"
+#define preference_network_custom_mdc (char *)"ntwMDC"
+#define preference_network_custom_clk (char *)"ntwCLK"
 
 // BLE
 #define preference_ble_tx_power (char *)"bleTxPwr"
 
 // Nuki Settings (Lock, Keypad, ...)
-#define preference_nuki_id_lock (char *)"nukiId" // Nuki lock ID (not user-changeable)
+#define preference_nuki_id_lock (char *)"nukiId"     // Nuki lock ID (not user-changeable)
 #define preference_device_id_lock (char *)"deviceId" // Nuki Bridge ID for Lock (not user-changeable)
 #define preference_lock_enabled (char *)"lockena"
 #define preference_lock_force_id (char *)"lckForceId"
@@ -64,7 +64,7 @@
 #define preference_acl (char *)"aclLckOpn"
 #define preference_conf_lock_basic_acl (char *)"confLckBasAcl"
 #define preference_conf_lock_advanced_acl (char *)"confLckAdvAcl"
-#define preference_lock_max_keypad_code_count (char *)"maxkpad" // not user-changeable
+#define preference_lock_max_keypad_code_count (char *)"maxkpad"     // not user-changeable
 #define preference_lock_max_auth_entry_count (char *)"maxauth"      // not user-changeable
 #define preference_lock_max_timecontrol_entry_count (char *)"maxtc" // not user-changeable
 #define preference_lock_pin_status (char *)"lockpin"                // not user-changeable
@@ -75,7 +75,6 @@
 #define preference_auth_max_entries (char *)"authmaxentry"
 #define preference_authlog_max_entries (char *)"authmaxlogentry"
 #define preference_auth_info_enabled (char *)"authInfoEna"
-#define preference_send_authdata (char *)"pubAuth"
 #define preference_access_level (char *)"accLvl"
 #define preference_timecontrol_max_entries (char *)"tcmaxentry"
 #define preference_timecontrol_info_enabled (char *)"tcInfoEnabled"
@@ -117,6 +116,8 @@
 #define preference_ha_query_ble_address (char *)"haQueryBleAddr"
 #define preference_ha_path_ble_strength (char *)"haPathBleStr"
 #define preference_ha_query_ble_strength (char *)"haQueryBleStr"
+#define preference_ha_path_ble_rssi (char *)"haPathBleRssi"
+#define preference_ha_query_ble_rssi (char *)"haQueryBleRssi"
 
 #define preference_ha_path_lock_state (char *)"haPathLckStat"
 #define preference_ha_query_lock_state (char *)"haQueryLckStat"
@@ -143,10 +144,19 @@
 #define preference_ha_path_lock_battery_charging (char *)"haPathLckBatChrg"
 #define preference_ha_query_lock_battery_charging (char *)"haQueryLckBatChrg"
 
+#define preference_ha_path_battery_voltage (char *)"haPathBatteryVolt"
+#define preference_ha_query_battery_voltage (char *)"haQueryBatteryVolt"
+#define preference_ha_path_battery_drain (char *)"haPathBatteryDrain"
+#define preference_ha_query_battery_drain (char *)"haQueryBatteryDrain"
+#define preference_ha_path_battery_max_turn_current (char *)"haPathBattMaxTurnCur"
+#define preference_ha_query_battery_max_turn_current (char *)"haQueryBattMaxTurnCur"
+#define preference_ha_path_battery_lock_distance (char *)"haPathBattLockDist"
+#define preference_ha_query_battery_lock_distance (char *)"haQueryBattLockDist"
+
 // API / Web Configurator
 #define preference_api_enabled (char *)"ApiEna"
 #define preference_api_port (char *)"ApiPort"
-#define preference_api_Token (char *)"ApiToken"
+#define preference_api_token (char *)"ApiToken"
 #define preference_config_from_api (char *)"nhCntrlEnabled"
 
 #define preference_webcfgserver_enabled (char *)"webCfgSrvEna"
@@ -170,8 +180,7 @@
 #define preference_log_backup_ftp_user (char *)"logBckUsr"
 #define preference_log_backup_ftp_pwd (char *)"logBckPwd"
 #define preference_log_backup_file_index (char *)"logBckFileId"
-#define preference_Maintenance_publish_interval (char *)"maintpb"
-
+#define preference_Maintenance_send_interval (char *)"maintpb"
 
 inline bool initPreferences(Preferences *&preferences)
 {

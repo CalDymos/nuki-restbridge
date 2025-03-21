@@ -79,6 +79,9 @@ public:
 
     void sendToHALockBleAddress(const std::string &address);
     void sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurnerState, const NukiLock::KeyTurnerState &lastKeyTurnerState);
+    void sendToHABatteryReport(const NukiLock::BatteryReport &batteryReport);
+    void sendToHABleRssi(const int &rssi);
+
     /**
      * @brief Prüft, ob die (evtl. im AP-Modus geöffnete) Access-Point-Schnittstelle offen ist.
      */
@@ -153,11 +156,13 @@ public:
     void sendResponse(JsonDocument &jsonResult, bool success = true, int httpCode = 200);
 
     void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value));
-
+    void setTimeControlCommandReceivedCallback(void (*timeControlCommandReceivedReceivedCallback)(const char *value));
     /**
      * @brief Liest gespeicherte WiFi-Konfiguration / IP-Konfiguration etc.
      */
     void readSettings();
+    void assignNewApiToken();
+    char *getApiToken();
 
 private:
     /**
@@ -267,8 +272,8 @@ private:
     HTTPClient *_httpClient = nullptr;
     int _foundNetworks = 0;
     int _networkTimeout = 0;
-    int _rssiPublishInterval = 0;
-    int _MaintenancePublishIntervall = 0;
+    int _rssiSendInterval = 0;
+    int _MaintenanceSendIntervall = 0;
     int _networkServicesConnectCounter = 0;
 
     // Signal strength & network type

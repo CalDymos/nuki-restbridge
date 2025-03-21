@@ -105,7 +105,6 @@ private:
     LockActionResult onLockActionReceived(const char* value);
     void postponeBleWatchdog();
 
-    void updateAuthData(bool retrieved);
     /**
      * @brief Fragt den Status (KeyTurnerState) des Schlosses aktiv ab (z.B. ob verriegelt).
      *        Return-Wert zeigt an, ob das Abfragen geklappt hat.
@@ -118,12 +117,22 @@ private:
      */
     bool updateBatteryState();
 
+    bool updateConfig();
+    void updateAuthData(bool retrieved);
+    void updateTimeControl(bool retrieved);
+    void updateKeypad(bool retrieved);
+    void updateAuth(bool retrieved);
+    void updateTime();
+
+    void readConfig();
+    void readAdvancedConfig();
+
 
     void printCommandResult(Nuki::CmdResult result);
 
     NukiLock::LockAction lockActionToEnum(const char* str); // char array at least 14 characters
 
-    // Interne NukiLock-Instanz, die für die eigentliche BLE-Kommunikation sorgt
+    // Internal NukiLock instance that takes care of the actual BLE communication
     NukiLock::NukiLock _nukiLock;
 
     std::string _deviceName;
@@ -132,27 +141,30 @@ private:
     Preferences *_preferences;
     NukiNetwork *_network = nullptr;
 
+    std::vector<uint16_t> _keypadCodeIds;
+    std::vector<uint32_t> _keypadCodes;
+    std::vector<uint8_t> _timeControlIds;
+    std::vector<uint32_t> _authIds;
     NukiLock::KeyTurnerState _lastKeyTurnerState;
     NukiLock::KeyTurnerState _keyTurnerState;
 
     NukiLock::BatteryReport _batteryReport;
     NukiLock::BatteryReport _lastBatteryReport;
 
-    // Merker, ob bereits einmal initialize() aufgerufen wurde
-    bool _initialized = false;
-
     int _intervalLockstate = 0;    // seconds
     int _intervalBattery = 0;      // seconds
     int _intervalConfig = 60 * 60; // seconds
     int _intervalKeypad = 0;       // seconds
 
+    NukiLock::Config _nukiConfig = {0};
+    NukiLock::AdvancedConfig _nukiAdvancedConfig = {0};
     bool _nukiConfigValid = false;
     bool _nukiAdvancedConfigValid = false;
     bool _paired = false;
     bool _statusUpdated = false;
-    bool _sendAuthData = false;
-    bool _clearAuthData = false;
     bool _checkKeypadCodes = false;
+    int _invalidCount = 0;
+    int64_t _lastCodeCheck = 0;
 
     int _nrOfRetries = 0;
     int _retryDelay = 0;
@@ -173,6 +185,15 @@ private:
     int64_t _disableBleWatchdogTs = 0;
     int64_t _nextLockStateUpdateTs = 0;
     int64_t _waitAuthLogUpdateTs = 0;
+    int64_t _waitKeypadUpdateTs = 0;
+    int64_t _nextBatteryReportTs = 0;
+    int64_t _nextConfigUpdateTs = 0;
+    int64_t _waitTimeControlUpdateTs = 0;
+    int64_t _waitAuthUpdateTs = 0;
+    int64_t _nextTimeUpdateTs = 0;
+    int64_t _nextRssiTs = 0;
+    int64_t _lastRssi = 0;
+    int64_t _nextKeypadUpdateTs = 0;
     uint32_t _basicLockConfigaclPrefs[16];
     uint32_t _advancedLockConfigaclPrefs[25];
     String _firmwareVersion = "";

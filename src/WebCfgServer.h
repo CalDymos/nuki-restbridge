@@ -70,6 +70,8 @@ private:
     void buildHtmlHeader(String &response, const String &additionalHeader = "");
     void buildNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage = "");
     void buildConfigureWifiHtml(WebServer *server);
+    void buildApiConfigHtml(WebServer *server);
+    void buildHARConfigHtml(WebServer *server);
     void appendParameterRow(String &response, const char *description, const char *value, const char *link = "", const char *id = "");
     void waitAndProcess(const bool blocking, const uint32_t duration);
     bool processWiFi(WebServer *server, String &message);
