@@ -63,27 +63,90 @@ public:
     void scan(bool passive = false, bool async = true);
 
     // Data send methods to home automation
-    void sendToHAFloat(const char *path, const char *query, const float value, const uint8_t precision = 2);
     /**
-     * @brief Sendet Daten als Int an eine Home-Automation.
-     * @param path  REST-Pfad
-     * @param query Zusätzliche Query
-     * @param value Der zu sendende Wert
+     * @brief Sends an Float value to the Home Automation system.
+     * @param path Target REST path.
+     * @param query Query string.
+     * @param value Float value to send.
+     */
+    void sendToHAFloat(const char *path, const char *query, const float value, const uint8_t precision = 2);
+
+    /**
+     * @brief Sends an integer value to the Home Automation system.
+     * @param path Target REST path.
+     * @param query Query string.
+     * @param value Integer value to send.
      */
     void sendToHAInt(const char *path, const char *query, const int value);
+
+    /**
+     * @brief Sends an unsigned integer value to the Home Automation system.
+     * @param path Target REST path.
+     * @param query Query string.
+     * @param value Unsigned integer value to send.
+     */
     void sendToHAUInt(const char *path, const char *query, const unsigned int value);
+
+    /**
+     * @brief Sends an unsigned long value to the Home Automation system.
+     * @param path Target REST path.
+     * @param query Query string.
+     * @param value Unsigned long value to send.
+     */
     void sendToHAULong(const char *path, const char *query, const unsigned long value);
+
+    /**
+     * @brief Sends a 64-bit integer value to the Home Automation system.
+     * @param path Target REST path.
+     * @param query Query string.
+     * @param value 64-bit integer value to send.
+     */
     void sendToHALongLong(const char *path, const char *query, int64_t value);
+
+    /**
+     * @brief Sends a boolean value to the Home Automation system.
+     * @param path Target REST path.
+     * @param query Query string.
+     * @param value Boolean value to send.
+     */
     void sendToHABool(const char *path, const char *query, const bool value);
+
+    /**
+     * @brief Sends a string value to the Home Automation system.
+     * @param path Target REST path.
+     * @param query Query string.
+     * @param value String value to send.
+     */
     void sendToHAString(const char *path, const char *query, const char *value);
 
+    /**
+     * @brief Sends the BLE address of the lock to the Home Automation system.
+     * @param address BLE address as std::string.
+     */
     void sendToHALockBleAddress(const std::string &address);
+
+    /**
+     * @brief Sends the key turner state to the Home Automation system.
+     * @param keyTurnerState Current key turner state.
+     * @param lastKeyTurnerState Previously known key turner state.
+     */
     void sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurnerState, const NukiLock::KeyTurnerState &lastKeyTurnerState);
+
+    /**
+     * @brief Sends the battery report to the Home Automation system.
+     * @param batteryReport Struct containing battery data.
+     */
     void sendToHABatteryReport(const NukiLock::BatteryReport &batteryReport);
+
+    /**
+     * @brief Sends the BLE RSSI value to the Home Automation system.
+     * @param rssi Received signal strength indicator (RSSI).
+     */
     void sendToHABleRssi(const int &rssi);
 
     /**
-     * @brief Prüft, ob die (evtl. im AP-Modus geöffnete) Access-Point-Schnittstelle offen ist.
+     * @brief Checks whether the access point is currently open (AP mode).
+     * @return True if access point is open.
      */
     bool isApOpen() const;
 
@@ -106,7 +169,7 @@ public:
     String localIP() const;
 
     /**
-     * @brief Liefert eine Kennung für Ethernet oder WiFi (z.B. BSSID).
+     * @brief Returns the network BSSID string (only available for WiFi).
      */
     String networkBSSID() const;
 
@@ -128,7 +191,7 @@ public:
     void disableAutoRestarts();
 
     /**
-     * @brief Deaktiviert REST Api schnittstelle.
+     * @brief Disables the REST API interface.
      */
     void disableAPI();
 
@@ -155,13 +218,31 @@ public:
     void sendResponse(const char *jsonResultStr);
     void sendResponse(JsonDocument &jsonResult, bool success = true, int httpCode = 200);
 
-    void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value));
-    void setTimeControlCommandReceivedCallback(void (*timeControlCommandReceivedReceivedCallback)(const char *value));
     /**
-     * @brief Liest gespeicherte WiFi-Konfiguration / IP-Konfiguration etc.
+     * @brief Sets the callback for lock action requests.
+     * @param lockActionReceivedCallback Function pointer to lock action handler.
+     */
+    void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value));
+    /**
+     * @brief Sets the callback for time control command requests.
+     * @param timeControlCommandReceivedReceivedCallback Function pointer to time control handler.
+     */
+    void setTimeControlCommandReceivedCallback(void (*timeControlCommandReceivedReceivedCallback)(const char *value));
+
+    /**
+     * @brief Loads saved WiFi and IP configuration settings.
      */
     void readSettings();
+
+    /**
+     * @brief Sets a new API token and stores it in preferences.
+     */
     void assignNewApiToken();
+
+    /**
+     * @brief Returns the current API token string.
+     * @return Pointer to the API token.
+     */
     char *getApiToken();
 
 private:
@@ -221,8 +302,26 @@ private:
      */
     void onDisconnected();
 
+    /**
+     * @brief Checks whether a REST path starts with the configured bridge path.
+     * @param fullPath Full path received from the request.
+     * @param subPath Path to compare with.
+     * @return True if prefixed path matches.
+     */
     bool comparePrefixedPath(const char *fullPath, const char *subPath);
+
+    /**
+     * @brief Combines bridge path with the subpath.
+     * @param path Path to append.
+     * @param outPath Output buffer.
+     */
     void buildApiPath(const char *path, char *outPath);
+
+    /**
+     * @brief Extracts and serializes HTTP arguments from the REST request into the internal buffer.
+     * @param server Reference to the WebServer instance.
+     * @return Pointer to the serialized argument string (JSON or plain text).
+     */
     char *getArgs(WebServer &server);
 
     // Singleton instance
@@ -238,7 +337,7 @@ private:
 
     // Network & system states
     bool _firstBootAfterDeviceChange = false;
-    bool _webEnabled = true;
+    bool _webCfgEnabled = true;
     bool _apiEnabled = false;
     bool _openAP = false;
     bool _APisReady = false;
@@ -247,7 +346,6 @@ private:
     bool _lockEnabled = false;
     bool _hardwareInitialized = false;
     bool _publishDebugInfo = false;
-    bool _initialized = false;
     bool _restartOnDisconnect = false;
     bool _disableNetworkIfNotConnected = false;
     bool _firstTunerStatePublish = true;
