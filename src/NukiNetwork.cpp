@@ -19,7 +19,7 @@ NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSi
       _bufferSize(bufferSize)
 {
     _inst = this;
-    _webEnabled = _preferences->getBool(preference_webcfgserver_enabled, true);
+    _webCfgEnabled = _preferences->getBool(preference_webcfgserver_enabled, true);
     _apiPort = _preferences->getInt(preference_api_port, REST_SERVER_PORT);
     _apitoken = new BridgeApiToken(_preferences, preference_api_token);
     _apiEnabled = _preferences->getBool(preference_api_enabled);
@@ -120,7 +120,7 @@ void NukiNetwork::initialize()
             break;
         }
 
-        Log->print("[DEBUG] Host name: ");
+        Log->print(F("[DEBUG] Host name: "));
         Log->println(_hostname);
 
         String _homeAutomationUser = _preferences->getString(preference_ha_user);
@@ -131,13 +131,10 @@ void NukiNetwork::initialize()
 
         startNetworkServices();
     }
-    _initialized = true;
 }
 
 bool NukiNetwork::update()
 {
-    if (!_initialized)
-        return false;
 
     wdt_hal_context_t rtc_wdt_ctx = RWDT_HAL_CONTEXT_DEFAULT();
     wdt_hal_write_protect_disable(&rtc_wdt_ctx);
@@ -155,7 +152,7 @@ bool NukiNetwork::update()
         {
             if (_ipConfiguration->ipAddress() != ETH.localIP())
             {
-                Log->println("[INFO] ETH Set static IP");
+                Log->println(F("[DEBUG] ETH Set static IP"));
                 ETH.config(_ipConfiguration->ipAddress(), _ipConfiguration->defaultGateway(), _ipConfiguration->subnet(), _ipConfiguration->dnsServer());
                 _checkIpTs = espMillis() + 5000;
             }
@@ -205,13 +202,13 @@ bool NukiNetwork::update()
         }
 
         _networkServicesConnectCounter = 0;
-        if (forceEnableWebCfgServer && !_webEnabled)
+        if (forceEnableWebCfgServer && !_webCfgEnabled)
         {
             forceEnableWebCfgServer = false;
             delay(200);
             restartEsp(RestartReason::ReconfigureWebCfgServer);
         }
-        else if (!_webEnabled)
+        else if (!_webCfgEnabled)
         {
             forceEnableWebCfgServer = false;
         }
@@ -222,7 +219,7 @@ bool NukiNetwork::update()
     {
         if (_networkTimeout > 0 && (ts - _lastConnectedTs > _networkTimeout * 1000) && ts > 60000)
         {
-            if (!_webEnabled)
+            if (!_webCfgEnabled)
             {
                 forceEnableWebCfgServer = true;
             }
@@ -833,12 +830,12 @@ void NukiNetwork::initializeWiFi()
 
     if (isWifiConfigured())
     {
-        Log->println(String("[INFO] Attempting to connect to saved SSID ") + String(_WiFissid));
+        Log->println("[INFO] Attempting to connect to saved SSID " + String(_WiFissid));
         _openAP = false;
     }
     else
     {
-        Log->println("[INFO] No SSID or Wifi password saved, opening AP");
+        Log->println(F("[INFO] No SSID or Wifi password saved, opening AP"));
         _openAP = true;
     }
 
@@ -851,18 +848,18 @@ void NukiNetwork::initializeWiFi()
 
         while (!_APisReady && retries > 0)
         {
-            Log->println("[DEBUG] Waiting for AP to be ready...");
+            Log->println(F("[DEBUG] Waiting for AP to be ready..."));
             delay(1000);
             retries--;
         }
 
         if (_APisReady)
         {
-            Log->println("[DEBUG] AP is active and ready");
+            Log->println(F("[DEBUG] AP is active and ready"));
         }
         else
         {
-            Log->println("[ERROR] AP did not start correctly!");
+            Log->println(F("[ERROR] AP did not start correctly!"));
         }
     }
     return;
