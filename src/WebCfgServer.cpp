@@ -5,6 +5,9 @@
 #include "PreferencesKeys.h"
 #include "RestartReason.h"
 #include "NetworkDeviceType.h"
+#ifdef CONFIG_SOC_SPIRAM_SUPPORTED
+#include "esp_psram.h"
+#endif
 
 const char css[] PROGMEM = ":root{--nc-font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,'Open Sans','Helvetica Neue',sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';--nc-font-mono:Consolas,monaco,'Ubuntu Mono','Liberation Mono','Courier New',Courier,monospace;--nc-tx-1:#000;--nc-tx-2:#1a1a1a;--nc-bg-1:#fff;--nc-bg-2:#f6f8fa;--nc-bg-3:#e5e7eb;--nc-lk-1:#0070f3;--nc-lk-2:#0366d6;--nc-lk-tx:#fff;--nc-ac-1:#79ffe1;--nc-ac-tx:#0c4047}@media(prefers-color-scheme:dark){:root{--nc-tx-1:#fff;--nc-tx-2:#eee;--nc-bg-1:#000;--nc-bg-2:#111;--nc-bg-3:#222;--nc-lk-1:#3291ff;--nc-lk-2:#0070f3;--nc-lk-tx:#fff;--nc-ac-1:#7928ca;--nc-ac-tx:#fff}}*{margin:0;padding:0}img,input,option,p,table,textarea,ul{margin-bottom:1rem}button,html,input,select{font-family:var(--nc-font-sans)}body{margin:0 auto;max-width:750px;padding:2rem;border-radius:6px;overflow-x:hidden;word-break:normal;overflow-wrap:anywhere;background:var(--nc-bg-1);color:var(--nc-tx-2);font-size:1.03rem;line-height:1.5}::selection{background:var(--nc-ac-1);color:var(--nc-ac-tx)}h1,h2,h3,h4,h5,h6{line-height:1;color:var(--nc-tx-1);padding-top:.875rem}h1,h2,h3{color:var(--nc-tx-1);padding-bottom:2px;margin-bottom:8px;border-bottom:1px solid var(--nc-bg-2)}h4,h5,h6{margin-bottom:.3rem}h1{font-size:2.25rem}h2{font-size:1.85rem}h3{font-size:1.55rem}h4{font-size:1.25rem}h5{font-size:1rem}h6{font-size:.875rem}a{color:var(--nc-lk-1)}a:hover{color:var(--nc-lk-2) !important;}abbr{cursor:help}abbr:hover{cursor:help}a button,button,input[type=button],input[type=reset],input[type=submit]{font-size:1rem;display:inline-block;padding:6px 12px;text-align:center;text-decoration:none;white-space:nowrap;background:var(--nc-lk-1);color:var(--nc-lk-tx);border:0;border-radius:4px;box-sizing:border-box;cursor:pointer;color:var(--nc-lk-tx)}a button[disabled],button[disabled],input[type=button][disabled],input[type=reset][disabled],input[type=submit][disabled]{cursor:default;opacity:.5;cursor:not-allowed}.button:focus,.button:hover,button:focus,button:hover,input[type=button]:focus,input[type=button]:hover,input[type=reset]:focus,input[type=reset]:hover,input[type=submit]:focus,input[type=submit]:hover{background:var(--nc-lk-2)}table{border-collapse:collapse;width:100%}td,th{border:1px solid var(--nc-bg-3);text-align:left;padding:.5rem}th{background:var(--nc-bg-2)}tr:nth-child(even){background:var(--nc-bg-2)}textarea{max-width:100%}input,select,textarea{padding:6px 12px;margin-bottom:.5rem;background:var(--nc-bg-2);color:var(--nc-tx-2);border:1px solid var(--nc-bg-3);border-radius:4px;box-shadow:none;box-sizing:border-box}img{max-width:100%}td>input{margin-top:0;margin-bottom:0}td>textarea{margin-top:0;margin-bottom:0}td>select{margin-top:0;margin-bottom:0}.warning{color:red}@media only screen and (max-width:600px){.adapt td{display:block}.adapt input[type=text],.adapt input[type=password],.adapt input[type=submit],.adapt textarea,.adapt select{width:100%}.adapt td:has(input[type=checkbox]){text-align:center}.adapt input[type=checkbox]{width:1.5em;height:1.5em}.adapt table td:first-child{border-bottom:0}.adapt table td:last-child{border-top:0}#tblnav a li>span{max-width:140px}}#tblnav a{border:0;border-bottom:1px solid;display:block;font-size:1rem;font-weight:bold;padding:.6rem 0;line-height:1;color:var(--nc-tx-1);text-decoration:none;background:linear-gradient(to left,transparent 50%,rgba(255,255,255,0.4) 50%) right;background-size:200% 100%;transition:all .2s ease}#tblnav a{background:linear-gradient(to left,var(--nc-bg-2) 50%,rgba(255,255,255,0.4) 50%) right;background-size:200% 100%}#tblnav a:hover{background-position:left;transition:all .45s ease}#tblnav a:active{background:var(--nc-lk-1);transition:all .15s ease}#tblnav a li{list-style:none;padding:.5rem;display:inline-block;width:100%}#tblnav a li>span{float:right;text-align:right;margin-right:10px;color:#f70;font-weight:100;font-style:italic;display:block}.tdbtn{text-align:center;vertical-align:middle}.naventry{float:left;max-width:375px;width:100%}";
 extern bool timeSynced;
@@ -1044,7 +1047,7 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
     appendCheckBoxRow(response, "APIENA", "Enable REST API", _preferences->getBool(preference_api_enabled, false), "");
     appendInputFieldRow(response, "APIPORT", "API Port", _preferences->getInt(preference_api_port, 8080), 6, "");
 
-    const char* currentToken = _network->getApiToken(); 
+    const char *currentToken = _network->getApiToken();
 
     response += F("<tr><td>Access Token</td><td>");
     response += "<input type=\"text\" value=\"" + String(currentToken) + "\" readonly>";
@@ -1082,7 +1085,6 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
 
     server->send(200, "text/html", response);
 }
-
 
 void WebCfgServer::buildHtml(WebServer *server)
 {
@@ -1269,46 +1271,99 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     uint32_t aclPrefs[17];
     _preferences->getBytes(preference_acl, &aclPrefs, sizeof(aclPrefs));
 
-    String response = "<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body>";
+    String response;
+    response.reserve(8192);
+
+    buildHtmlHeader(response);
     response += "<h3>System Information</h3><pre>";
-    response += "------------ NUKI HUB ------------\n";
-    response += "Device: " + String(NUKI_REST_BRIDGE_HW) + "\n";
-    response += "Version: " + String(NUKI_REST_BRIDGE_VERSION) + "\n";
-    response += "Build: " + String(NUKI_REST_BRIDGE_BUILD) + "\n";
+    response += "\n----------- NUKI BRIDGE ------------";
+    response += "\nDevice: " + String(NUKI_REST_BRIDGE_HW);
+    response += "\nVersion: " + String(NUKI_REST_BRIDGE_VERSION);
+    response += "\nBuild: " + String(NUKI_REST_BRIDGE_BUILD);
 #ifndef DEBUG
-    response += "Build type: Release\n";
+    response += "\nBuild type: Release";
 #else
-    response += "Build type: Debug\n";
+    response += "\nBuild type: Debug";
 #endif
-    response += "Build date: " + String(NUKI_REST_BRIDGE_DATE) + "\n";
-    response += "Uptime (min): " + String(espMillis() / 1000 / 60) + "\n";
-    response += "Last restart reason FW: " + getRestartReason() + "\n";
-    response += "Last restart reason ESP: " + getEspRestartReason() + "\n";
-    response += "Free internal heap: " + String(ESP.getFreeHeap()) + "\n";
-    response += "Total internal heap: " + String(ESP.getHeapSize()) + "\n";
+    response += "\nBuild date: " + String(NUKI_REST_BRIDGE_DATE);
+    response += "\nUptime (min): " + String(espMillis() / 1000 / 60);
+    response += "\nLast restart reason FW: " + getRestartReason();
+    response += "\nLast restart reason ESP: " + getEspRestartReason();
+    response += "\nFree internal heap: " + String(ESP.getFreeHeap());
+    response += "\nTotal internal heap: " + String(ESP.getHeapSize());
 
-    response += "\nNetwork task stack high watermark: " + String(uxTaskGetStackHighWaterMark(networkTaskHandle)) + "\n";
-    response += "Nuki task stack high watermark: " + String(uxTaskGetStackHighWaterMark(nukiTaskHandle)) + "\n";
-    response += "Web configurator task stack high watermark: " + String(uxTaskGetStackHighWaterMark(webCfgTaskHandle)) + "\n";
+#ifdef CONFIG_SOC_SPIRAM_SUPPORTED
+    if (esp_psram_get_size() > 0)
+    {
+        response += F("\nPSRAM Available: Yes");
+        response += F("\nFree usable PSRAM: ");
+        response += String(ESP.getFreePsram());
+        response += F("\nTotal usable PSRAM: ");
+        response += String(ESP.getPsramSize());
+        response += F("\nTotal PSRAM: ");
+        response += String(esp_psram_get_size());
+        response += F("\nTotal free heap: ");
+        response += String(esp_get_free_heap_size());
+    }
+    else
+    {
+        response += F("\nPSRAM Available: No");
+    }
+#else
+    response += F("\nPSRAM Available: No");
+#endif
 
-    // SPIFFS Info
-    SPIFFS.begin(true);
-    response += "\n------------ SPIFFS ------------\n";
-    response += "SPIFFS Total Bytes: " + String(SPIFFS.totalBytes()) + "\n";
-    response += "SPIFFS Used Bytes: " + String(SPIFFS.usedBytes()) + "\n";
-    response += "SPIFFS Free Bytes: " + String(SPIFFS.totalBytes() - SPIFFS.usedBytes()) + "\n";
+    response += "\nNetwork task stack high watermark: " + String(uxTaskGetStackHighWaterMark(networkTaskHandle));
+    response += "\nNuki task stack high watermark: " + String(uxTaskGetStackHighWaterMark(nukiTaskHandle));
+    response += "\nWeb configurator task stack high watermark: " + String(uxTaskGetStackHighWaterMark(webCfgTaskHandle));
 
-    response += "\n------------ GENERAL SETTINGS ------------\n";
-    response += "Web configurator enabled: " + String(_preferences->getBool(preference_webcfgserver_enabled, true) ? "Yes" : "No") + "\n";
-    response += "Web configurator username: " + String(_preferences->getString(preference_cred_user, "").length() > 0 ? "***" : "Not set") + "\n";
-    response += "Web configurator password: " + String(_preferences->getString(preference_cred_password, "").length() > 0 ? "***" : "Not set") + "\n";
-    response += "Web configurator bypass for proxy IP: " + String(_preferences->getString(preference_bypass_proxy, "").length() > 0 ? "***" : "Not set") + "\n";
-    response += "Web configurator authentication: " + String(_preferences->getInt(preference_http_auth_type, 0) == 0 ? "Basic" : _preferences->getInt(preference_http_auth_type, 0) == 1 ? "Digest"
-                                                                                                                                                                                         : "Form") +
-                "\n";
-    response += "Update Nuki Hub and Nuki devices time using NTP: " + String(_preferences->getBool(preference_update_time, false) ? "Yes" : "No") + "\n";
-    response += "Session validity (in seconds): " + String(_preferences->getInt(preference_cred_session_lifetime, 3600)) + "\n";
-    response += "Session validity remember (in hours): " + String(_preferences->getInt(preference_cred_session_lifetime_remember, 720)) + "\n";
+    response += F("\n\n------------ SPIFFS ------------");
+    if (!SPIFFS.begin(true))
+    {
+        response += F("\nSPIFFS mount failed");
+    }
+    else
+    {
+        response += F("\nSPIFFS Total Bytes: ");
+        response += String(SPIFFS.totalBytes());
+        response += F("\nSPIFFS Used Bytes: ");
+        response += String(SPIFFS.usedBytes());
+        response += F("\nSPIFFS Free Bytes: ");
+        response += String(SPIFFS.totalBytes() - SPIFFS.usedBytes());
+    }
+
+    response += "\n\n------------ GENERAL SETTINGS ------------";
+    response += F("\nNetwork task stack size: ");
+    response += String(_preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE));
+    response += F("\nNuki task stack size: ");
+    response += String(_preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE));
+    response += "\nUpdate Nuki Hub and Nuki devices time using NTP: " + String(_preferences->getBool(preference_update_time, false) ? "Yes" : "No");
+
+    response += "\nWeb configurator enabled: " + String(_preferences->getBool(preference_webcfgserver_enabled, true) ? "Yes" : "No");
+    response += "\nWeb configurator username: " + String(_preferences->getString(preference_cred_user, "").length() > 0 ? "***" : "Not set");
+    response += "\nWeb configurator password: " + String(_preferences->getString(preference_cred_password, "").length() > 0 ? "***" : "Not set");
+    response += "\nWeb configurator bypass for proxy IP: " + String(_preferences->getString(preference_bypass_proxy, "").length() > 0 ? "***" : "Not set");
+    response += "\nWeb configurator authentication: " + String(_preferences->getInt(preference_http_auth_type, 0) == 0 ? "Basic" : _preferences->getInt(preference_http_auth_type, 0) == 1 ? "Digest"
+                                                                                                                                                                                           : "Form");
+    response += "\nSession validity (in seconds): " + String(_preferences->getInt(preference_cred_session_lifetime, 3600));
+    response += "\nSession validity remember (in hours): " + String(_preferences->getInt(preference_cred_session_lifetime_remember, 720));
+
+    response += F("\nAdvanced menu enabled: ");
+    response += _preferences->getBool(preference_enable_debug_mode, false) ? F("Yes") : F("No");
+    response += F("\nSend free heap to HA: ");
+    response += _preferences->getBool(preference_send_debug_info, false) ? F("Yes") : F("No");
+    response += F("\nNuki connect debug logging enabled: ");
+    response += _preferences->getBool(preference_debug_connect, false) ? F("Yes") : F("No");
+    response += F("\nNuki communication debug logging enabled: ");
+    response += _preferences->getBool(preference_debug_communication, false) ? F("Yes") : F("No");
+    response += F("\nNuki readable data debug logging enabled: ");
+    response += _preferences->getBool(preference_debug_readable_data, false) ? F("Yes") : F("No");
+    response += F("\nNuki hex data debug logging enabled: ");
+    response += _preferences->getBool(preference_debug_hex_data, false) ? F("Yes") : F("No");
+    response += F("\nNuki command debug logging enabled: ");
+    response += _preferences->getBool(preference_debug_command, false) ? F("Yes") : F("No");
+    response += F("\nBootloop protection enabled: ");
+    response += _preferences->getBool(preference_enable_bootloop_reset, false) ? F("Yes") : F("No");
 
     // Netzwerk-Infos
     response += "\n------------ NETWORK ------------\n";
@@ -1727,9 +1782,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "ENHAR")
+        else if (key == "ENHAR")
         {
-            if(_preferences->getBool(preference_ha_enabled, false) != (value == "1"))
+            if (_preferences->getBool(preference_ha_enabled, false) != (value == "1"))
             {
                 _network->disableHAR();
                 _preferences->putBool(preference_ha_enabled, (value == "1"));
@@ -1738,9 +1793,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "UPTIME")
+        else if (key == "UPTIME")
         {
-            if(_preferences->getBool(preference_update_time, false) != (value == "1"))
+            if (_preferences->getBool(preference_update_time, false) != (value == "1"))
             {
                 _preferences->putBool(preference_update_time, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -1748,9 +1803,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "TIMESRV")
+        else if (key == "TIMESRV")
         {
-            if(_preferences->getString(preference_time_server, "pool.ntp.org") != value)
+            if (_preferences->getString(preference_time_server, "pool.ntp.org") != value)
             {
                 _preferences->putString(preference_time_server, value);
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -1758,14 +1813,14 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWHW")
+        else if (key == "NWHW")
         {
-            if(_preferences->getInt(preference_network_hardware, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_hardware, 0) != value.toInt())
             {
-                if(value.toInt() > 1)
+                if (value.toInt() > 1)
                 {
                     networkReconfigure = true;
-                    if(value.toInt() != 11)
+                    if (value.toInt() != 11)
                     {
                         _preferences->putInt(preference_network_custom_phy, 0);
                     }
@@ -1776,9 +1831,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTPHY")
+        else if (key == "NWCUSTPHY")
         {
-            if(_preferences->getInt(preference_network_custom_phy, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_phy, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_phy, value.toInt());
@@ -1787,9 +1842,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTADDR")
+        else if (key == "NWCUSTADDR")
         {
-            if(_preferences->getInt(preference_network_custom_addr, -1) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_addr, -1) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_addr, value.toInt());
@@ -1798,9 +1853,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTIRQ")
+        else if (key == "NWCUSTIRQ")
         {
-            if(_preferences->getInt(preference_network_custom_irq, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_irq, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_irq, value.toInt());
@@ -1809,9 +1864,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTRST")
+        else if (key == "NWCUSTRST")
         {
-            if(_preferences->getInt(preference_network_custom_rst, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_rst, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_rst, value.toInt());
@@ -1820,9 +1875,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTCS")
+        else if (key == "NWCUSTCS")
         {
-            if(_preferences->getInt(preference_network_custom_cs, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_cs, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_cs, value.toInt());
@@ -1831,9 +1886,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTSCK")
+        else if (key == "NWCUSTSCK")
         {
-            if(_preferences->getInt(preference_network_custom_sck, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_sck, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_sck, value.toInt());
@@ -1842,9 +1897,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTMISO")
+        else if (key == "NWCUSTMISO")
         {
-            if(_preferences->getInt(preference_network_custom_miso, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_miso, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_miso, value.toInt());
@@ -1853,9 +1908,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTMOSI")
+        else if (key == "NWCUSTMOSI")
         {
-            if(_preferences->getInt(preference_network_custom_mosi, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_mosi, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_mosi, value.toInt());
@@ -1864,9 +1919,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTPWR")
+        else if (key == "NWCUSTPWR")
         {
-            if(_preferences->getInt(preference_network_custom_pwr, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_pwr, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_pwr, value.toInt());
@@ -1875,9 +1930,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTMDIO")
+        else if (key == "NWCUSTMDIO")
         {
-            if(_preferences->getInt(preference_network_custom_mdio, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_mdio, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_mdio, value.toInt());
@@ -1886,9 +1941,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTMDC")
+        else if (key == "NWCUSTMDC")
         {
-            if(_preferences->getInt(preference_network_custom_mdc, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_mdc, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_mdc, value.toInt());
@@ -1897,9 +1952,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NWCUSTCLK")
+        else if (key == "NWCUSTCLK")
         {
-            if(_preferences->getInt(preference_network_custom_clk, 0) != value.toInt())
+            if (_preferences->getInt(preference_network_custom_clk, 0) != value.toInt())
             {
                 networkReconfigure = true;
                 _preferences->putInt(preference_network_custom_clk, value.toInt());
@@ -1908,19 +1963,19 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "RSSI")
+        else if (key == "RSSI")
         {
-            if(_preferences->getInt(preference_rssi_send_interval, 60) != value.toInt())
+            if (_preferences->getInt(preference_rssi_send_interval, 60) != value.toInt())
             {
                 _preferences->putInt(preference_rssi_send_interval, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "CREDLFTM")
+        else if (key == "CREDLFTM")
         {
-            if(_preferences->getInt(preference_cred_session_lifetime, 3600) != value.toInt())
+            if (_preferences->getInt(preference_cred_session_lifetime, 3600) != value.toInt())
             {
                 _preferences->putInt(preference_cred_session_lifetime, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -1929,9 +1984,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 clearSession = true;
             }
         }
-        else if(key == "CREDLFTMRMBR")
+        else if (key == "CREDLFTMRMBR")
         {
-            if(_preferences->getInt(preference_cred_session_lifetime_remember, 720) != value.toInt())
+            if (_preferences->getInt(preference_cred_session_lifetime_remember, 720) != value.toInt())
             {
                 _preferences->putInt(preference_cred_session_lifetime_remember, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -1940,9 +1995,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 clearSession = true;
             }
         }
-        else if(key == "HOSTNAME")
+        else if (key == "HOSTNAME")
         {
-            if(_preferences->getString(preference_hostname, "") != value)
+            if (_preferences->getString(preference_hostname, "") != value)
             {
                 _preferences->putString(preference_hostname, value);
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -1950,39 +2005,39 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "NETTIMEOUT")
+        else if (key == "NETTIMEOUT")
         {
-            if(_preferences->getInt(preference_network_timeout, 60) != value.toInt())
+            if (_preferences->getInt(preference_network_timeout, 60) != value.toInt())
             {
                 _preferences->putInt(preference_network_timeout, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "FINDBESTRSSI")
+        else if (key == "FINDBESTRSSI")
         {
-            if(_preferences->getBool(preference_find_best_rssi, false) != (value == "1"))
+            if (_preferences->getBool(preference_find_best_rssi, false) != (value == "1"))
             {
                 _preferences->putBool(preference_find_best_rssi, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "RSTDISC")
+        else if (key == "RSTDISC")
         {
-            if(_preferences->getBool(preference_restart_on_disconnect, false) != (value == "1"))
+            if (_preferences->getBool(preference_restart_on_disconnect, false) != (value == "1"))
             {
                 _preferences->putBool(preference_restart_on_disconnect, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "DHCPENA")
+        else if (key == "DHCPENA")
         {
-            if(_preferences->getBool(preference_ip_dhcp_enabled, true) != (value == "1"))
+            if (_preferences->getBool(preference_ip_dhcp_enabled, true) != (value == "1"))
             {
                 _preferences->putBool(preference_ip_dhcp_enabled, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -1990,9 +2045,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "IPADDR")
+        else if (key == "IPADDR")
         {
-            if(_preferences->getString(preference_ip_address, "") != value)
+            if (_preferences->getString(preference_ip_address, "") != value)
             {
                 _preferences->putString(preference_ip_address, value);
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2000,9 +2055,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "IPSUB")
+        else if (key == "IPSUB")
         {
-            if(_preferences->getString(preference_ip_subnet, "") != value)
+            if (_preferences->getString(preference_ip_subnet, "") != value)
             {
                 _preferences->putString(preference_ip_subnet, value);
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2010,9 +2065,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "IPGTW")
+        else if (key == "IPGTW")
         {
-            if(_preferences->getString(preference_ip_gateway, "") != value)
+            if (_preferences->getString(preference_ip_gateway, "") != value)
             {
                 _preferences->putString(preference_ip_gateway, value);
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2020,9 +2075,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "DNSSRV")
+        else if (key == "DNSSRV")
         {
-            if(_preferences->getString(preference_ip_dns_server, "") != value)
+            if (_preferences->getString(preference_ip_dns_server, "") != value)
             {
                 _preferences->putString(preference_ip_dns_server, value);
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2030,98 +2085,98 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "LSTINT")
+        else if (key == "LSTINT")
         {
-            if(_preferences->getInt(preference_query_interval_lockstate, 1800) != value.toInt())
+            if (_preferences->getInt(preference_query_interval_lockstate, 1800) != value.toInt())
             {
                 _preferences->putInt(preference_query_interval_lockstate, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "CFGINT")
+        else if (key == "CFGINT")
         {
-            if(_preferences->getInt(preference_query_interval_configuration, 3600) != value.toInt())
+            if (_preferences->getInt(preference_query_interval_configuration, 3600) != value.toInt())
             {
                 _preferences->putInt(preference_query_interval_configuration, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "BATINT")
+        else if (key == "BATINT")
         {
-            if(_preferences->getInt(preference_query_interval_battery, 1800) != value.toInt())
+            if (_preferences->getInt(preference_query_interval_battery, 1800) != value.toInt())
             {
                 _preferences->putInt(preference_query_interval_battery, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "KPINT")
+        else if (key == "KPINT")
         {
-            if(_preferences->getInt(preference_query_interval_keypad, 1800) != value.toInt())
+            if (_preferences->getInt(preference_query_interval_keypad, 1800) != value.toInt())
             {
                 _preferences->putInt(preference_query_interval_keypad, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "NRTRY")
+        else if (key == "NRTRY")
         {
-            if(_preferences->getInt(preference_command_nr_of_retries, 3) != value.toInt())
+            if (_preferences->getInt(preference_command_nr_of_retries, 3) != value.toInt())
             {
                 _preferences->putInt(preference_command_nr_of_retries, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "TRYDLY")
+        else if (key == "TRYDLY")
         {
-            if(_preferences->getInt(preference_command_retry_delay, 100) != value.toInt())
+            if (_preferences->getInt(preference_command_retry_delay, 100) != value.toInt())
             {
                 _preferences->putInt(preference_command_retry_delay, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "TXPWR")
+        else if (key == "TXPWR")
         {
-            #if defined(CONFIG_IDF_TARGET_ESP32)
-            if(value.toInt() >= -12 && value.toInt() <= 9)
-            #else
-            if(value.toInt() >= -12 && value.toInt() <= 20)
-            #endif
+#if defined(CONFIG_IDF_TARGET_ESP32)
+            if (value.toInt() >= -12 && value.toInt() <= 9)
+#else
+            if (value.toInt() >= -12 && value.toInt() <= 20)
+#endif
             {
-                if(_preferences->getInt(preference_ble_tx_power, 9) != value.toInt())
+                if (_preferences->getInt(preference_ble_tx_power, 9) != value.toInt())
                 {
                     _preferences->putInt(preference_ble_tx_power, value.toInt());
                     Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
-                    //configChanged = true;
+                    // configChanged = true;
                 }
             }
         }
-        else if(key == "RSBC")
+        else if (key == "RSBC")
         {
-            if(_preferences->getInt(preference_restart_ble_beacon_lost, 60) != value.toInt())
+            if (_preferences->getInt(preference_restart_ble_beacon_lost, 60) != value.toInt())
             {
                 _preferences->putInt(preference_restart_ble_beacon_lost, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "TSKNTWK")
+        else if (key == "TSKNTWK")
         {
-            if(value.toInt() > 12287 && value.toInt() < 65537)
+            if (value.toInt() > 12287 && value.toInt() < 65537)
             {
-                if(_preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE) != value.toInt())
+                if (_preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE) != value.toInt())
                 {
                     _preferences->putInt(preference_task_size_network, value.toInt());
                     Log->print(F("[DEBUG] Setting changed: "));
@@ -2130,11 +2185,11 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 }
             }
         }
-        else if(key == "TSKNUKI")
+        else if (key == "TSKNUKI")
         {
-            if(value.toInt() > 8191 && value.toInt() < 65537)
+            if (value.toInt() > 8191 && value.toInt() < 65537)
             {
-                if(_preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE) != value.toInt())
+                if (_preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE) != value.toInt())
                 {
                     _preferences->putInt(preference_task_size_nuki, value.toInt());
                     Log->print(F("[DEBUG] Setting changed: "));
@@ -2143,63 +2198,63 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 }
             }
         }
-        else if(key == "ALMAX")
+        else if (key == "ALMAX")
         {
-            if(value.toInt() > 0 && value.toInt() < 101)
+            if (value.toInt() > 0 && value.toInt() < 101)
             {
-                if(_preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG) != value.toInt())
+                if (_preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG) != value.toInt())
                 {
                     _preferences->putInt(preference_authlog_max_entries, value.toInt());
                     Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
-                    //configChanged = true;
+                    // configChanged = true;
                 }
             }
         }
-        else if(key == "KPMAX")
+        else if (key == "KPMAX")
         {
-            if(value.toInt() > 0 && value.toInt() < 201)
+            if (value.toInt() > 0 && value.toInt() < 201)
             {
-                if(_preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD) != value.toInt())
+                if (_preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD) != value.toInt())
                 {
                     _preferences->putInt(preference_keypad_max_entries, value.toInt());
                     Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
-                    //configChanged = true;
+                    // configChanged = true;
                 }
             }
         }
-        else if(key == "TCMAX")
+        else if (key == "TCMAX")
         {
-            if(value.toInt() > 0 && value.toInt() < 101)
+            if (value.toInt() > 0 && value.toInt() < 101)
             {
-                if(_preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL) != value.toInt())
+                if (_preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL) != value.toInt())
                 {
                     _preferences->putInt(preference_timecontrol_max_entries, value.toInt());
                     Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
-                    //configChanged = true;
+                    // configChanged = true;
                 }
             }
         }
-        else if(key == "AUTHMAX")
+        else if (key == "AUTHMAX")
         {
-            if(value.toInt() > 0 && value.toInt() < 101)
+            if (value.toInt() > 0 && value.toInt() < 101)
             {
-                if(_preferences->getInt(preference_auth_max_entries, MAX_AUTH) != value.toInt())
+                if (_preferences->getInt(preference_auth_max_entries, MAX_AUTH) != value.toInt())
                 {
                     _preferences->putInt(preference_auth_max_entries, value.toInt());
                     Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
-                    //configChanged = true;
+                    // configChanged = true;
                 }
             }
         }
-        else if(key == "BUFFSIZE")
+        else if (key == "BUFFSIZE")
         {
-            if(value.toInt() > 4095 && value.toInt() < 65537)
+            if (value.toInt() > 4095 && value.toInt() < 65537)
             {
-                if(_preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE) != value.toInt())
+                if (_preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE) != value.toInt())
                 {
                     _preferences->putInt(preference_buffer_size, value.toInt());
                     Log->print(F("[DEBUG] Setting changed: "));
@@ -2208,19 +2263,19 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 }
             }
         }
-        else if(key == "BTLPRST")
+        else if (key == "BTLPRST")
         {
-            if(_preferences->getBool(preference_enable_bootloop_reset, false) != (value == "1"))
+            if (_preferences->getBool(preference_enable_bootloop_reset, false) != (value == "1"))
             {
                 _preferences->putBool(preference_enable_bootloop_reset, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "DISNTWNOCON")
+        else if (key == "DISNTWNOCON")
         {
-            if(_preferences->getBool(preference_disable_network_not_connected, false) != (value == "1"))
+            if (_preferences->getBool(preference_disable_network_not_connected, false) != (value == "1"))
             {
                 _preferences->putBool(preference_disable_network_not_connected, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2228,19 +2283,19 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "SHOWSECRETS")
+        else if (key == "SHOWSECRETS")
         {
-            if(_preferences->getBool(preference_show_secrets, false) != (value == "1"))
+            if (_preferences->getBool(preference_show_secrets, false) != (value == "1"))
             {
                 _preferences->putBool(preference_show_secrets, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "DBGCONN")
+        else if (key == "DBGCONN")
         {
-            if(_preferences->getBool(preference_debug_connect, false) != (value == "1"))
+            if (_preferences->getBool(preference_debug_connect, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_connect, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2248,9 +2303,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "DBGCOMMU")
+        else if (key == "DBGCOMMU")
         {
-            if(_preferences->getBool(preference_debug_communication, false) != (value == "1"))
+            if (_preferences->getBool(preference_debug_communication, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_communication, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2258,9 +2313,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "DBGHEAP")
+        else if (key == "DBGHEAP")
         {
-            if(_preferences->getBool(preference_send_debug_info, false) != (value == "1"))
+            if (_preferences->getBool(preference_send_debug_info, false) != (value == "1"))
             {
                 _preferences->putBool(preference_send_debug_info, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2268,9 +2323,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "DBGREAD")
+        else if (key == "DBGREAD")
         {
-            if(_preferences->getBool(preference_debug_readable_data, false) != (value == "1"))
+            if (_preferences->getBool(preference_debug_readable_data, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_readable_data, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2278,9 +2333,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "DBGHEX")
+        else if (key == "DBGHEX")
         {
-            if(_preferences->getBool(preference_debug_hex_data, false) != (value == "1"))
+            if (_preferences->getBool(preference_debug_hex_data, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_hex_data, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2288,9 +2343,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "DBGCOMM")
+        else if (key == "DBGCOMM")
         {
-            if(_preferences->getBool(preference_debug_command, false) != (value == "1"))
+            if (_preferences->getBool(preference_debug_command, false) != (value == "1"))
             {
                 _preferences->putBool(preference_debug_command, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2298,40 +2353,40 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "LCKFORCEID")
+        else if (key == "LCKFORCEID")
         {
-            if(_preferences->getBool(preference_lock_force_id, false) != (value == "1"))
+            if (_preferences->getBool(preference_lock_force_id, false) != (value == "1"))
             {
                 _preferences->putBool(preference_lock_force_id, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
             }
         }
-        else if(key == "LCKFORCEKP")
+        else if (key == "LCKFORCEKP")
         {
-            if(_preferences->getBool(preference_lock_force_keypad, false) != (value == "1"))
+            if (_preferences->getBool(preference_lock_force_keypad, false) != (value == "1"))
             {
                 _preferences->putBool(preference_lock_force_keypad, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
             }
         }
-        else if(key == "LCKFORCEDS")
+        else if (key == "LCKFORCEDS")
         {
-            if(_preferences->getBool(preference_lock_force_doorsensor, false) != (value == "1"))
+            if (_preferences->getBool(preference_lock_force_doorsensor, false) != (value == "1"))
             {
                 _preferences->putBool(preference_lock_force_doorsensor, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
             }
         }
-        else if(key == "ACLLVLCHANGED")
+        else if (key == "ACLLVLCHANGED")
         {
             aclLvlChanged = true;
         }
-        else if(key == "CREDDIGEST")
+        else if (key == "CREDDIGEST")
         {
-            if(_preferences->getInt(preference_http_auth_type, 0) != value.toInt())
+            if (_preferences->getInt(preference_http_auth_type, 0) != value.toInt())
             {
                 _preferences->putInt(preference_http_auth_type, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2339,12 +2394,12 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
                 clearSession = true;
             }
-        }        
-        else if(key == "CREDTRUSTPROXY")
+        }
+        else if (key == "CREDTRUSTPROXY")
         {
-            if(value != "*")
+            if (value != "*")
             {
-                if(_preferences->getString(preference_bypass_proxy, "") != value)
+                if (_preferences->getString(preference_bypass_proxy, "") != value)
                 {
                     _preferences->putString(preference_bypass_proxy, value);
                     Log->print(F("[DEBUG] Setting changed: "));
@@ -2354,39 +2409,39 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 }
             }
         }
-        else if(key == "ACLLCKLCK")
+        else if (key == "ACLLCKLCK")
         {
             aclPrefs[0] = ((value == "1") ? 1 : 0);
         }
-        else if(key == "ACLLCKUNLCK")
+        else if (key == "ACLLCKUNLCK")
         {
             aclPrefs[1] = ((value == "1") ? 1 : 0);
         }
-        else if(key == "ACLLCKUNLTCH")
+        else if (key == "ACLLCKUNLTCH")
         {
             aclPrefs[2] = ((value == "1") ? 1 : 0);
         }
-        else if(key == "ACLLCKLNG")
+        else if (key == "ACLLCKLNG")
         {
             aclPrefs[3] = ((value == "1") ? 1 : 0);
         }
-        else if(key == "ACLLCKLNGU")
+        else if (key == "ACLLCKLNGU")
         {
             aclPrefs[4] = ((value == "1") ? 1 : 0);
         }
-        else if(key == "ACLLCKFLLCK")
+        else if (key == "ACLLCKFLLCK")
         {
             aclPrefs[5] = ((value == "1") ? 1 : 0);
         }
-        else if(key == "ACLLCKFOB1")
+        else if (key == "ACLLCKFOB1")
         {
             aclPrefs[6] = ((value == "1") ? 1 : 0);
         }
-        else if(key == "ACLLCKFOB2")
+        else if (key == "ACLLCKFOB2")
         {
             aclPrefs[7] = ((value == "1") ? 1 : 0);
         }
-        else if(key == "ACLLCKFOB3")
+        else if (key == "ACLLCKFOB3")
         {
             aclPrefs[8] = ((value == "1") ? 1 : 0);
         }
