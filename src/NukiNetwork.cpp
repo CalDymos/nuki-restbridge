@@ -215,7 +215,7 @@ bool NukiNetwork::update()
         delay(2000);
     }
 
-    if (!isConnected())
+    if (_networkServicesState != NetworkServiceStates::OK || !isConnected())
     {
         if (_networkTimeout > 0 && (ts - _lastConnectedTs > _networkTimeout * 1000) && ts > 60000)
         {

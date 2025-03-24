@@ -78,6 +78,7 @@
 #define preference_access_level (char *)"accLvl"
 #define preference_timecontrol_max_entries (char *)"tcmaxentry"
 #define preference_timecontrol_info_enabled (char *)"tcInfoEnabled"
+#define preference_timecontrol_control_enabled (char*)"tcCntrlEnabled"
 #define preference_query_interval_lockstate (char *)"lockStInterval"
 #define preference_query_interval_configuration (char *)"configInterval"
 #define preference_query_interval_battery (char *)"batInterval"

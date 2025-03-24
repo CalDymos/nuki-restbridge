@@ -1001,6 +1001,14 @@ const bool NukiWrapper::isPaired() const
     return _paired;
 }
 
+bool NukiWrapper::hasDoorSensor() const
+{
+    return (_forceDoorsensor ||
+           _keyTurnerState.doorSensorState == Nuki::DoorSensorState::DoorClosed ||
+           _keyTurnerState.doorSensorState == Nuki::DoorSensorState::DoorOpened ||
+           _keyTurnerState.doorSensorState == Nuki::DoorSensorState::Calibrating);
+}
+
 const bool NukiWrapper::hasKeypad() const
 {
     return (_forceKeypad || _hasKeypad);

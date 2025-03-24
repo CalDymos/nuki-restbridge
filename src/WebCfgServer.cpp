@@ -154,7 +154,7 @@ void WebCfgServer::initialize()
                                            return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
                                            break;
                                        case 2:
-                                           this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                                           this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                                            return this->redirect(this->_webServer, "/get?page=login", 302);
                                            break;
                                        case 3:
@@ -188,7 +188,7 @@ void WebCfgServer::initialize()
                                            return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
                                            break;
                                        case 2:
-                                            this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                                            this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                                             return this->redirect(this->_webServer, "/get?page=login", 302);
                                            break;
                                        case 3:
@@ -217,7 +217,7 @@ void WebCfgServer::initialize()
                        
                                    if(value != _confirmCode)
                                    {
-                                    this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                                    this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                                     return this->redirect(this->_webServer, "/", 302);
                                    }
                                    buildConfirmHtml(this->_webServer, "Rebooting...", 2, true);
@@ -262,7 +262,7 @@ void WebCfgServer::initialize()
                         return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
                         break;
                     case 2:
-                    this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                    this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                     return this->redirect(this->_webServer, "/get?page=login", 302);
                         break;
                     case 3:
@@ -314,7 +314,7 @@ void WebCfgServer::initialize()
 
                 if(value2 != _confirmCode)
                 {
-                    this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                    this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                     return this->redirect(this->_webServer, "/", 302);
                 }
                 buildConfirmHtml(this->_webServer, "Rebooting...", 2, true);
@@ -357,7 +357,7 @@ void WebCfgServer::initialize()
                 if (this->_webServer->hasArg("genapitoken") && this->_webServer->arg("genapitoken") == "1")
                 {
                     _network->assignNewApiToken();
-                    this->_webServer->sendHeader("Cache-Control", "no-cache");
+                    this->_webServer->sendHeader(F("Cache-Control"), F("no-cache"));
                     return this->redirect(this->_webServer, "/get?page=apiconfig", 302);
                 }
                 return buildApiConfigHtml(this->_webServer);
@@ -387,7 +387,7 @@ void WebCfgServer::initialize()
                 }
                 if(value2 != _confirmCode)
                 {
-                    this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                    this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                     return this->redirect(this->_webServer, "/", 302);
                 }
                 if(!_allowRestartToPortal)
@@ -401,7 +401,7 @@ void WebCfgServer::initialize()
             else
             {
                 Log->println(F("[WARNING] Page not found, loading index"));
-                this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                 this->redirect(this->_webServer, "/", 302);
                 return;
             } });
@@ -441,7 +441,7 @@ void WebCfgServer::initialize()
                             return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
                             break;
                         case 2:
-                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                         return this->redirect(this->_webServer, "/get?page=login", 302);
                             break;
                         case 3:
@@ -457,12 +457,12 @@ void WebCfgServer::initialize()
                     bool loggedIn = processLogin(this->_webServer);
                     if (loggedIn)
                     {
-                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                         return this->redirect(this->_webServer, "/", 302);
                     }
                     else
                     {
-                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                         return this->redirect(this->_webServer, "/get?page=login", 302);
                     }
                 }
@@ -471,13 +471,13 @@ void WebCfgServer::initialize()
                     bool loggedIn = processBypass(this->_webServer);
                     if (loggedIn)
                     {
-                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                         _newBypass = true;
                         return this->redirect(this->_webServer, "/get?page=newbypass", 302);
                     }
                     else
                     {
-                        this->_webServer->sendHeader("Cache-Control",  "no-cache");
+                        this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
                         return this->redirect(this->_webServer, "/", 302);
                     }
                 }
@@ -524,7 +524,7 @@ void WebCfgServer::initialize()
                            return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
                            break;
                        case 2:
-                           this->_webServer->sendHeader("Cache-Control", "no-cache");
+                           this->_webServer->sendHeader(F("Cache-Control"), F("no-cache"));
                            return this->redirect(this->_webServer, "/get?page=login", 302);
                            break;
                        case 3:
@@ -569,7 +569,7 @@ void WebCfgServer::handleClient()
 {
     if (_webServer == nullptr)
     {
-        Log->println("[ERROR] WebServer instance is NULL! Aborting handleClient.");
+        Log->println(F("[ERROR] WebServer instance is NULL! Aborting handleClient."));
         return;
     }
     _webServer->handleClient();
@@ -594,7 +594,15 @@ void WebCfgServer::waitAndProcess(const bool blocking, const uint32_t duration)
 void WebCfgServer::buildAccLvlHtml(WebServer *server)
 {
     String response;
-    response.reserve(8192); // Speicher reservieren, um Fragmentierung zu reduzieren
+    reserveHtmlResponse(response,
+                        21, // Checkboxes
+                        0,  // Inputs
+                        0,  // Dropdowns
+                        0,  // Dropdown options
+                        0,  // Textareas
+                        0,  // Parameter rows
+                        4   // Buttons
+    );
 
     buildHtmlHeader(response);
 
@@ -610,12 +618,8 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
 
     if ((_nuki && _nuki->hasKeypad()))
     {
-        appendCheckBoxRow(response, "KPPUB", "Report keypad entries information to Home Automation", _preferences->getBool(preference_keypad_info_enabled), "");
         appendCheckBoxRow(response, "KPENA", "Add, modify and delete keypad codes", _preferences->getBool(preference_keypad_control_enabled), "");
     }
-
-    appendCheckBoxRow(response, "TCPUB", "Report time control entries information to Home Automation", _preferences->getBool(preference_timecontrol_info_enabled), "");
-    appendCheckBoxRow(response, "AUTHPUB", "Report authorization entries information to Home Automation", _preferences->getBool(preference_auth_info_enabled), "");
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
 
@@ -665,7 +669,10 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
 void WebCfgServer::buildNukiConfigHtml(WebServer *server)
 {
     String response;
-    response.reserve(4096); // Speicher reservieren, um Fragmentierung zu reduzieren
+    reserveHtmlResponse(response,
+                        3, // Checkboxes
+                        9  // Inputs
+    );
 
     buildHtmlHeader(response);
 
@@ -709,7 +716,17 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
 void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
 {
     String response;
-    response.reserve(8192);
+    reserveHtmlResponse(response,
+                        14,  // Checkboxes
+                        10,  // Inputs
+                        0,   // Dropdowns
+                        0,   // Dropdown options
+                        0,   // Textareas
+                        2,   // Parameter rows
+                        0,   // Buttons
+                        0,   // menus
+                        1024 // JavaScript/CSS
+    );
 
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
@@ -788,13 +805,23 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
                   "}"
                   "</script></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildLoginHtml(WebServer *server)
 {
     String response;
-    response.reserve(2048);
+    reserveHtmlResponse(response,
+                        1,  // Checkbox
+                        2,  // Input fields
+                        0,  // Dropdowns
+                        0,  // Dropdown options
+                        0,  // Textareas
+                        0,  // Parameter rows
+                        0,  // Buttons
+                        0,  // menus
+                        704 // JS/CSS bytes
+    );
 
     response += F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
     response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}");
@@ -823,23 +850,40 @@ void WebCfgServer::buildLoginHtml(WebServer *server)
 void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect, String redirectTo)
 {
     String response;
-    response.reserve(1024);
+    reserveHtmlResponse(response,
+                        0,  // Checkboxes
+                        0,  // Inputs
+                        0,  // Dropdowns
+                        0,  // Dropdown options
+                        0,  // Textareas
+                        0,  // Parameter rows
+                        0,  // Buttons
+                        0,  // menus
+                        352 // extra bytes for JS/CSS
+    );
 
     String header;
+    header.reserve(384);
     if (!redirect)
     {
-        header = "<meta http-equiv=\"Refresh\" content=\"" + String(redirectDelay) + "; url=/\" />";
+        header = F("<meta http-equiv=\"Refresh\" content=\"");
+        header += String(redirectDelay);
+        header += F("; url=/\" />");
     }
     else
     {
-        header = "<script type=\"text/JavaScript\">function Redirect() { window.location.href = \"" + redirectTo + "\"; } setTimeout(function() { Redirect(); }, " + String(redirectDelay * 1000) + "); </script>";
+        header = F("<script type=\"text/JavaScript\">function Redirect() { window.location.href = \"");
+        header += redirectTo;
+        header += F("\"; } setTimeout(function() { Redirect(); }, ");
+        header += String(redirectDelay * 1000);
+        header += F("); </script>");
     }
 
     buildHtmlHeader(response, header);
     response += message;
-    response += "</body></html>";
+    response += F("</body></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildCoredumpHtml(WebServer *server)
@@ -873,7 +917,12 @@ void WebCfgServer::buildCoredumpHtml(WebServer *server)
 void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 {
     String response;
-    response.reserve(4096);
+    reserveHtmlResponse(response,
+                        3, // Checkboxes
+                        6, // Input fields
+                        1, // Dropdowns
+                        3  // Dropdown options
+    );
 
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
@@ -913,7 +962,17 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 void WebCfgServer::buildConfigureWifiHtml(WebServer *server)
 {
     String response;
-    response.reserve(1024);
+    reserveHtmlResponse(response,
+                        0,  // checkboxCount
+                        0,  // inputFieldCount
+                        0,  // dropdownCount
+                        0,  // dropdownOptionCountTotal
+                        0,  // textareaCount
+                        0,  // parameterRowCount
+                        0,  // buttonCount
+                        0,  // menus
+                        400 // extra Bytes
+    );
 
     buildHtmlHeader(response);
 
@@ -957,7 +1016,17 @@ void WebCfgServer::buildCredHtml(WebServer *server)
 
     // HTML-Antwort aufbauen
     String response;
-    response.reserve(8192);
+    reserveHtmlResponse(response,
+                        1,  // Checkbox
+                        11, // Input fields
+                        1,  // Dropdown
+                        3,  // Dropdown options
+                        0,  // Textareas
+                        0,  // Parameter rows
+                        2,  // Buttons
+                        0,  // menus
+                        896 // extra bytes
+    );
 
     buildHtmlHeader(response);
     response += F("<form id=\"credfrm\" class=\"adapt\" onsubmit=\"return testcreds();\" method=\"post\" action=\"post\">");
@@ -1037,7 +1106,17 @@ void WebCfgServer::buildCredHtml(WebServer *server)
 void WebCfgServer::buildApiConfigHtml(WebServer *server)
 {
     String response;
-    response.reserve(4096); // reduce fragmentation
+    reserveHtmlResponse(response,
+                        1, // Checkbox
+                        1, // Input fields
+                        0, // Dropdown
+                        0, // Dropdown options
+                        0, // Textareas
+                        1, // Parameter rows
+                        1, // Buttons
+                        0, // menus
+                        0  // extra bytes
+    );
 
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
@@ -1062,7 +1141,17 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
 void WebCfgServer::buildHARConfigHtml(WebServer *server)
 {
     String response;
-    response.reserve(4096); // reduce fragmentation
+    reserveHtmlResponse(response,
+                        1, // Checkbox
+                        4, // Input fields
+                        1, // Dropdown
+                        2, // Dropdown options
+                        0, // Textareas
+                        0, // Parameter rows
+                        0, // Buttons (Generate Bypass/Admin)
+                        0, // menus
+                        0  // extra bytes
+    );
 
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
@@ -1083,7 +1172,7 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildHtml(WebServer *server)
@@ -1091,7 +1180,17 @@ void WebCfgServer::buildHtml(WebServer *server)
     String header = F("<script>let intervalId; window.onload = function() { updateInfo(); intervalId = setInterval(updateInfo, 3000); }; function updateInfo() { var request = new XMLHttpRequest(); request.open('GET', '/get?page=status', true); request.onload = () => { const obj = JSON.parse(request.responseText); if (obj.stop == 1) { clearInterval(intervalId); } for (var key of Object.keys(obj)) { if(key=='ota' && document.getElementById(key) !== null) { document.getElementById(key).innerText = \"<a href='/ota'>\" + obj[key] + \"</a>\"; } else if(document.getElementById(key) !== null) { document.getElementById(key).innerText = obj[key]; } } }; request.send(); }</script>");
 
     String response;
-    response.reserve(8192);
+    reserveHtmlResponse(response,
+                        0,  // Checkbox
+                        0,  // Input fields
+                        0,  // Dropdown
+                        0,  // Dropdown options
+                        0,  // Textareas
+                        7,  // Parameter rows
+                        0,  // Buttons (Generate Bypass/Admin)
+                        11, // Naviagtion menus
+                        0   // extra bytes ()
+    );
 
     buildHtmlHeader(response, header);
 
@@ -1122,37 +1221,37 @@ void WebCfgServer::buildHtml(WebServer *server)
     appendParameterRow(response, "Firmware", NUKI_REST_BRIDGE_VERSION, "/get?page=info", "firmware");
     response += F("</table><br><ul id=\"tblnav\">");
 
-    buildNavigationMenuEntry(response, "Network Configuration", "/get?page=ntwconfig");
-    buildNavigationMenuEntry(response, "REST API Configuration", "/get?page=apiconfig", _APIConfigured ? "" : "Please configure REST API");
-    buildNavigationMenuEntry(response, "Home Automation Configuration", "/get?page=harconfig", _HAConfigured ? "" : "Please configure Home Automation");
-    buildNavigationMenuEntry(response, "Nuki Configuration", "/get?page=nukicfg");
-    buildNavigationMenuEntry(response, "Access Level Configuration", "/get?page=acclvl");
-    buildNavigationMenuEntry(response, "Credentials", "/get?page=cred");
+    appendNavigationMenuEntry(response, "Network Configuration", "/get?page=ntwconfig");
+    appendNavigationMenuEntry(response, "REST API Configuration", "/get?page=apiconfig", _APIConfigured ? "" : "Please configure REST API");
+    appendNavigationMenuEntry(response, "Home Automation Configuration", "/get?page=harconfig", _HAConfigured ? "" : "Please configure Home Automation");
+    appendNavigationMenuEntry(response, "Nuki Configuration", "/get?page=nukicfg");
+    appendNavigationMenuEntry(response, "Access Level Configuration", "/get?page=acclvl");
+    appendNavigationMenuEntry(response, "Credentials", "/get?page=cred");
 
     if (_preferences->getInt(preference_network_hardware, 0) == 11)
     {
-        buildNavigationMenuEntry(response, "Custom Ethernet Configuration", "/get?page=custntw");
+        appendNavigationMenuEntry(response, "Custom Ethernet Configuration", "/get?page=custntw");
     }
 
     if (_preferences->getBool(preference_enable_debug_mode, false))
     {
-        buildNavigationMenuEntry(response, "Advanced Configuration", "/get?page=advanced");
+        appendNavigationMenuEntry(response, "Advanced Configuration", "/get?page=advanced");
     }
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
     if (_allowRestartToPortal)
     {
-        buildNavigationMenuEntry(response, "Configure Wi-Fi", "/get?page=wifi");
+        appendNavigationMenuEntry(response, "Configure Wi-Fi", "/get?page=wifi");
     }
 #endif
 
-    buildNavigationMenuEntry(response, "Info page", "/get?page=info");
+    appendNavigationMenuEntry(response, "Info page", "/get?page=info");
     String rebooturl = "/get?page=reboot&CONFIRMTOKEN=" + _confirmCode;
-    buildNavigationMenuEntry(response, "Reboot Nuki Hub", rebooturl.c_str());
+    appendNavigationMenuEntry(response, "Reboot Nuki Hub", rebooturl.c_str());
 
     if (_preferences->getInt(preference_http_auth_type, 0) == 2)
     {
-        buildNavigationMenuEntry(response, "Logout", "/get?page=logout");
+        appendNavigationMenuEntry(response, "Logout", "/get?page=logout");
     }
 
     response += F("</ul></body></html>");
@@ -1169,7 +1268,17 @@ void WebCfgServer::buildBypassHtml(WebServer *server)
     }
 
     String response;
-    response.reserve(2048);
+    reserveHtmlResponse(response,
+                        0,  // Checkbox
+                        1,  // Input fields
+                        0,  // Dropdown
+                        0,  // Dropdown options
+                        0,  // Textareas
+                        0,  // Parameter rows
+                        1,  // Buttons
+                        0,  // Naviagtion menus
+                        768 // extra CSS
+    );
 
     response += F("<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
     response += F("<style>form{border:3px solid #f1f1f1; max-width: 400px;}");
@@ -1187,7 +1296,7 @@ void WebCfgServer::buildBypassHtml(WebServer *server)
     response += F("<button type=\"submit\">Login</button></div>");
     response += F("</form></center></body></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
@@ -1197,7 +1306,17 @@ void WebCfgServer::buildSSIDListHtml(WebServer *server)
     createSsidList();
 
     String response;
-    response.reserve(2048);
+    reserveHtmlResponse(response,
+                        0,                     // Checkbox
+                        0,                     // Input fields
+                        0,                     // Dropdown
+                        0,                     // Dropdown options
+                        0,                     // Textareas
+                        0,                     // Parameter rows
+                        0,                     // Buttons
+                        0,                     // Naviagtion menus
+                        _ssidList.size() * 160 // extra bytes ()
+    );
 
     for (size_t i = 0; i < _ssidList.size(); i++)
     {
@@ -1222,7 +1341,17 @@ void WebCfgServer::buildWifiConnectHtml(WebServer *server)
                       "request.onload = () => { if (document.getElementById(\"aplist\") !== null) { document.getElementById(\"aplist\").innerHTML = request.responseText; } }; request.send(); }</script>");
 
     String response;
-    response.reserve(8192);
+    reserveHtmlResponse(response,
+                        2,                              // Checkbox
+                        5,                              // Input fields
+                        0,                              // Dropdown
+                        0,                              // Dropdown options
+                        0,                              // Textareas
+                        0,                              // Parameter rows
+                        2,                              // Buttons
+                        0,                              // Naviagtion menus
+                        (_ssidList.size() * 160) + 1024 // extra bytes ()
+    );
 
     buildHtmlHeader(response, header);
 
@@ -1272,7 +1401,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     _preferences->getBytes(preference_acl, &aclPrefs, sizeof(aclPrefs));
 
     String response;
-    response.reserve(8192);
+    response.reserve(12288);
 
     buildHtmlHeader(response);
     response += "<h3>System Information</h3><pre>";
@@ -1332,21 +1461,29 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
         response += String(SPIFFS.totalBytes() - SPIFFS.usedBytes());
     }
 
-    response += "\n\n------------ GENERAL SETTINGS ------------";
+    response += F("\n\n------------ GENERAL SETTINGS ------------");
     response += F("\nNetwork task stack size: ");
     response += String(_preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE));
     response += F("\nNuki task stack size: ");
     response += String(_preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE));
-    response += "\nUpdate Nuki Hub and Nuki devices time using NTP: " + String(_preferences->getBool(preference_update_time, false) ? "Yes" : "No");
+    response += F("\nUpdate Nuki Hub and Nuki devices time using NTP: ");
+    response += String(_preferences->getBool(preference_update_time, false) ? "Yes" : "No");
 
-    response += "\nWeb configurator enabled: " + String(_preferences->getBool(preference_webcfgserver_enabled, true) ? "Yes" : "No");
-    response += "\nWeb configurator username: " + String(_preferences->getString(preference_cred_user, "").length() > 0 ? "***" : "Not set");
-    response += "\nWeb configurator password: " + String(_preferences->getString(preference_cred_password, "").length() > 0 ? "***" : "Not set");
-    response += "\nWeb configurator bypass for proxy IP: " + String(_preferences->getString(preference_bypass_proxy, "").length() > 0 ? "***" : "Not set");
-    response += "\nWeb configurator authentication: " + String(_preferences->getInt(preference_http_auth_type, 0) == 0 ? "Basic" : _preferences->getInt(preference_http_auth_type, 0) == 1 ? "Digest"
-                                                                                                                                                                                           : "Form");
-    response += "\nSession validity (in seconds): " + String(_preferences->getInt(preference_cred_session_lifetime, 3600));
-    response += "\nSession validity remember (in hours): " + String(_preferences->getInt(preference_cred_session_lifetime_remember, 720));
+    response += F("\nWeb configurator enabled: ");
+    response += String(_preferences->getBool(preference_webcfgserver_enabled, true) ? "Yes" : "No");
+    response += F("\nWeb configurator username: ");
+    response += String(_preferences->getString(preference_cred_user, "").length() > 0 ? "***" : "Not set");
+    response += F("\nWeb configurator password: ");
+    response += String(_preferences->getString(preference_cred_password, "").length() > 0 ? "***" : "Not set");
+    response += F("\nWeb configurator bypass for proxy IP: ");
+    response += String(_preferences->getString(preference_bypass_proxy, "").length() > 0 ? "***" : "Not set");
+    response += F("\nWeb configurator authentication: ");
+    response += String(_preferences->getInt(preference_http_auth_type, 0) == 0 ? "Basic" : _preferences->getInt(preference_http_auth_type, 0) == 1 ? "Digest"
+                                                                                                                                                   : "Form");
+    response += F("\nSession validity (in seconds): ");
+    response += String(_preferences->getInt(preference_cred_session_lifetime, 3600));
+    response += F("\nSession validity remember (in hours): ");
+    response += String(_preferences->getInt(preference_cred_session_lifetime_remember, 720));
 
     response += F("\nAdvanced menu enabled: ");
     response += _preferences->getBool(preference_enable_debug_mode, false) ? F("Yes") : F("No");
@@ -1366,95 +1503,342 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += _preferences->getBool(preference_enable_bootloop_reset, false) ? F("Yes") : F("No");
 
     // Netzwerk-Infos
-    response += "\n------------ NETWORK ------------\n";
+    response += F("\n\n------------ NETWORK ------------");
     if (_network->networkDeviceType() == NetworkDeviceType::ETH)
         devType = "LAN";
     else if (_network->networkDeviceType() == NetworkDeviceType::WiFi)
         devType = "WLAN";
     else
         devType = "Unbekannt";
-    response += "Network device: " + devType + "\n";
-    response += "Network connected: " + String(_network->isConnected() ? "Yes" : "No") + "\n";
+    response += F("\nNetwork device: ");
+    response += devType;
+    response += F("\nNetwork connected: ");
+    response += String(_network->isConnected() ? "Yes" : "No");
     if (_network->isConnected())
     {
-        response += "IP Address: " + _network->localIP() + "\n";
+        response += F("\nIP Address: ");
+        response += _network->localIP();
         if (devType == "WLAN")
         {
-            response += "SSID: " + WiFi.SSID() + "\n";
-            response += "ESP32 MAC address: " + WiFi.macAddress() + "\n";
+            response += F("\nSSID: ");
+            response += WiFi.SSID();
+            response += F("\nESP32 MAC address: ");
+            response += WiFi.macAddress();
         }
     }
 
-    response += "\n------------ NETWORK SETTINGS ------------\n";
-    response += "Nuki Hub hostname: " + _preferences->getString(preference_hostname, "") + "\n";
+    response += F("\n\n------------ NETWORK SETTINGS ------------");
+    response += F("\nNuki Hub hostname: ");
+    response += _preferences->getString(preference_hostname, "");
+
     if (_preferences->getBool(preference_ip_dhcp_enabled, true))
     {
-        response += "DHCP enabled: Yes\n";
+        response += F("\nDHCP enabled: Yes");
     }
     else
     {
-        response += "DHCP enabled: No\n";
-        response += "Static IP address: " + _preferences->getString(preference_ip_address, "") + "\n";
-        response += "Static IP subnet: " + _preferences->getString(preference_ip_subnet, "") + "\n";
-        response += "Static IP gateway: " + _preferences->getString(preference_ip_gateway, "") + "\n";
-        response += "Static IP DNS server: " + _preferences->getString(preference_ip_dns_server, "") + "\n";
+        response += F("\nDHCP enabled: No");
+        response += F("\nStatic IP address: ");
+        response += _preferences->getString(preference_ip_address, "");
+        response += F("\nStatic IP subnet: ");
+        response += _preferences->getString(preference_ip_subnet, "");
+        response += F("\nStatic IP gateway: ");
+        response += _preferences->getString(preference_ip_gateway, "");
+        response += F("\nStatic IP DNS server: ");
+        response += _preferences->getString(preference_ip_dns_server, "");
     }
 
     if (devType == "WLAN")
     {
-        response += "RSSI Publish interval (s): ";
-
+        response += F("\nRSSI Publish interval (s): ");
         if (_preferences->getInt(preference_rssi_send_interval, 60) < 0)
         {
-            response += "Disabled\n";
+            response += F("Disabled");
         }
         else
         {
-            response += String(_preferences->getInt(preference_rssi_send_interval, 60)) + "\n";
+            response += String(_preferences->getInt(preference_rssi_send_interval, 60));
         }
 
-        response += "Find WiFi AP with strongest signal: " + String(_preferences->getBool(preference_find_best_rssi, false) ? "Yes" : "No") + "\n";
+        response += F("\nFind WiFi AP with strongest signal: ");
+        response += _preferences->getBool(preference_find_best_rssi, false) ? F("Yes") : F("No");
     }
-    response += "Restart ESP32 on network disconnect enabled: " + String(_preferences->getBool(preference_restart_on_disconnect, false) ? "Yes" : "No") + "\n";
-    response += "Disable Network if not connected within 60s: " + String(_preferences->getBool(preference_disable_network_not_connected, false) ? "Yes" : "No") + "\n";
-
-    // REST Api Infos
-    response += "\n------------ REST Api ------------\n";
-    response += "API enabled: " + String(_preferences->getBool(preference_api_enabled, false) != false ? "Yes" : "No") + "\n";
-    response += "API connected: " + String((_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? "Yes" : "No") + "\n";
-    response += "API Port: " + String(_preferences->getInt(preference_api_port, 0)) + "\n";
-    response += "API auth token: " + _preferences->getString(preference_api_token, "not defined") + "\n";
-
-    // HomeAutomation
-    response += "\n------------ Home Automation Reporting ------------\n";
-    response += "HAR enabled: " + String(_preferences->getBool(preference_ha_enabled, false) != false ? "Yes" : "No") + "\n";
-    response += "HA reachable: " + String((_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? "Yes" : "No") + "\n";
-    response += "HAR address: " + _preferences->getString(preference_ha_address, "not defined") + "\n";
-    response += "HAR user: " + _preferences->getString(preference_ha_user, "not defined") + "\n";
-    response += "HAR password: " + _preferences->getString(preference_ha_password, "not defined") + "\n";
-    response += "HAR mode: " + _preferences->getString(preference_ha_mode, "not defined") + "\n";
-
-    // Bluetooth Infos
-    response += "\n------------ BLUETOOTH ------------\n";
-    response += "Bluetooth connection mode: " + String(_preferences->getBool(preference_connect_mode, true) ? "New" : "Old") + "\n";
-    response += "Bluetooth TX power (dB): " + String(_preferences->getInt(preference_ble_tx_power, 9)) + "\n";
-
-    // Nuki Lock Infos
-    response += "\n------------ NUKI LOCK ------------\n";
-    if (_nuki == nullptr || !_preferences->getBool(preference_lock_enabled, true))
+    response += F("\nRestart ESP32 on network disconnect enabled: ");
+    response += _preferences->getBool(preference_restart_on_disconnect, false) ? F("Yes") : F("No");
+    response += F("\nDisable Network if not connected within 60s: ");
+    response += _preferences->getBool(preference_disable_network_not_connected, false) ? F("Yes") : F("No");
+    response += F("\nHA & API Timeout until restart (s): ");
+    if (_preferences->getInt(preference_network_timeout, 60) < 0)
     {
-        response += "Lock enabled: No\n";
+        response += F("Disabled");
     }
     else
     {
-        response += "Lock enabled: Yes\n";
-        response += "Paired: " + String(_nuki->isPaired() ? "Yes" : "No") + "\n";
-        response += "Firmware version: " + _nuki->firmwareVersion() + "\n";
+        response += String(_preferences->getInt(preference_network_timeout, 60));
     }
 
-    response += "</pre></body></html>";
+    // REST Api Infos
+    response += F("\n\n------------ REST API ------------");
+    response += F("\nAPI enabled: ");
+    response += String(_preferences->getBool(preference_api_enabled, false) != false ? "Yes" : "No");
+    response += F("\nAPI connected: ");
+    response += String((_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? "Yes" : "No");
+    response += F("\nAPI Port: ");
+    response += String(_preferences->getInt(preference_api_port, 0));
+    response += F("\nAPI auth token: ");
+    response += _preferences->getString(preference_api_token, "not defined");
 
-    server->send(200, "text/html", response);
+    // HomeAutomation
+    response += F("\n\n------------ HOME AAUTOMATION REPORTING ------------");
+    response += F("\nHAR enabled: ");
+    response += String(_preferences->getBool(preference_ha_enabled, false) != false ? "Yes" : "No");
+    response += F("\nHA reachable: ");
+    response += String((_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? "Yes" : "No");
+    response += F("\nHA address: ");
+    response += _preferences->getString(preference_ha_address, "not defined");
+    response += F("\nHA user: ");
+    response += _preferences->getString(preference_ha_user, "not defined");
+    response += F("\nHA password: ");
+    response += _preferences->getString(preference_ha_password, "not defined");
+    response += F("\nHAR mode: ");
+    response += _preferences->getString(preference_ha_mode, "not defined");
+
+    // Bluetooth Infos
+    response += F("\n\n------------ BLUETOOTH ------------");
+    response += F("\nBluetooth connection mode: ");
+    response += String(_preferences->getBool(preference_connect_mode, true) ? "New" : "Old");
+    response += F("\nBluetooth TX power (dB): ");
+    response += String(_preferences->getInt(preference_ble_tx_power, 9));
+    response += F("\nBluetooth command nr of retries: ");
+    response += String(_preferences->getInt(preference_command_nr_of_retries, 3));
+    response += F("\nBluetooth command retry delay (ms): ");
+    response += String(_preferences->getInt(preference_command_retry_delay, 100));
+    response += F("\nSeconds until reboot when no BLE beacons received: ");
+    response += String(_preferences->getInt(preference_restart_ble_beacon_lost, 60));
+
+    response += F("\n\n------------ QUERY / REPORT SETTINGS ------------");
+    response += F("\nLock state query interval (s): ");
+    response += String(_preferences->getInt(preference_query_interval_lockstate, 1800));
+    response += F("\nBattery state query interval (s): ");
+    response += String(_preferences->getInt(preference_query_interval_battery, 1800));
+    response += F("\nConfig query interval (s): ");
+    response += String(_preferences->getInt(preference_query_interval_configuration, 3600));
+    response += F("\nKeypad query interval (s): ");
+    response += String(_preferences->getInt(preference_query_interval_keypad, 1800));
+    response += F("\nEnable Keypad control: ");
+    response += _preferences->getBool(preference_keypad_control_enabled, false) ? F("Yes") : F("No");
+    response += F("\nAllow checking Keypad codes: ");
+    response += _preferences->getBool(preference_keypad_check_code_enabled, false) ? F("Yes") : F("No");
+    response += F("\nMax keypad entries to retrieve: ");
+    response += String(_preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD));
+    response += F("\nKeypad query interval (s): ");
+    response += String(_preferences->getInt(preference_query_interval_keypad, 1800));
+    response += F("\nEnable timecontrol control: ");
+    response += _preferences->getBool(preference_timecontrol_control_enabled, false) ? F("Yes") : F("No");
+    response += F("\nMax timecontrol entries to retrieve: ");
+    response += String(_preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL));
+    response += F("\nEnable authorization control: ");
+    response += _preferences->getBool(preference_auth_info_enabled, false) ? F("Yes") : F("No");
+    response += F("\nMax authorization entries to retrieve: ");
+    response += String(_preferences->getInt(preference_auth_max_entries, MAX_AUTH));
+
+    // Nuki Lock Infos
+    response += F("\n\n------------ NUKI LOCK ------------");
+    if (_nuki == nullptr || !_preferences->getBool(preference_lock_enabled, true))
+    {
+        response += F("\nLock enabled: No");
+    }
+    else
+    {
+        response += F("\nLock enabled: Yes");
+        response += F("\nPaired: ");
+        response += _nuki->isPaired() ? F("Yes") : F("No");
+        response += F("\nNuki Hub device ID: ");
+        response += String(_preferences->getUInt(preference_device_id_lock, 0));
+        response += F("\nNuki device ID: ");
+        response += _preferences->getUInt(preference_nuki_id_lock, 0) > 0 ? F("***") : F("Not set");
+        response += F("\nFirmware version: ");
+        response += _nuki->firmwareVersion();
+        response += F("\nHardware version: ");
+        response += _nuki->hardwareVersion();
+        response += F("\nValid PIN set: ");
+        response += _nuki->isPaired() ? (_nuki->isPinValid() ? F("Yes") : F("No")) : F("-");
+        response += F("\nHas door sensor: ");
+        response += _nuki->hasDoorSensor() ? F("Yes") : F("No");
+        response += F("\nHas keypad: ");
+        response += _nuki->hasKeypad() ? F("Yes") : F("No");
+        if (_nuki->hasKeypad())
+        {
+            response += F("\nKeypad highest entries count: ");
+            response += String(_preferences->getInt(preference_lock_max_keypad_code_count, 0));
+        }
+        response += F("\nTimecontrol highest entries count: ");
+        response += String(_preferences->getInt(preference_lock_max_timecontrol_entry_count, 0));
+        response += F("\nAuthorizations highest entries count: ");
+        response += String(_preferences->getInt(preference_lock_max_auth_entry_count, 0));
+        response += F("\nRegister as: Bridge");
+
+        response += F("\nForce Lock ID: ");
+        response += _preferences->getBool(preference_lock_force_id, false) ? F("Yes") : F("No");
+        response += F("\nForce Lock Keypad: ");
+        response += _preferences->getBool(preference_lock_force_keypad, false) ? F("Yes") : F("No");
+        response += F("\nForce Lock Doorsensor: ");
+        response += _preferences->getBool(preference_lock_force_doorsensor, false) ? F("Yes") : F("No");
+    }
+
+    uint32_t basicLockConfigAclPrefs[16];
+    _preferences->getBytes(preference_conf_lock_basic_acl, &basicLockConfigAclPrefs, sizeof(basicLockConfigAclPrefs));
+    uint32_t advancedLockConfigAclPrefs[25];
+    _preferences->getBytes(preference_conf_lock_advanced_acl, &advancedLockConfigAclPrefs, sizeof(advancedLockConfigAclPrefs));
+    response += F("\n\n------------ NUKI LOCK ACL ------------");
+    response += F("\nLock: ");
+    response += ((int)aclPrefs[0]) ? F("Allowed") : F("Disallowed");
+    response += F("\nUnlock: ");
+    response += ((int)aclPrefs[1]) ? F("Allowed") : F("Disallowed");
+    response += F("\nUnlatch: ");
+    response += ((int)aclPrefs[2]) ? F("Allowed") : F("Disallowed");
+    response += F("\nLock N Go: ");
+    response += ((int)aclPrefs[3]) ? F("Allowed") : F("Disallowed");
+    response += F("\nLock N Go Unlatch: ");
+    response += ((int)aclPrefs[4]) ? F("Allowed") : F("Disallowed");
+    response += F("\nFull Lock: ");
+    response += ((int)aclPrefs[5]) ? F("Allowed") : F("Disallowed");
+    response += F("\nFob Action 1: ");
+    response += ((int)aclPrefs[6]) ? F("Allowed") : F("Disallowed");
+    response += F("\nFob Action 2: ");
+    response += ((int)aclPrefs[7]) ? F("Allowed") : F("Disallowed");
+    response += F("\nFob Action 3: ");
+    response += ((int)aclPrefs[8]) ? F("Allowed") : F("Disallowed");
+
+    response += F("\n\n------------ NUKI LOCK CONFIG ACL ------------");
+    response += F("\nName: ");
+    response += ((int)basicLockConfigAclPrefs[0]) ? F("Allowed") : F("Disallowed");
+    response += F("\nLatitude: ");
+    response += ((int)basicLockConfigAclPrefs[1]) ? F("Allowed") : F("Disallowed");
+    response += F("\nLongitude: ");
+    response += ((int)basicLockConfigAclPrefs[2]) ? F("Allowed") : F("Disallowed");
+    response += F("\nAuto Unlatch: ");
+    response += ((int)basicLockConfigAclPrefs[3]) ? F("Allowed") : F("Disallowed");
+    response += F("\nPairing enabled: ");
+    response += ((int)basicLockConfigAclPrefs[4]) ? F("Allowed") : F("Disallowed");
+    response += F("\nButton enabled: ");
+    response += ((int)basicLockConfigAclPrefs[5]) ? F("Allowed") : F("Disallowed");
+    response += F("\nLED flash enabled: ");
+    response += ((int)basicLockConfigAclPrefs[6]) ? F("Allowed") : F("Disallowed");
+    response += F("\nLED brightness: ");
+    response += ((int)basicLockConfigAclPrefs[7]) ? F("Allowed") : F("Disallowed");
+    response += F("\nTimezone offset: ");
+    response += ((int)basicLockConfigAclPrefs[8]) ? F("Allowed") : F("Disallowed");
+    response += F("\nDST mode: ");
+    response += ((int)basicLockConfigAclPrefs[9]) ? F("Allowed") : F("Disallowed");
+    response += F("\nFob Action 1: ");
+    response += ((int)basicLockConfigAclPrefs[10]) ? F("Allowed") : F("Disallowed");
+    response += F("\nFob Action 2: ");
+    response += ((int)basicLockConfigAclPrefs[11]) ? F("Allowed") : F("Disallowed");
+    response += F("\nFob Action 3: ");
+    response += ((int)basicLockConfigAclPrefs[12]) ? F("Allowed") : F("Disallowed");
+    response += F("\nSingle Lock: ");
+    response += ((int)basicLockConfigAclPrefs[13]) ? F("Allowed") : F("Disallowed");
+    response += F("\nAdvertising Mode: ");
+    response += ((int)basicLockConfigAclPrefs[14]) ? F("Allowed") : F("Disallowed");
+    response += F("\nTimezone ID: ");
+    response += ((int)basicLockConfigAclPrefs[15]) ? F("Allowed") : F("Disallowed");
+
+    response += F("\nUnlocked Position Offset Degrees: ");
+    response += ((int)advancedLockConfigAclPrefs[0]) ? F("Allowed") : F("Disallowed");
+    response += F("\nLocked Position Offset Degrees: ");
+    response += ((int)advancedLockConfigAclPrefs[1]) ? F("Allowed") : F("Disallowed");
+    response += F("\nSingle Locked Position Offset Degrees: ");
+    response += ((int)advancedLockConfigAclPrefs[2]) ? F("Allowed") : F("Disallowed");
+    response += F("\nUnlocked To Locked Transition Offset Degrees: ");
+    response += ((int)advancedLockConfigAclPrefs[3]) ? F("Allowed") : F("Disallowed");
+    response += F("\nLock n Go timeout: ");
+    response += ((int)advancedLockConfigAclPrefs[4]) ? F("Allowed") : F("Disallowed");
+    response += F("\nSingle button press action: ");
+    response += ((int)advancedLockConfigAclPrefs[5]) ? F("Allowed") : F("Disallowed");
+    response += F("\nDouble button press action: ");
+    response += ((int)advancedLockConfigAclPrefs[6]) ? F("Allowed") : F("Disallowed");
+    response += F("\nDetached cylinder: ");
+    response += ((int)advancedLockConfigAclPrefs[7]) ? F("Allowed") : F("Disallowed");
+    response += F("\nBattery type: ");
+    response += ((int)advancedLockConfigAclPrefs[8]) ? F("Allowed") : F("Disallowed");
+    response += F("\nAutomatic battery type detection: ");
+    response += ((int)advancedLockConfigAclPrefs[9]) ? F("Allowed") : F("Disallowed");
+    response += F("\nUnlatch duration: ");
+    response += ((int)advancedLockConfigAclPrefs[10]) ? F("Allowed") : F("Disallowed");
+    response += F("\nAuto lock timeout: ");
+    response += ((int)advancedLockConfigAclPrefs[11]) ? F("Allowed") : F("Disallowed");
+    response += F("\nAuto unlock disabled: ");
+    response += ((int)advancedLockConfigAclPrefs[12]) ? F("Allowed") : F("Disallowed");
+    response += F("\nNightmode enabled: ");
+    response += ((int)advancedLockConfigAclPrefs[13]) ? F("Allowed") : F("Disallowed");
+    response += F("\nNightmode start time: ");
+    response += ((int)advancedLockConfigAclPrefs[14]) ? F("Allowed") : F("Disallowed");
+    response += F("\nNightmode end time: ");
+    response += ((int)advancedLockConfigAclPrefs[15]) ? F("Allowed") : F("Disallowed");
+    response += F("\nNightmode auto lock enabled: ");
+    response += ((int)advancedLockConfigAclPrefs[16]) ? F("Allowed") : F("Disallowed");
+    response += F("\nNightmode auto unlock disabled: ");
+    response += ((int)advancedLockConfigAclPrefs[17]) ? F("Allowed") : F("Disallowed");
+    response += F("\nNightmode immediate lock on start: ");
+    response += ((int)advancedLockConfigAclPrefs[18]) ? F("Allowed") : F("Disallowed");
+    response += F("\nAuto lock enabled: ");
+    response += ((int)advancedLockConfigAclPrefs[19]) ? F("Allowed") : F("Disallowed");
+    response += F("\nImmediate auto lock enabled: ");
+    response += ((int)advancedLockConfigAclPrefs[20]) ? F("Allowed") : F("Disallowed");
+    response += F("\nAuto update enabled: ");
+    response += ((int)advancedLockConfigAclPrefs[21]) ? F("Allowed") : F("Disallowed");
+    response += F("\nReboot Nuki: ");
+    response += ((int)advancedLockConfigAclPrefs[22]) ? F("Allowed") : F("Disallowed");
+    response += F("\nMotor speed: ");
+    response += ((int)advancedLockConfigAclPrefs[23]) ? F("Allowed") : F("Disallowed");
+    response += F("\nEnable slow speed during nightmode: ");
+    response += ((int)advancedLockConfigAclPrefs[24]) ? F("Allowed") : F("Disallowed");
+
+    if (_preferences->getBool(preference_show_secrets))
+    {
+        char tmp[16];
+        unsigned char currentBleAddress[6];
+        unsigned char authorizationId[4] = {0x00};
+        unsigned char secretKeyK[32] = {0x00};
+
+        Preferences nukiBlePref;
+        nukiBlePref.begin("NukiHub", false);
+        nukiBlePref.getBytes("bleAddress", currentBleAddress, 6);
+        nukiBlePref.getBytes("secretKeyK", secretKeyK, 32);
+        nukiBlePref.getBytes("authorizationId", authorizationId, 4);
+        nukiBlePref.end();
+
+        response += F("\n\n------------ NUKI LOCK PAIRING ------------");
+        response += F("\nBLE Address: ");
+        for (int i = 0; i < 6; i++)
+        {
+            sprintf(tmp, "%02x", currentBleAddress[i]);
+            response += tmp;
+        }
+
+        response += F("\nSecretKeyK: ");
+        for (int i = 0; i < 32; i++)
+        {
+            sprintf(tmp, "%02x", secretKeyK[i]);
+            response += tmp;
+        }
+
+        response += F("\nAuthorizationId: ");
+        for (int i = 0; i < 4; i++)
+        {
+            sprintf(tmp, "%02x", authorizationId[i]);
+            response += tmp;
+        }
+
+        uint32_t authorizationIdInt = authorizationId[0] + 256U * authorizationId[1] + 65536U * authorizationId[2] + 16777216U * authorizationId[3];
+        response += F("\nAuthorizationId (UINT32_T): ");
+        response += String(authorizationIdInt);
+    }
+
+    response += F("</pre></body></html>");
+
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildHtmlHeader(String &response, const String &additionalHeader)
@@ -1471,7 +1855,7 @@ void WebCfgServer::buildHtmlHeader(String &response, const String &additionalHea
     response += F("<title>Nuki Bridge</title></head><body>");
 }
 
-void WebCfgServer::buildNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage)
+void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage)
 {
     response += F("<a class=\"naventry\" href=\"");
     response += targetPath;
@@ -1693,17 +2077,52 @@ const std::vector<std::pair<String, String>> WebCfgServer::getNetworkDetectionOp
 void WebCfgServer::sendCss(WebServer *server)
 {
     // Setze den Cache-Control Header
-    server->sendHeader("Cache-Control", "public, max-age=3600");
+    server->sendHeader(F("Cache-Control"), "public, max-age=3600");
 
     // Setze den Content-Type auf text/css
     server->setContentLength(CONTENT_LENGTH_UNKNOWN); // Länge muss nicht im Voraus bekannt sein
-    server->send(200, "text/css", css);               // Antwortstatus 200 und Content-Type "text/css"
+    server->send(200, F("text/css"), css);            // Antwortstatus 200 und Content-Type "text/css"
 }
 
 String WebCfgServer::generateConfirmCode()
 {
     int code = random(1000, 9999);
     return String(code);
+}
+
+size_t WebCfgServer::estimateHtmlSize(
+    int checkboxCount,
+    int inputFieldCount,
+    int dropdownCount,
+    int dropdownOptionCountTotal,
+    int textareaCount,
+    int parameterRowCount,
+    int buttonCount,
+    int navigationMenuCount,
+    int extraContentBytes)
+{
+    const int checkboxSize = 320;
+    const int inputFieldSize = 368;
+    const int dropdownBaseSize = 192;
+    const int dropdownOptionSize = 96;
+    const int textareaSize = 384;
+    const int paramRowSize = 192;
+    const int buttonSize = 160;
+    const int navigationMenuSize = 160;
+    const int footerSize = 160;
+    const int headerSize = 368;
+    const int extraStatic = 160; // additional <input hidden> / <td> / <form> etc.
+
+    size_t total = headerSize + extraStatic + extraContentBytes + footerSize;
+    total += checkboxCount * checkboxSize;
+    total += inputFieldCount * inputFieldSize;
+    total += dropdownCount * dropdownBaseSize + dropdownOptionCountTotal * dropdownOptionSize;
+    total += textareaCount * textareaSize;
+    total += parameterRowCount * paramRowSize;
+    total += buttonCount * buttonSize;
+    total += navigationMenuCount * navigationMenuSize;
+
+    return total;
 }
 
 bool WebCfgServer::processArgs(WebServer *server, String &message)
