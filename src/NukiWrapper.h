@@ -93,6 +93,7 @@ public:
 
     const bool isPaired() const;
     const bool hasKeypad() const;
+    bool hasDoorSensor() const;
 
     const BLEAddress getBleAddress() const;
 
