@@ -133,14 +133,14 @@ private:
 
     NukiLock::LockAction lockActionToEnum(const char* str); // char array at least 14 characters
 
-    // Internal NukiLock instance that takes care of the actual BLE communication
-    NukiLock::NukiLock _nukiLock;
-
     std::string _deviceName;
     NukiDeviceId *_deviceId = nullptr;
+    // Internal NukiLock instance that takes care of the actual BLE communication
+    NukiLock::NukiLock _nukiLock;
     BleScanner::Scanner *_bleScanner = nullptr;
-    Preferences *_preferences;
     NukiNetwork *_network = nullptr;
+    Preferences *_preferences;
+
 
     std::vector<uint16_t> _keypadCodeIds;
     std::vector<uint32_t> _keypadCodes;

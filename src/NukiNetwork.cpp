@@ -911,10 +911,12 @@ void NukiNetwork::initializeEthernet()
 
 void NukiNetwork::startNetworkServices()
 {
-    if (_apiEnabled)
-        _httpClient = new HTTPClient();
     if (_homeAutomationEnabled)
+        Log->println(F("[INFO] start Home Automation Report Service"));
+        _httpClient = new HTTPClient();
+    if (_apiEnabled)
     {
+        Log->println(F("[INFO] start REST API Server"));
         _server = new WebServer(_apiPort);
         if (_server)
         {

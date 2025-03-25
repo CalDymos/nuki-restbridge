@@ -329,12 +329,12 @@ private:
 
     // Configuration & network parameters
     Preferences *_preferences;
-    BridgeApiToken *_apitoken = nullptr;
     IPConfiguration *_ipConfiguration = nullptr;
     String _hostname;
     String _WiFissid;
     String _WiFipass;
 
+    BridgeApiToken *_apitoken = nullptr;
     // Network & system states
     bool _firstBootAfterDeviceChange = false;
     bool _webCfgEnabled = true;
