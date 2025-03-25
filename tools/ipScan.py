@@ -101,7 +101,7 @@ frame.pack(padx=10, pady=10, fill="both", expand=True)
 # Input field for IP range
 tk.Label(frame, text="IP range (CIDR e.g. 192.168.0.0/24):").pack()
 entry = tk.Entry(frame, width=30)
-entry.insert(0, "192.168.0.0/24")
+entry.insert(0, "192.6.1.0/24")
 entry.pack(pady=5)
 
 # Start scan button
