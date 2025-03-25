@@ -65,14 +65,29 @@ private:
     void buildInfoHtml(WebServer *server);
     void buildNetworkConfigHtml(WebServer *server);
     void buildCredHtml(WebServer *server);
-    void buildWifiConnectHtml(WebServer *server);
+    void buildConnectHtml(WebServer *server);
     void buildHtml(WebServer *server);
     void buildHtmlHeader(String &response, const String &additionalHeader = "");
     void buildConfigureWifiHtml(WebServer *server);
     void buildApiConfigHtml(WebServer *server);
     void buildHARConfigHtml(WebServer *server);
     void waitAndProcess(const bool blocking, const uint32_t duration);
-    bool processWiFi(WebServer *server, String &message);
+    /**
+     * Processes the transmitted connection settings from (buildConnectHtml).
+     *
+     * @param server   Pointer to the WebServer object with the request data.
+     * @param message  [out] Message with the status of processing (e.g. error message).
+     * @param nwMode   [out] Set network mode (LAN, WLAN, ...)
+     * @return         true for success, false for error.
+     */
+    bool processConnectionSettings(WebServer *server, String &message, int &nwMode);
+    /**
+     * Processes the transmitted settings of the build... Html pages
+     *
+     * @param server   Pointer to the WebServer object with the request data.
+     * @param message  [out] Message with the status of processing (e.g. error message).
+     * @return         true for success, false for error.
+     */
     bool processArgs(WebServer *server, String &message);
     bool processBypass(WebServer *server);
     bool processLogin(WebServer *server);
@@ -111,6 +126,7 @@ private:
                            const char *token,
                            const char *description,
                            const bool value,
+                           const char *args,
                            const char *htmlClass);
 
     /**
