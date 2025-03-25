@@ -521,7 +521,9 @@ void WebCfgServer::initialize()
 
     _webServer->on("/", HTTP_GET, [this]()
                    {
-                       Log->println("[DEBUG] Anfrage an / erhalten!");
+#ifdef DEBUG
+                       Log->println("[DEBUG] Anfrage an / erhalten : " + this->_webServer->uri());
+#endif
 
                        int authReq = doAuthentication(this->_webServer);
 
@@ -559,9 +561,26 @@ void WebCfgServer::initialize()
 #endif
                    });
 
-    // Eigentliches Starten des Webservers
+    // Actually starting the web server
     _webServer->begin();
-    Log->println("[INFO] WebCfgServer started on http://" + WiFi.softAPIP().toString() + ":" + String(WEBCFGSERVER_PORT));
+
+    IPAddress ip;
+
+    if (WiFi.getMode() & WIFI_STA)
+    {
+        ip = WiFi.localIP();
+    }
+    else if (WiFi.getMode() & WIFI_AP)
+    {
+        ip = WiFi.softAPIP();
+    }
+    else if (ETH.linkUp())
+    {
+
+        ip = ETH.localIP();
+    }
+
+    Log->println("[INFO] WebCfgServer started on http://" + ip.toString() + ":" + String(WEBCFGSERVER_PORT));
 
     if (MDNS.begin(_preferences->getString(preference_hostname, "nukibridge").c_str()))
     {
@@ -624,11 +643,11 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
     response += F("<input type=\"hidden\" name=\"ACLLVLCHANGED\" value=\"1\">");
     response += F("<h3>Nuki General Access Control</h3><table><tr><th>Setting</th><th>Enabled</th></tr>");
 
-    appendCheckBoxRow(response, "CONFNHCTRL", "Modify Nuki Hub configuration over REST API", _preferences->getBool(preference_config_from_api, false), "", "");
+    appendCheckBoxRow(response, "CONFNHCTRL", "Modify Nuki Hub configuration over REST API", _preferences->getBool(preference_config_from_api, false));
 
     if ((_nuki && _nuki->hasKeypad()))
     {
-        appendCheckBoxRow(response, "KPENA", "Add, modify and delete keypad codes", _preferences->getBool(preference_keypad_control_enabled), "", "");
+        appendCheckBoxRow(response, "KPENA", "Add, modify and delete keypad codes", _preferences->getBool(preference_keypad_control_enabled));
     }
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
@@ -651,7 +670,7 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
 
         for (int i = 0; i < 9; i++)
         {
-            appendCheckBoxRow(response, lockActions[i], lockActions[i] + 9, aclPrefs[i], "", "chk_access_lock");
+            appendCheckBoxRow(response, lockActions[i], lockActions[i] + 9, aclPrefs[i], "chk_access_lock");
         }
 
         response += F("</table><br><h3>Nuki Lock Config Control (Requires PIN to be set)</h3>");
@@ -665,7 +684,7 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
 
         for (int i = 0; i < 10; i++)
         {
-            appendCheckBoxRow(response, configActions[i], configActions[i] + 9, basicLockConfigAclPrefs[i], "", "chk_config_lock");
+            appendCheckBoxRow(response, configActions[i], configActions[i] + 9, basicLockConfigAclPrefs[i], "chk_config_lock");
         }
 
         response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
@@ -690,8 +709,8 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
     response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
     response += F("<h3>Basic Nuki Configuration</h3><table>");
 
-    appendCheckBoxRow(response, "LOCKENA", "Nuki Lock enabled", _preferences->getBool(preference_lock_enabled, true), "", "");
-    appendCheckBoxRow(response, "CONNMODE", "New Nuki Bluetooth connection mode (disable if there are connection issues)", _preferences->getBool(preference_connect_mode, true), "", "");
+    appendCheckBoxRow(response, "LOCKENA", "Nuki Lock enabled", _preferences->getBool(preference_lock_enabled, true));
+    appendCheckBoxRow(response, "CONNMODE", "New Nuki Bluetooth connection mode (disable if there are connection issues)", _preferences->getBool(preference_connect_mode, true));
 
     response += F("</table><br><h3>Advanced Nuki Configuration</h3><table>");
 
@@ -715,7 +734,7 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
     appendInputFieldRow(response, "TXPWR", "BLE transmit power in dB (minimum -12, maximum 20)", _preferences->getInt(preference_ble_tx_power, 9), 10, "");
 #endif
 
-    appendCheckBoxRow(response, "UPTIME", "Update Nuki Hub and Lock/Opener time using NTP", _preferences->getBool(preference_update_time, false), "", "");
+    appendCheckBoxRow(response, "UPTIME", "Update Nuki Hub and Lock/Opener time using NTP", _preferences->getBool(preference_update_time, false));
     appendInputFieldRow(response, "TIMESRV", "NTP server", _preferences->getString(preference_time_server, "pool.ntp.org").c_str(), 255, "");
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
@@ -749,8 +768,8 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
     response += _preferences->getBool(preference_enable_bootloop_reset, false) ? F("Enabled") : F("Disabled");
     response += F("</td></tr>");
 
-    appendCheckBoxRow(response, "DISNTWNOCON", "Disable Network if not connected within 60s", _preferences->getBool(preference_disable_network_not_connected, false), "", "");
-    appendCheckBoxRow(response, "BTLPRST", "Enable Bootloop prevention (Try to reset these settings to default on bootloop)", true, "", "");
+    appendCheckBoxRow(response, "DISNTWNOCON", "Disable Network if not connected within 60s", _preferences->getBool(preference_disable_network_not_connected, false));
+    appendCheckBoxRow(response, "BTLPRST", "Enable Bootloop prevention (Try to reset these settings to default on bootloop)", true);
 
     appendInputFieldRow(response, "BUFFSIZE", "Char buffer size (min 4096, max 65536)", _preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE), 6, "");
     response += F("<tr><td>Advised minimum char buffer size based on current settings</td><td id=\"mincharbuffer\"></td>");
@@ -763,11 +782,11 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
     appendInputFieldRow(response, "TCMAX", "Max timecontrol entries (min 1, max 100)", _preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL), 3, "id=\"inputmaxtimecontrol\"");
     appendInputFieldRow(response, "AUTHMAX", "Max authorization entries (min 1, max 100)", _preferences->getInt(preference_auth_max_entries, MAX_AUTH), 3, "id=\"inputmaxauth\"");
 
-    appendCheckBoxRow(response, "SHOWSECRETS", "Show Pairing secrets on Info page", _preferences->getBool(preference_show_secrets), "", "");
+    appendCheckBoxRow(response, "SHOWSECRETS", "Show Pairing secrets on Info page", _preferences->getBool(preference_show_secrets));
 
     if (_preferences->getBool(preference_lock_enabled, true))
     {
-        appendCheckBoxRow(response, "LCKMANPAIR", "Manually set lock pairing data (enable to save values below)", false, "", "");
+        appendCheckBoxRow(response, "LCKMANPAIR", "Manually set lock pairing data (enable to save values below)", false);
         appendInputFieldRow(response, "LCKBLEADDR", "currentBleAddress", "", 12, "");
         appendInputFieldRow(response, "LCKSECRETK", "secretKeyK", "", 64, "");
         appendInputFieldRow(response, "LCKAUTHID", "authorizationId", "", 8, "");
@@ -778,17 +797,17 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
     {
         char uidString[20];
         itoa(_preferences->getUInt(preference_nuki_id_lock, 0), uidString, 16);
-        appendCheckBoxRow(response, "LCKFORCEID", ((String) "Force Lock ID to current ID (" + uidString + ")").c_str(), _preferences->getBool(preference_lock_force_id, false), "", "");
-        appendCheckBoxRow(response, "LCKFORCEKP", "Force Lock Keypad connected", _preferences->getBool(preference_lock_force_keypad, false), "", "");
-        appendCheckBoxRow(response, "LCKFORCEDS", "Force Lock Doorsensor connected", _preferences->getBool(preference_lock_force_doorsensor, false), "", "");
+        appendCheckBoxRow(response, "LCKFORCEID", ((String) "Force Lock ID to current ID (" + uidString + ")").c_str(), _preferences->getBool(preference_lock_force_id, false));
+        appendCheckBoxRow(response, "LCKFORCEKP", "Force Lock Keypad connected", _preferences->getBool(preference_lock_force_keypad, false));
+        appendCheckBoxRow(response, "LCKFORCEDS", "Force Lock Doorsensor connected", _preferences->getBool(preference_lock_force_doorsensor, false));
     }
 
-    appendCheckBoxRow(response, "DBGCONN", "Enable Nuki connect debug logging", _preferences->getBool(preference_debug_connect, false), "", "");
-    appendCheckBoxRow(response, "DBGCOMMU", "Enable Nuki communication debug logging", _preferences->getBool(preference_debug_communication, false), "", "");
-    appendCheckBoxRow(response, "DBGREAD", "Enable Nuki readable data debug logging", _preferences->getBool(preference_debug_readable_data, false), "", "");
-    appendCheckBoxRow(response, "DBGHEX", "Enable Nuki hex data debug logging", _preferences->getBool(preference_debug_hex_data, false), "", "");
-    appendCheckBoxRow(response, "DBGCOMM", "Enable Nuki command debug logging", _preferences->getBool(preference_debug_command, false), "", "");
-    appendCheckBoxRow(response, "DBGHEAP", "Send free heap to Home Automation", _preferences->getBool(preference_send_debug_info, false), "", "");
+    appendCheckBoxRow(response, "DBGCONN", "Enable Nuki connect debug logging", _preferences->getBool(preference_debug_connect, false));
+    appendCheckBoxRow(response, "DBGCOMMU", "Enable Nuki communication debug logging", _preferences->getBool(preference_debug_communication, false));
+    appendCheckBoxRow(response, "DBGREAD", "Enable Nuki readable data debug logging", _preferences->getBool(preference_debug_readable_data, false));
+    appendCheckBoxRow(response, "DBGHEX", "Enable Nuki hex data debug logging", _preferences->getBool(preference_debug_hex_data, false));
+    appendCheckBoxRow(response, "DBGCOMM", "Enable Nuki command debug logging", _preferences->getBool(preference_debug_command, false));
+    appendCheckBoxRow(response, "DBGHEAP", "Send free heap to Home Automation", _preferences->getBool(preference_send_debug_info, false));
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
     response += F("</form>");
@@ -941,7 +960,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
     response += F("<table>");
 
     appendInputFieldRow(response, "HOSTNAME", "Host name", _preferences->getString(preference_hostname).c_str(), 100, "");
-    appendDropDownRow(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions(), "");
+    appendDropDownRow(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions());
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
     appendInputFieldRow(response, "RSSI", "RSSI Publish interval (seconds; -1 to disable)", _preferences->getInt(preference_rssi_send_interval), 6, "");
@@ -1051,7 +1070,7 @@ void WebCfgServer::buildCredHtml(WebServer *server)
         {"0", "Basic"},
         {"1", "Digest"},
         {"2", "Form"}};
-    appendDropDownRow(response, "CREDDIGEST", "HTTP Authentication type", String(_preferences->getInt(preference_http_auth_type, 0)), httpAuthOptions, "");
+    appendDropDownRow(response, "CREDDIGEST", "HTTP Authentication type", String(_preferences->getInt(preference_http_auth_type, 0)), httpAuthOptions);
 
     appendInputFieldRow(response, "CREDTRUSTPROXY", "Bypass authentication for reverse proxy with IP", _preferences->getString(preference_bypass_proxy, "").c_str(), 255, "");
     appendInputFieldRow(response, "CREDBYPASS", "One-time MFA Bypass", "*", 32, "", true, false);
@@ -1175,7 +1194,7 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
     std::vector<std::pair<String, String>> modeOptions = {
         {"0", "UDP"},
         {"1", "REST"}};
-    appendDropDownRow(response, "HAMODE", "Mode", String(_preferences->getInt(preference_ha_mode, 0)), modeOptions, "");
+    appendDropDownRow(response, "HAMODE", "Mode", String(_preferences->getInt(preference_ha_mode, 0)), modeOptions);
 
     appendInputFieldRow(response, "HAUSER", "Username", _preferences->getString(preference_ha_user, "").c_str(), 32, "");
     appendInputFieldRow(response, "HAPASS", "Password", _preferences->getString(preference_ha_password, "").c_str(), 32, "", true, true);
@@ -1369,9 +1388,9 @@ void WebCfgServer::buildConnectHtml(WebServer *server)
                       "function toggleMode() {"
                       "  const isWifi = document.getElementById('nwmode').value === '1';"
                       "  document.getElementById('wlanConfig').style.display = isWifi ? 'block' : 'none';"
-                      "  document.getElementById('inputssid').disabled = isWifi ? false : true;"
-                      "  document.getElementById('inputpass').disabled = isWifi ? false : true;"
-                      "  document.getElementById('cbfindbestrssi').disabled = = isWifi ? false : true;"
+                      "  document.getElementById('inputssid').disabled = !isWifi;"
+                      "  document.getElementById('inputpass').disabled = !isWifi;"
+                      "  document.getElementById('cbfindbestrssi').disabled = !isWifi;"
                       "  if (isWifi) { startScan(); updateSSID(); } else { stopScan(); }"
                       "}"
                       "window.onload = function() { toggleMode(); if (document.getElementById('nwmode').value === '1') { updateSSID(); } };"
@@ -1398,7 +1417,7 @@ void WebCfgServer::buildConnectHtml(WebServer *server)
     response += F("<form class=\"adapt\" method=\"post\" action=\"saveconnset\">");
 
     response += F("<h3>Connection Type</h3><table>");
-    appendDropDownRow(response, "NWHW", "Network hardware", String(currentHw), hwOptions, "id=\"nwmode\" onchange=\"toggleMode()\"");
+    appendDropDownRow(response, "NWHW", "Network hardware", String(currentHw), hwOptions, "", "nwmode", "toggleMode()");
     response += F("</table>");
 
     // WLAN config (is shown/hidden via JS)
@@ -1416,12 +1435,12 @@ void WebCfgServer::buildConnectHtml(WebServer *server)
     response += F("</table><h3>WiFi credentials</h3><table>");
     appendInputFieldRow(response, "WIFISSID", "SSID", "", 32, "id=\"inputssid\"", false, true);
     appendInputFieldRow(response, "WIFIPASS", "Secret key", "", 63, "id=\"inputpass\"", false, true);
-    appendCheckBoxRow(response, "FINDBESTRSSI", "Find AP with best signal (disable for hidden SSID)", _preferences->getBool(preference_find_best_rssi, true), "id=\"cbfindbestrssi\"", "");
+    appendCheckBoxRow(response, "FINDBESTRSSI", "Find AP with best signal (disable for hidden SSID)", _preferences->getBool(preference_find_best_rssi, true), "", "cbfindbestrssi");
     response += F("</table></div>");
     // --------- End WLAN config -----------
 
     response += F("<h3>IP Address assignment</h3><table>");
-    appendCheckBoxRow(response, "DHCPENA", "Enable DHCP", _preferences->getBool(preference_ip_dhcp_enabled), "", "");
+    appendCheckBoxRow(response, "DHCPENA", "Enable DHCP", _preferences->getBool(preference_ip_dhcp_enabled));
     appendInputFieldRow(response, "IPADDR", "Static IP address", _preferences->getString(preference_ip_address).c_str(), 15, "");
     appendInputFieldRow(response, "IPSUB", "Subnet", _preferences->getString(preference_ip_subnet).c_str(), 15, "");
     appendInputFieldRow(response, "IPGTW", "Default gateway", _preferences->getString(preference_ip_gateway).c_str(), 15, "");
@@ -2013,17 +2032,31 @@ void WebCfgServer::appendDropDownRow(String &response,
                                      const char *description,
                                      const String preselectedValue,
                                      const std::vector<std::pair<String, String>> &options,
-                                     const String className)
+                                     const char *className,
+                                     const char *id,
+                                     const char *onChange)
 {
     response += F("<tr><td>");
     response += description;
     response += F("</td><td>");
 
     response += F("<select ");
-    if (className.length() > 0)
+    if (strlen(className) > 0)
     {
         response += F("class=\"");
         response += className;
+        response += F("\" ");
+    }
+    if (strlen(id) > 0)
+    {
+        response += F("id=\"");
+        response += id;
+        response += F("\" ");
+    }
+    if (strlen(onChange) > 0)
+    {
+        response += F("onchange=\"");
+        response += onChange;
         response += F("\" ");
     }
     response += F("name=\"");
@@ -2085,8 +2118,8 @@ void WebCfgServer::appendCheckBoxRow(String &response,
                                      const char *token,
                                      const char *description,
                                      const bool value,
-                                     const char *args,
-                                     const char *htmlClass)
+                                     const char *className,
+                                     const char *id)
 {
     response += F("<tr><td>");
     response += description;
@@ -2103,18 +2136,19 @@ void WebCfgServer::appendCheckBoxRow(String &response,
     response += F("\"");
 
     // Optional class
-    if (strcmp(htmlClass, "") != 0)
+    if (strlen(className) > 0)
     {
         response += F(" class=\"");
-        response += htmlClass;
+        response += className;
         response += F("\"");
     }
 
-    // Optional attributes (e.g., id="...")
-    if (strcmp(args, "") != 0)
+    // Optional id
+    if (strlen(id) > 0)
     {
-        response += F(" ");
-        response += args;
+        response += F(" id=\"");
+        response += id;
+        response += F("\"");
     }
 
     // Value and checked state
