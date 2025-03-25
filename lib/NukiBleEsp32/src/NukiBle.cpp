@@ -1179,7 +1179,7 @@ bool NukiBle::retrieveCredentials() {
       }
 
     } else {
-      logMessage("Error getting data from NVS", 1);
+      logMessage("Error getting 'Credential' data from NVS", 1);
       giveNukiBleSemaphore();
       return false;
     }
