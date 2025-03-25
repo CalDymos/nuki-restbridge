@@ -93,8 +93,15 @@ private:
     bool processLogin(WebServer *server);
     bool processFactoryReset(WebServer *server);
     bool processUnpair(WebServer *server);
-    void appendParameterRow(String &response, const char *description, const char *value, const char *link = "", const char *id = "");
-    void appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage = "");
+    void appendParameterRow(String &response,
+                            const char *description,
+                            const char *value,
+                            const char *link = "",
+                            const char *id = "");
+    void appendNavigationMenuEntry(String &response,
+                                   const char *title,
+                                   const char *targetPath,
+                                   const char *warningMessage = "");
     void appendInputFieldRow(String &response,
                              const char *token,
                              const char *description,
@@ -114,7 +121,9 @@ private:
                            const char *description,
                            const String preselectedValue,
                            const std::vector<std::pair<String, String>> &options,
-                           const String className);
+                           const char *className = "",
+                           const char *id = "",
+                           const char *onChange = "");
     void appendTextareaRow(String &response,
                            const char *token,
                            const char *description,
@@ -126,8 +135,8 @@ private:
                            const char *token,
                            const char *description,
                            const bool value,
-                           const char *args,
-                           const char *htmlClass);
+                           const char *className = "",
+                           const char *id = "");
 
     /**
      * Estimate required HTML response buffer size.
