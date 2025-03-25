@@ -1,0 +1,119 @@
+<html>
+<head>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+  <style>.trssid:hover { cursor: pointer; color: blue; }</style>
+  <script>
+    let intervalId = null;
+    function updateSSID() {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ssidlist', true);
+      request.onload = () => {
+        const aplist = document.getElementById("aplist");
+        if (aplist !== null) { aplist.innerHTML = request.responseText; }
+      };
+      request.send();
+    }
+    function startScan() {
+      if (!intervalId) { intervalId = setInterval(updateSSID, 5000); }
+    }
+    function stopScan() {
+      if (intervalId) { clearInterval(intervalId); intervalId = null; }
+    }
+    function toggleMode() {
+      const isWifi = document.getElementById('nwmode').value === '1';
+      document.getElementById('wlanConfig').style.display = isWifi ? 'block' : 'none';
+      document.getElementById('inputssid').disabled = isWifi ? false : true;
+      document.getElementById('inputpass').disabled = isWifi ? false : true;
+      document.getElementById('cbfindbestrssi').disabled = isWifi ? false : true;
+      if (isWifi) {
+        startScan();
+        updateSSID();
+      } else {
+        stopScan();
+      }
+    }
+    window.onload = function() {
+      toggleMode();
+      if (document.getElementById('nwmode').value === '1') {
+        updateSSID();
+      }
+    };
+  </script>
+  <link rel='stylesheet' href='/style.css'>
+  <title>Nuki Bridge</title>
+</head>
+<body>
+
+<form class="adapt" method="post" action="saveconnset">
+  <h3>Connection Type</h3>
+  <table>
+    <tr><td>Network hardware</td><td>
+      <select id="nwmode" name="NWHW" onchange="toggleMode()">
+        <option value="1" selected="selected">Wi-Fi</option>
+        <option value="2">LAN module</option>
+      </select>
+    </td></tr>
+  </table>
+
+  <div id="wlanConfig">
+    <h3>Available WiFi networks</h3>
+    <table id="aplist">
+      <tr class="trssid" onclick="document.getElementById('inputssid').value = 'MySSID1';">
+        <td colspan="2">MySSID1 (76 %)</td>
+      </tr>
+      <tr class="trssid" onclick="document.getElementById('inputssid').value = 'OfficeWiFi';">
+        <td colspan="2">OfficeWiFi (64 %)</td>
+      </tr>
+    </table>
+
+    <h3>WiFi credentials</h3>
+    <table>
+      <tr><td>SSID (Max. 32 characters)</td><td>
+        <input type="text" id="inputssid" name="WIFISSID" size="25" maxlength="32"/>
+      </td></tr>
+
+      <tr><td>Secret key (Max. 63 characters)</td><td>
+        <input type="text" id="inputpass" name="WIFIPASS" size="25" maxlength="63"/>
+      </td></tr>
+
+      <tr><td>Find AP with best signal (disable for hidden SSID)</td><td>
+        <input type="hidden" name="FINDBESTRSSI" value="0"/>
+        <input type="checkbox" name="FINDBESTRSSI" id="cbfindbestrssi" value="1" checked="checked"/>
+      </td></tr>
+    </table>
+  </div>
+
+  <h3>IP Address assignment</h3>
+  <table>
+    <tr><td>Enable DHCP</td><td>
+      <input type="hidden" name="DHCPENA" value="0"/>
+      <input type="checkbox" name="DHCPENA" value="1" checked="checked"/>
+    </td></tr>
+
+    <tr><td>Static IP address</td><td>
+      <input type="text" name="IPADDR" value="192.168.0.50" size="25" maxlength="15"/>
+    </td></tr>
+
+    <tr><td>Subnet</td><td>
+      <input type="text" name="IPSUB" value="255.255.255.0" size="25" maxlength="15"/>
+    </td></tr>
+
+    <tr><td>Default gateway</td><td>
+      <input type="text" name="IPGTW" value="192.168.0.1" size="25" maxlength="15"/>
+    </td></tr>
+
+    <tr><td>DNS Server</td><td>
+      <input type="text" name="DNSSRV" value="8.8.8.8" size="25" maxlength="15"/>
+    </td></tr>
+  </table>
+
+  <br><input type="submit" name="submit" value="Save">
+</form>
+
+<form action="/reboot" method="get">
+  <br><input type="hidden" name="CONFIRMTOKEN" value="ABCDEF123456" />
+  <input type="submit" value="Reboot" />
+</form>
+
+</body>
+</html>
