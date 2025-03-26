@@ -266,6 +266,8 @@ private:
     NukiLock::AdvancedConfig _nukiAdvancedConfig = {0};                         // Advanced configuration.
     bool _nukiConfigValid = false;                                              // Whether the basic configuration is valid.
     bool _nukiAdvancedConfigValid = false;                                      // Whether the advanced configuration is valid.
+    uint32_t _basicLockConfigaclPrefs[16];                                      // Stored preference bitfields for access control of basic lock configuration (persisted per ACL entry).
+    uint32_t _advancedLockConfigaclPrefs[25];                                   // Stored preference bitfields for access control of advanced lock configuration (persisted per ACL entry).
                                                                                 //
     NukiLock::BatteryReport _batteryReport;                                     // Latest battery status reported by the lock.
     NukiLock::BatteryReport _lastBatteryReport;                                 // Previously stored battery report.
