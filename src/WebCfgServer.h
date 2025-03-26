@@ -186,6 +186,18 @@ private:
     void buildHARConfigHtml(WebServer *server);
 
     /**
+     * @brief Builds a JSON response with current status information (API, HAR, Lock, etc.).
+     *
+     * This method creates a compressed JSON structure that contains the connection status of API and HAR,
+     * the status of the Nuki Lock and devices and their pairing status.
+     * It is typically called from a web server endpoint (`/get?page=status`),
+     * to cyclically update the status in the web interface.
+     *
+     * @param server Pointer to the active WebServer instance.
+     */
+    void buildStatusHtml(WebServer *server);
+
+    /**
      * @brief Handles waiting and asynchronous processing if requested.
      * @param blocking Whether the call should block until finished.
      * @param duration Timeout duration in milliseconds.
