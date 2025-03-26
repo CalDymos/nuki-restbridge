@@ -19,46 +19,57 @@
 #include "RestartReason.h"
 #include "EspMillis.h"
 
-Preferences *preferences = nullptr;
-NukiNetwork *network = nullptr;
-BleScanner::Scanner *bleScanner = nullptr;
-NukiWrapper *nuki = nullptr;
-NukiDeviceId *deviceIdLock = nullptr;
-WebCfgServer *webCfgServer = nullptr;
-DebugLog *Log = nullptr;
+Preferences *preferences = nullptr;        // Pointer to non-volatile key-value storage (nvs).
+NukiNetwork *network = nullptr;            // Main network interface (WiFi/Ethernet, REST API).
+BleScanner::Scanner *bleScanner = nullptr; // BLE scanner to discover/connect Nuki devices.
+NukiWrapper *nuki = nullptr;               // Core smart lock wrapper.
+NukiDeviceId *deviceIdLock = nullptr;      // Unique device ID handler.
+WebCfgServer *webCfgServer = nullptr;      // Web-based configuration interface.
+DebugLog *Log = nullptr;                   // Global logger instance.
 
-bool lockEnabled = false;
-bool wifiConnected = false;
-bool rebootLock = false;
+bool lockEnabled = false;   // Whether lock operations are currently permitted.
+bool wifiConnected = false; // WiFi connection status.
+bool rebootLock = false;    // Whether to reboot lock logic after failure.
 
-int64_t restartTs = (pow(2, 63) - (5 * 1000 * 60000)) / 1000;
+int64_t restartTs = (pow(2, 63) - (5 * 1000 * 60000)) / 1000; // Time stamp for restarting the ESP to prevent the ESPtimer from overflowing
 
-RTC_NOINIT_ATTR int espRunning;
-RTC_NOINIT_ATTR int restartReason;
-RTC_NOINIT_ATTR uint64_t restartReasonValidDetect;
-RTC_NOINIT_ATTR bool forceEnableWebCfgServer;
-RTC_NOINIT_ATTR bool disableNetwork;
-RTC_NOINIT_ATTR bool wifiFallback;
-RTC_NOINIT_ATTR bool ethCriticalFailure;
-bool coredumpPrinted = true;
-bool timeSynced = false;
+RTC_NOINIT_ATTR int espRunning;                    // Persisted runtime state across deep sleep/restart.
+RTC_NOINIT_ATTR int restartReason;                 // Last restart reason code.
+RTC_NOINIT_ATTR uint64_t restartReasonValidDetect; // Timestamp used for validating restart cause.
+RTC_NOINIT_ATTR bool forceEnableWebCfgServer;      // Flag to force-enable web config mode.
+RTC_NOINIT_ATTR bool disableNetwork;               // Flag to disable all network activity.
+RTC_NOINIT_ATTR bool wifiFallback;                 // Whether WiFi fallback was triggered (e.g. AP mode).
+RTC_NOINIT_ATTR bool ethCriticalFailure;           // Flag for Ethernet hardware failure (e.g. PHY).
 
-int lastHTTPeventId = -1;
-bool restartReason_isValid;
+bool coredumpPrinted = true; // Prevent repeated printing of core dump on each boot.
+bool timeSynced = false;     // Whether NTP time sync was successful.
 
-RestartReason currentRestartReason = RestartReason::NotApplicable;
+int lastHTTPeventId = -1;   // ID of last received HTTP event.
+bool restartReason_isValid; // True if restart reason could be determined.
+
+RestartReason currentRestartReason = RestartReason::NotApplicable; // Tracks current restart state (e.g. Watchdog, Manual, Error etc.).
 
 // Taskhandles
-TaskHandle_t nukiTaskHandle = nullptr;
-TaskHandle_t networkTaskHandle = nullptr;
-TaskHandle_t webCfgTaskHandle = nullptr;
+TaskHandle_t nukiTaskHandle = nullptr;    // Handle for BLE/Nuki lock task.
+TaskHandle_t networkTaskHandle = nullptr; // Handle for network-related task.
+TaskHandle_t webCfgTaskHandle = nullptr;  // Handle for web config server task.
 
+/**
+ * @brief Callback function invoked by SNTP when the time is synchronized.
+ * @param tv Pointer to timeval struct (unused).
+ */
 void cbSyncTime(struct timeval *tv)
 {
   Log->println(F("[INFO] NTP time synced"));
   timeSynced = true;
 }
 
+/**
+ * @brief Recursively lists files in a directory and optionally deletes large files.
+ * @param fs Reference to filesystem instance (e.g. SPIFFS).
+ * @param dirname Directory to list.
+ * @param levels Recursion depth for subdirectories.
+ */
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 {
   Log->printf("[DEBUG] Listing directory: %s\r\n", dirname);
@@ -104,9 +115,9 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
   }
 }
 
-// ------------------------
-// Nuki-Task: handle Nuki events()
-// ------------------------
+/**
+ * @brief Nuki-Task: handle Nuki events()
+ */
 void nukiTask(void *parameter)
 {
   int64_t nukiLoopTs = 0;
@@ -158,9 +169,9 @@ void nukiTask(void *parameter)
   }
 }
 
-// ------------------------
-// Netzwerk-Task: processes HTTP REST API requests and updates to HA
-// ------------------------
+/**
+ * @brief Netzwerk-Task: processes HTTP REST API requests and updates to HA
+ */
 void networkTask(void *parameter)
 {
   int64_t networkLoopTs = 0;
@@ -210,9 +221,9 @@ void networkTask(void *parameter)
   }
 }
 
-// ------------------------
-// WebConfig task: processes HTTP requests to Web Configurator
-// ------------------------
+/**
+ * @brief WebConfig task: processes HTTP requests to Web Configurator
+ */
 void webCfgTask(void *parameter)
 {
   int64_t webCfgLoopTs = 0;
@@ -238,6 +249,11 @@ void webCfgTask(void *parameter)
   }
 }
 
+/**
+ * @brief Prints current FreeRTOS task state information to the log.
+ *
+ * Useful for debugging watchdog issues or lockups by showing task runtime and stack usage.
+ */
 void printTaskInfo()
 {
   const UBaseType_t numTasks = uxTaskGetNumberOfTasks();
@@ -268,6 +284,12 @@ void printTaskInfo()
   }
 }
 
+/**
+ * @brief Creates and starts all FreeRTOS tasks used in the application.
+ *
+ * This includes tasks for BLE lock control, network handling, and web configuration.
+ * Task handles are stored globally for status tracking.
+ */
 void setupTasks()
 {
   Log->println(F("[DEBUG] setup Tasks"));
@@ -371,6 +393,12 @@ void setupTasks()
   }
 }
 
+/**
+ * @brief Logs the last ESP32 core dump information, if available.
+ *
+ * Reads crash details such as reason, PC address, and cause from persistent memory (e.g. RTC/exception frame).
+ * Intended to be called once after boot to provide post-mortem debug info.
+ */
 void logCoreDump()
 {
   coredumpPrinted = false;
@@ -572,7 +600,6 @@ void setup()
   Log->printf("[DEBUG] Heap after setupTasks: %d bytes\n", ESP.getFreeHeap());
   printTaskInfo();
 #endif
-
 }
 
 void loop()
