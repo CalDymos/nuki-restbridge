@@ -148,10 +148,10 @@ void WebCfgServer::initialize()
                                    switch (authReq)
                                    {
                                        case 0:
-                                           return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki Hub", "You must log in.");
+                                           return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki REST Bridge", "You must log in.");
                                            break;
                                        case 1:
-                                           return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
+                                           return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki REST Bridge", "You must log in.");
                                            break;
                                        case 2:
                                            this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
@@ -186,10 +186,10 @@ void WebCfgServer::initialize()
                                    switch (authReq)
                                    {
                                        case 0:
-                                           return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki Hub", "You must log in.");
+                                           return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki REST Bridge", "You must log in.");
                                            break;
                                        case 1:
-                                           return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
+                                           return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki REST Bridge", "You must log in.");
                                            break;
                                        case 2:
                                             this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
@@ -260,10 +260,10 @@ void WebCfgServer::initialize()
                 switch (authReq)
                 {
                     case 0:
-                        return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki Hub", "You must log in.");
+                        return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki REST Bridge", "You must log in.");
                         break;
                     case 1:
-                        return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
+                        return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki REST Bridge", "You must log in.");
                         break;
                     case 2:
                     this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
@@ -398,7 +398,7 @@ void WebCfgServer::initialize()
                 {
                     return buildConfirmHtml(this->_webServer, "Can't reset WiFi when network device is Ethernet", 3, true);
                 }
-                buildConfirmHtml(this->_webServer, "Restarting. Connect to ESP access point (\"NukiBridge\" with password \"NukiBridgeESP32\") to reconfigure Wi-Fi.", 0);
+                buildConfirmHtml(this->_webServer, "Restarting. Connect to ESP access point (\"NukiRESTBridge\" with password \"NukiBridgeESP32\") to reconfigure Wi-Fi.", 0);
                 waitAndProcess(false, 1000);
                 return _network->reconfigure();
             }
@@ -439,10 +439,10 @@ void WebCfgServer::initialize()
                     switch (authReq)
                     {
                         case 0:
-                            return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki Hub", "You must log in.");
+                            return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki REST Bridge", "You must log in.");
                             break;
                         case 1:
-                            return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
+                            return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki REST Bridge", "You must log in.");
                             break;
                         case 2:
                         this->_webServer->sendHeader(F("Cache-Control"),  F("no-cache"));
@@ -530,10 +530,10 @@ void WebCfgServer::initialize()
                        switch (authReq)
                        {
                        case 0:
-                           return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki Hub", "You must log in.");
+                           return this->_webServer->requestAuthentication(BASIC_AUTH, "Nuki REST Bridge", "You must log in.");
                            break;
                        case 1:
-                           return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki Hub", "You must log in.");
+                           return this->_webServer->requestAuthentication(DIGEST_AUTH, "Nuki REST BRidge", "You must log in.");
                            break;
                        case 2:
                            this->_webServer->sendHeader(F("Cache-Control"), F("no-cache"));
@@ -582,7 +582,7 @@ void WebCfgServer::initialize()
 
     Log->println("[INFO] WebCfgServer started on http://" + ip.toString() + ":" + String(WEBCFGSERVER_PORT));
 
-    if (MDNS.begin(_preferences->getString(preference_hostname, "nukibridge").c_str()))
+    if (MDNS.begin(_preferences->getString(preference_hostname, "nukirestbridge").c_str()))
     {
         MDNS.addService("http", "tcp", WEBCFGSERVER_PORT);
     }
@@ -643,7 +643,7 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
     response += F("<input type=\"hidden\" name=\"ACLLVLCHANGED\" value=\"1\">");
     response += F("<h3>Nuki General Access Control</h3><table><tr><th>Setting</th><th>Enabled</th></tr>");
 
-    appendCheckBoxRow(response, "CONFNHCTRL", "Modify Nuki Hub configuration over REST API", _preferences->getBool(preference_config_from_api, false));
+    appendCheckBoxRow(response, "CONFNHCTRL", "Modify Nuki Bridge configuration over REST API", _preferences->getBool(preference_config_from_api, false));
 
     if ((_nuki && _nuki->hasKeypad()))
     {
@@ -734,7 +734,7 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
     appendInputFieldRow(response, "TXPWR", "BLE transmit power in dB (minimum -12, maximum 20)", _preferences->getInt(preference_ble_tx_power, 9), 10, "");
 #endif
 
-    appendCheckBoxRow(response, "UPTIME", "Update Nuki Hub and Lock/Opener time using NTP", _preferences->getBool(preference_update_time, false));
+    appendCheckBoxRow(response, "UPTIME", "Update Nuki Bridge and Lock time using NTP", _preferences->getBool(preference_update_time, false));
     appendInputFieldRow(response, "TIMESRV", "NTP server", _preferences->getString(preference_time_server, "pool.ntp.org").c_str(), 255, "");
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
@@ -860,7 +860,7 @@ void WebCfgServer::buildLoginHtml(WebServer *server)
     response += F("border:none;cursor:pointer;width:100%}button:hover{opacity:.8}");
     response += F(".container{padding:16px}span.password{float:right;padding-top:16px}");
     response += F("@media screen and (max-width:300px){span.psw{display:block;float:none}}</style>");
-    response += F("</head><body><center><h2>Nuki Hub login</h2>");
+    response += F("</head><body><center><h2>Nuki Bridge login</h2>");
     response += F("<form action=\"/post?page=login\" method=\"post\">");
     response += F("<div class=\"container\">");
     response += F("<label for=\"username\"><b>Username</b></label>");
@@ -1120,7 +1120,7 @@ void WebCfgServer::buildCredHtml(WebServer *server)
     }
 
     // Factory Reset
-    response += F("<br><br><h3>Factory reset Nuki Hub</h3><h4 class=\"warning\">This will reset all settings to default...</h4>");
+    response += F("<br><br><h3>Factory reset Nuki Bridge</h3><h4 class=\"warning\">This will reset all settings to default...</h4>");
     response += F("<form class=\"adapt\" method=\"post\" action=\"/post\">");
     response += F("<input type=\"hidden\" name=\"page\" value=\"factoryreset\">");
     appendInputFieldRow(response, "CONFIRMTOKEN", ("Type " + _confirmCode + " to confirm factory reset").c_str(), "", 10, "");
@@ -1276,7 +1276,7 @@ void WebCfgServer::buildHtml(WebServer *server)
 
     appendNavigationMenuEntry(response, "Info page", "/get?page=info");
     String rebooturl = "/get?page=reboot&CONFIRMTOKEN=" + _confirmCode;
-    appendNavigationMenuEntry(response, "Reboot Nuki Hub", rebooturl.c_str());
+    appendNavigationMenuEntry(response, "Reboot Nuki Bridge", rebooturl.c_str());
 
     if (_preferences->getInt(preference_http_auth_type, 0) == 2)
     {
@@ -1317,7 +1317,7 @@ void WebCfgServer::buildBypassHtml(WebServer *server)
     response += F("border:none;cursor:pointer;width:100%}button:hover{opacity:.8}");
     response += F(".container{padding:16px}span.password{float:right;padding-top:16px}");
     response += F("@media screen and (max-width:300px){span.psw{display:block;float:none}}");
-    response += F("</style></head><body><center><h2>Nuki Hub One-time Bypass</h2>");
+    response += F("</style></head><body><center><h2>Nuki Bridge One-time Bypass</h2>");
     response += F("<form action=\"/post?page=bypass\" method=\"post\">");
     response += F("<div class=\"container\">");
     response += F("<label for=\"bypass\"><b>Bypass code</b></label>");
@@ -1530,7 +1530,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += String(_preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE));
     response += F("\nNuki task stack size: ");
     response += String(_preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE));
-    response += F("\nUpdate Nuki Hub and Nuki devices time using NTP: ");
+    response += F("\nUpdate Nuki Bridge and Nuki devices time using NTP: ");
     response += String(_preferences->getBool(preference_update_time, false) ? "Yes" : "No");
 
     response += F("\nWeb configurator enabled: ");
@@ -1592,7 +1592,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     }
 
     response += F("\n\n------------ NETWORK SETTINGS ------------");
-    response += F("\nNuki Hub hostname: ");
+    response += F("\nNuki Bridge hostname: ");
     response += _preferences->getString(preference_hostname, "");
 
     if (_preferences->getBool(preference_ip_dhcp_enabled, true))
@@ -1717,7 +1717,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
         response += F("\nLock enabled: Yes");
         response += F("\nPaired: ");
         response += _nuki->isPaired() ? F("Yes") : F("No");
-        response += F("\nNuki Hub device ID: ");
+        response += F("\nNuki Bridge device ID: ");
         response += String(_preferences->getUInt(preference_device_id_lock, 0));
         response += F("\nNuki device ID: ");
         response += _preferences->getUInt(preference_nuki_id_lock, 0) > 0 ? F("***") : F("Not set");
@@ -1867,7 +1867,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
         unsigned char secretKeyK[32] = {0x00};
 
         Preferences nukiBlePref;
-        nukiBlePref.begin("NukiHub", false);
+        nukiBlePref.begin("NukiBridge", false);
         nukiBlePref.getBytes("bleAddress", currentBleAddress, 6);
         nukiBlePref.getBytes("secretKeyK", secretKeyK, 32);
         nukiBlePref.getBytes("authorizationId", authorizationId, 4);
@@ -3538,7 +3538,7 @@ bool WebCfgServer::processConnectionSettings(WebServer *server, String &message,
             {
                 _preferences->putString(preference_wifi_ssid, ssid);
                 _preferences->putString(preference_wifi_pass, pass);
-                message = "Connection successful. Rebooting Nuki Hub.<br/>";
+                message = "Connection successful. Rebooting Nuki Bridge.<br/>";
                 result = true;
             }
             else
@@ -3556,7 +3556,7 @@ bool WebCfgServer::processConnectionSettings(WebServer *server, String &message,
     else
     {
         // LAN does not require an SSID test
-        message = "LAN configuration saved. Rebooting Nuki Hub.<br/>";
+        message = "LAN configuration saved. Rebooting Nuki Bridge.<br/>";
         result = true;
     }
 
@@ -3579,11 +3579,11 @@ bool WebCfgServer::processFactoryReset(WebServer *server)
         if (server->hasArg("WIFI") && server->arg("WIFI") == "1")
         {
             resetWifi = true;
-            buildConfirmHtml(server, "Factory resetting Nuki Hub, unpairing Nuki Lock and resetting WiFi.", 3, true);
+            buildConfirmHtml(server, "Factory resetting Nuki Bridge, unpairing Nuki Lock and resetting WiFi.", 3, true);
         }
         else
         {
-            buildConfirmHtml(server, "Factory resetting Nuki Hub, unpairing Nuki Lock.", 3, true);
+            buildConfirmHtml(server, "Factory resetting Nuki Bridge, unpairing Nuki Lock.", 3, true);
         }
     }
 

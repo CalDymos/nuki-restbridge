@@ -92,7 +92,7 @@ inline static String getRestartReason()
     case RestartReason::DeviceUnpaired:
         return "DeviceUnpaired";
     case RestartReason::NukiBridgeReset:
-        return "NukiHubFactoryReset";
+        return "NukiBridgeFactoryReset";
     case RestartReason::FactoryReset:
         return "NukiBridgeFactoryReset";
     case RestartReason::DisableNetworkIfNotConnected:
