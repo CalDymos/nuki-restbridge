@@ -340,6 +340,10 @@ void WebCfgServer::initialize()
                 _preferences->putBool(preference_enable_debug_mode, false);
                 return buildConfirmHtml(this->_webServer, "Debug Off", 3, true);
             }
+            else if (value == "status")
+            {
+                return buildStatusHtml(this->_webServer);
+            }
             else if (value == "acclvl")
             {
                 return buildAccLvlHtml(this->_webServer);
@@ -1206,26 +1210,67 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
 
 void WebCfgServer::buildHtml(WebServer *server)
 {
-    String header = F("<script>let intervalId; window.onload = function() { updateInfo(); intervalId = setInterval(updateInfo, 3000); }; function updateInfo() { var request = new XMLHttpRequest(); request.open('GET', '/get?page=status', true); request.onload = () => { const obj = JSON.parse(request.responseText); if (obj.stop == 1) { clearInterval(intervalId); } for (var key of Object.keys(obj)) { if(key=='ota' && document.getElementById(key) !== null) { document.getElementById(key).innerText = \"<a href='/ota'>\" + obj[key] + \"</a>\"; } else if(document.getElementById(key) !== null) { document.getElementById(key).innerText = obj[key]; } } }; request.send(); }</script>");
+    String header = F(
+        "<script>\n"
+        "  let intervalId;\n"
+        "  window.onload = function() {\n"
+        "    updateInfo();\n"
+        "    intervalId = setInterval(updateInfo, 3000);\n"
+        "  };\n"
+        "\n"
+        "  function updateInfo() {\n"
+        "    var request = new XMLHttpRequest();\n"
+        "    request.open('GET', '/get?page=status', true);\n"
+        "    request.onload = () => {\n"
+        "      const obj = JSON.parse(request.responseText);\n"
+        "      if (obj.stop == 1) {\n"
+        "        clearInterval(intervalId);\n"
+        "      }\n"
+        "      for (var key of Object.keys(obj)) {\n"
+        "        if (key == 'ota' && document.getElementById(key) !== null) {\n"
+        "          document.getElementById(key).innerText = \"<a href='/ota'>\" + obj[key] + \"</a>\";\n"
+        "        } else if (document.getElementById(key) !== null) {\n"
+        "          document.getElementById(key).innerText = obj[key];\n"
+        "        }\n"
+        "      }\n"
+        "    };\n"
+        "    request.send();\n"
+        "  }\n"
+        "</script>");
 
     String response;
     reserveHtmlResponse(response,
-                        0,  // Checkbox
-                        0,  // Input fields
-                        0,  // Dropdown
-                        0,  // Dropdown options
-                        0,  // Textareas
-                        7,  // Parameter rows
-                        0,  // Buttons (Generate Bypass/Admin)
-                        11, // Naviagtion menus
-                        0   // extra bytes ()
+                        0,              // Checkbox
+                        0,              // Input fields
+                        0,              // Dropdown
+                        0,              // Dropdown options
+                        0,              // Textareas
+                        7,              // Parameter rows
+                        0,              // Buttons (Generate Bypass/Admin)
+                        11,             // Naviagtion menus
+                        header.length() // extra bytes ()
     );
 
     buildHtmlHeader(response, header);
 
     if (_rebootRequired)
     {
-        response += F("<table><tbody><tr><td colspan=\"2\" style=\"border: 0; color: red; font-size: 32px; font-weight: bold; text-align: center;\">REBOOT REQUIRED TO APPLY SETTINGS</td></tr></tbody></table>");
+        response += F(
+            "<table>\n"
+            "  <tbody>\n"
+            "    <tr>\n"
+            "      <td colspan=\"2\" style=\""
+            "border: 0; "
+            "color: red; "
+            "font-size: 32px; "
+            "font-weight: bold; "
+            "text-align: center;"
+            "\">\n"
+            "        REBOOT REQUIRED TO APPLY SETTINGS\n"
+            "      </td>\n"
+            "    </tr>\n"
+            "  </tbody>\n"
+            "</table>");
     }
 
     response += F("<h3>Info</h3><br><table>");
@@ -1653,7 +1698,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += _preferences->getString(preference_api_token, "not defined");
 
     // HomeAutomation
-    response += F("\n\n------------ HOME AAUTOMATION REPORTING ------------");
+    response += F("\n\n------------ HOME AUTOMATION REPORTING ------------");
     response += F("\nHAR enabled: ");
     response += String(_preferences->getBool(preference_ha_enabled, false) != false ? "Yes" : "No");
     response += F("\nHA reachable: ");
@@ -1918,6 +1963,80 @@ void WebCfgServer::buildHtmlHeader(String &response, const String &additionalHea
     response += F("<link rel='stylesheet' href='/style.css'>");
     response += F("<title>Nuki Bridge</title></head><body>");
 }
+
+void WebCfgServer::buildStatusHtml(WebServer *server)
+{
+    JsonDocument json;
+    String jsonStr;
+    bool APIDone = false;
+    bool HARDone = false;
+    bool lockDone = false;
+
+    json[F("stop")] = 0;
+
+    // MQTT
+    if (_network->networkServicesState() == NetworkServiceStates::OK)
+    {
+        json[F("APIState")] = F("Yes");
+        APIDone = true;
+        json[F("HARState")] = F("Yes");
+        HARDone = true;        
+    }
+    else if (_network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE)
+    {
+        json[F("APIState")] = F("Yes");
+        APIDone = true;
+        json[F("HARState")] = F("No");
+    }
+    else if (_network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE)
+    {
+        json[F("APIState")] = F("No");
+        json[F("HARState")] = F("Yes");
+        HARDone = true;
+    }
+    else if (_network->networkServicesState() == NetworkServiceStates::BOTH_NOT_REACHABLE)
+    {
+        json[F("APIState")] = F("No");
+        json[F("HARState")] = F("No");
+    }
+
+    // Nuki Lock
+    if (_nuki != nullptr)
+    {
+        char lockStateArr[20];
+        NukiLock::lockstateToString(_nuki->keyTurnerState().lockState, lockStateArr);
+
+        String paired = (_nuki->isPaired()
+            ? ("Yes (BLE Address " + _nuki->getBleAddress().toString() + ")").c_str()
+            : "No");
+        json[F("lockPaired")] = paired;
+        json[F("lockState")] = String(lockStateArr);
+
+        if (_nuki->isPaired())
+        {
+            json[F("lockPin")] = pinStateToString((NukiPinState)_preferences->getInt(preference_lock_pin_status, (int)NukiPinState::NotConfigured));
+            if (strcmp(lockStateArr, "undefined") != 0)
+                lockDone = true;
+        }
+        else
+        {
+            json[F("lockPin")] = F("Not Paired");
+        }
+    }
+    else
+    {
+        lockDone = true;
+    }
+
+    if (APIDone && lockDone && HARDone)
+    {
+        json[F("stop")] = 1;
+    }
+
+    serializeJson(json, jsonStr);
+    return server->send(200, "application/json", jsonStr.c_str());
+}
+
 
 void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage)
 {
