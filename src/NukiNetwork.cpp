@@ -96,7 +96,7 @@ void NukiNetwork::initialize()
 
         if (_hostname == "")
         {
-            _hostname = "nukibridge";
+            _hostname = "nukirestbridge";
             _preferences->putString(preference_hostname, _hostname);
         }
 
@@ -1634,13 +1634,13 @@ void NukiNetwork::openAP()
 {
     if (_startAP)
     {
-        Log->println(F("[INFO] Starting AP with SSID NukiBridge and Password NukiBridgeESP32"));
+        Log->println(F("[INFO] Starting AP with SSID NukiRESTBridge and Password NukiBridgeESP32"));
         _startAP = false;
         WiFi.mode(WIFI_AP);
         delay(500);
         WiFi.softAPsetHostname(_hostname.c_str());
         delay(500);
-        WiFi.softAP(F("NukiBridge"), F("NukiBridgeESP32"));
+        WiFi.softAP(F("NukiRESTBridge"), F("NukiBridgeESP32"));
     }
 }
 
