@@ -22,26 +22,37 @@
 #include "LockActionResult.h"
 
 /**
- * @brief Encapsulates all network communication (WiFi/Ethernet, HTTP/REST) in a separate class.
+ * @brief Manages network interfaces (Wi-Fi, Ethernet), REST API, and Home Automation communication.
+ *
+ * NukiNetwork handles network connection setup and state changes, DHCP/static IP configuration,
+ * automatic failover, HTTP client checks, and a REST web server for external API access.
  */
 class NukiNetwork
 {
 public:
     /**
-     * @brief Constructor for the network class
-     * @param preferences  Pointer to preferences (storage of SSID, PW etc.)
-     * @param buffer       A buffer for JSON responses or similar.
-     * @param bufferSize   Size of the buffer
+     * @brief Constructs the NukiNetwork and initializes internal state from preferences.
+     *
+     * Initializes API configuration, webserver settings, and device type.
+     *
+     * @param preferences Pointer to the Preferences instance.
+     * @param buffer Reusable character buffer (e.g., for REST JSON responses).
+     * @param bufferSize Size of the buffer.
      */
     NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize);
 
     /**
-     * @brief Destructor
+     * @brief Destroys the network instance and cleans up allocated resources.
+     *
+     * Stops and deletes the webserver and HTTP client, if they exist.
      */
     virtual ~NukiNetwork();
 
     /**
-     * @brief Initializes the network (start WiFi, set up Ethernet, etc.).
+     * @brief Initializes all network services (API path, hostname, IP configuration, etc.).
+     *
+     * Sets up default paths, loads preferences, and prepares the device for WiFi or Ethernet usage.
+     * Does not actually connect to the network yet.
      */
     void initialize();
 
@@ -151,7 +162,7 @@ public:
     bool isApOpen() const;
 
     /**
-     * @brief Prüft, ob das Netzwerk (WiFi/Ethernet) verbunden ist.
+     * @brief Checks whether the network connection is active.
      */
     bool isConnected() const;
 
@@ -161,10 +172,14 @@ public:
      */
     bool isWifiConnected();
 
+    /**
+     * @brief Checks whether WiFi credentials are configured.
+     * @return True if SSID and password are available.
+     */
     bool isWifiConfigured() const;
 
     /**
-     * @brief Liefert die lokale IP-Adresse.
+     * @brief Returns the local IP address.
      */
     String localIP() const;
 
@@ -174,19 +189,23 @@ public:
     String networkBSSID() const;
 
     /**
-     * @brief Signalstärke abfragen (RSSI), nur relevant bei WLAN.
+     * @brief Query signal strength (RSSI), only relevant for WLAN.
      */
     int8_t signalStrength();
 
     /**
-     * @brief Löst das Abschalten eines evtl. vorhandenen WiFi-Fallbacks aus.
+     * @brief Initiates the deactivation of any existing WiFi fallback.
      */
     void clearWifiFallback();
 
+    /**
+     * @brief Returns the currently active network device type.
+     * @return The active NetworkDeviceType (WiFi or Ethernet).
+     */
     const NetworkDeviceType networkDeviceType();
 
     /**
-     * @brief Deaktiviert automatische Neustarts beim Trennen usw.
+     * @brief Disables automatic restarts on disconnect.
      */
     void disableAutoRestarts();
 
@@ -196,26 +215,37 @@ public:
     void disableAPI();
 
     /**
-     * @brief Deaktiviert Home Automation .
+     * @brief Disables Home Automation Reporting.
      */
     void disableHAR();
 
     /**
-     * @brief Getter für Netzwerk-Dienstestatus (z.B. Webserver, HTTPClient).
+     * @brief Getter for network service status (API WebServer and HAR HTTPClient).
      */
     NetworkServiceStates networkServicesState();
 
+    /**
+     * @brief Returns the bitmask of active query commands received via REST API.
+     * @return Bitfield of QUERY_COMMAND_* flags.
+     */
     uint8_t queryCommands();
 
     /**
-     * @brief Sendet beliebige Requests an die Home-Automation (Um Statuswerte zu übermitteln).
+     * @brief Sends arbitrary requests to Home Automation (e.g. to provide status values).
      */
     void sendRequestToHA(const char *path, const char *query, const char *value);
 
     /**
-     * @brief Sende HTTP-Response an Client (z.B. auf Request der Home-Automation).
+     * @brief Sende HTTP-Response as JSON-string to Client (on request of home automation).
      */
     void sendResponse(const char *jsonResultStr);
+
+    /**
+     * @brief Sends a formatted JSON response to the requesting REST client.
+     * @param jsonResult The JSON response to be sent as JsonDocument.
+     * @param success Whether the response indicates success (HTTP 200) or failure.
+     * @param httpCode Optional HTTP status code to return.
+     */
     void sendResponse(JsonDocument &jsonResult, bool success = true, int httpCode = 200);
 
     /**
@@ -223,6 +253,7 @@ public:
      * @param lockActionReceivedCallback Function pointer to lock action handler.
      */
     void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value));
+
     /**
      * @brief Sets the callback for time control command requests.
      * @param timeControlCommandReceivedReceivedCallback Function pointer to time control handler.
@@ -247,58 +278,74 @@ public:
 
 private:
     /**
-     * @brief Device setup and initialization
+     * @brief Sets up the hardware type (WiFi or Ethernet) based on preferences or fallback logic.
+     *
+     * This method evaluates the saved hardware mode or fallback flags and sets the appropriate
+     * device type for further initialization.
      */
     void setupDevice();
 
     /**
-     * @brief Initialisiert WiFi (und ruft ggf. connect() auf).
+     * @brief Initializes WiFi (and optionally calls connect()).
      */
     void initializeWiFi();
 
     /**
-     * @brief Initialisiert Ethernet (DHCP oder statische IP).
+     * @brief Initializes Ethernet (DHCP or static IP).
      */
     void initializeEthernet();
 
     /**
-     * @brief Startet ggf. WebServer und HTTPClient.
+     * @brief Starts WebServer (API) and HTTPClient (HAR) if necessary.
      */
     void startNetworkServices();
 
+    /**
+     * @brief Static entry point for REST request processing (WebServer handler).
+     * @param path Full request URI path.
+     * @param server Reference to the WebServer instance.
+     */
     static void onRestDataReceivedCallback(const char *path, WebServer &server);
 
+    /**
+     * @brief Handles the logic for REST requests internally.
+     * @param path Full request URI path.
+     * @param server Reference to the WebServer instance.
+     */
     void onRestDataReceived(const char *path, WebServer &server);
 
     /**
-     * @brief Führt Testläufe für WebServer und HTTPClient aus (z.B. Ping).
+     * @brief Runs tests for WebServer (API) and HTTPClient (HAR) (e.g., ping).
      */
     NetworkServiceStates testNetworkServices();
 
     /**
-     * @brief Stoppt/Restartet WebServer / HTTPClient im Fehlerfall.
+     * @brief Stops or restarts WebServer(API)/HTTPClient(HAR) in case of failure.
      */
     void restartNetworkServices(NetworkServiceStates status);
 
     /**
-     * @brief Ereignisbehandlung bei Netzwerk-Events (WiFi/Ethernet Callback).
+     * @brief Handles network-related events (WiFi/Ethernet callback).
      */
     void onNetworkEvent(arduino_event_id_t event, arduino_event_info_t info);
 
+    /**
+     * @brief Internal callback when a network connection is successfully established.
+     */
     void onConnected();
 
     /**
-     * @brief Verbindet sich mit gespeicherter SSID/Pass oder öffnet AP.
+     * @brief Connects using saved SSID/password or opens access point.
      */
     bool connect();
 
     /**
-     * @brief Öffnet einen Access Point, falls keine SSID hinterlegt ist.
+     * @brief Opens an access point if no SSID is configured.
      */
     void openAP();
 
     /**
-     * @brief Falls WiFi/ETH-Verbindung abbricht, handle disconnect.
+     * @brief Handles disconnect if WiFi or Ethernet connection is lost.
      */
     void onDisconnected();
 
@@ -327,73 +374,68 @@ private:
     // Singleton instance
     static NukiNetwork *_inst;
 
-    // Configuration & network parameters
-    Preferences *_preferences;
-    IPConfiguration *_ipConfiguration = nullptr;
-    String _hostname;
-    String _WiFissid;
-    String _WiFipass;
+    Preferences *_preferences;                                                    // Preferences handler for NVS access
+    IPConfiguration *_ipConfiguration = nullptr;                                  // IP configuration helper (DHCP/static)
+    String _hostname;                                                             // Hostname used on the network (WiFi or Ethernet)
+    String _WiFissid;                                                             // Stored WiFi SSID
+    String _WiFipass;                                                             // Stored WiFi password
+                                                                                  //
+    BridgeApiToken *_apitoken = nullptr;                                          // Token used for REST API authentication
+    bool _firstBootAfterDeviceChange = false;                                     // True after switching from WiFi to Ethernet or vice versa
+    bool _webCfgEnabled = true;                                                   // Whether the Web Config interface is enabled
+    bool _apiEnabled = false;                                                     // Whether REST API is enabled
+    bool _openAP = false;                                                         // Whether Access Point mode is active
+    bool _APisReady = false;                                                      // True if AP is initialized and ready
+    bool _startAP = true;                                                         // True if AP should be started due to no WiFi
+    bool _connected = false;                                                      // Network connection state
+    bool _lockEnabled = false;                                                    // Whether lock control via API is enabled
+    bool _hardwareInitialized = false;                                            // Flag indicating that network hardware is initialized
+    bool _sendDebugInfo = false;                                                  // Whether extended debug info should be published
+    bool _restartOnDisconnect = false;                                            // Whether the device should reboot on disconnect
+    bool _disableNetworkIfNotConnected = false;                                   // Forces network shutdown if no connection is active
+    bool _firstTunerStateSent = true;                                             // Ensures the first lock state is always sent
+    NetworkServiceStates _networkServicesState = NetworkServiceStates::UNDEFINED; // Current state of network services
+                                                                                  //
+    String _keypadCommandName = "";                                               // Temporary buffer for keypad command name
+    String _keypadCommandCode = "";                                               // Temporary buffer for keypad command code
+    uint _keypadCommandId = 0;                                                    // Temporary buffer for keypad command ID
+    int _keypadCommandEnabled = 1;                                                // Temporary buffer for keypad enabled state
+    uint8_t _queryCommands = 0;                                                   // Bitmask of active QUERY_COMMAND_* values
+                                                                                  //
+    int64_t _checkIpTs = -1;                                                      // Last time IP was validated
+    int64_t _lastConnectedTs = 0;                                                 // Last time a successful connection occurred
+    int64_t _lastMaintenanceTs = 0;                                               // Last time maintenance was performed
+    int64_t _lastNetworkServiceTs = 0;                                            // Last time services were checked
+    int64_t _publishedUpTime = 0;                                                 // Last time uptime was sent
+    int64_t _lastRssiTs = 0;                                                      // Last time RSSI was transmitted
+                                                                                  //
+    WebServer *_server = nullptr;                                                 // REST API web server instance
+    HTTPClient *_httpClient = nullptr;                                            // HTTP client for outgoing requests
+    int _foundNetworks = 0;                                                       // Number of WiFi networks found during last scan
+    int _networkTimeout = 0;                                                      // Timeout in ms for network operations
+    int _rssiSendInterval = 0;                                                    // Interval for RSSI reporting
+    int _MaintenanceSendIntervall = 0;                                            // Interval for periodic maintenance
+    int _networkServicesConnectCounter = 0;                                       // Counter for tracking connection attempts
+                                                                                  //
+    NetworkDeviceType _networkDeviceType = NetworkDeviceType::UNDEFINED;          // WiFi or Ethernet
+    int8_t _lastRssi = 127;                                                       // Last known RSSI value
+                                                                                  //
+    bool _homeAutomationEnabled = false;                                          // Whether HA communication is enabled
+    String _homeAutomationAdress;                                                 // Target IP or hostname of HA server
+    String _homeAutomationUser;                                                   // Optional HA user name
+    String _homeAutomationPassword;                                               // Optional HA password
+    int _homeAutomationPort;                                                      // Port for HA
+                                                                                  //
+    char *_buffer;                                                                // Shared buffer for response generation
+    const size_t _bufferSize;                                                     // Size of the shared buffer
+    char _apiBridgePath[129] = {0};                                               // API base path (e.g. "/bridge")
+    char _apiLockPath[129] = {0};                                                 // API path for lock-related commands
+    int _apiPort;                                                                 // REST API server port
 
-    BridgeApiToken *_apitoken = nullptr;
-    // Network & system states
-    bool _firstBootAfterDeviceChange = false;
-    bool _webCfgEnabled = true;
-    bool _apiEnabled = false;
-    bool _openAP = false;
-    bool _APisReady = false;
-    bool _startAP = true;
-    bool _connected = false;
-    bool _lockEnabled = false;
-    bool _hardwareInitialized = false;
-    bool _publishDebugInfo = false;
-    bool _restartOnDisconnect = false;
-    bool _disableNetworkIfNotConnected = false;
-    bool _firstTunerStatePublish = true;
-    NetworkServiceStates _networkServicesState = NetworkServiceStates::UNDEFINED;
-
-    String _keypadCommandName = "";
-    String _keypadCommandCode = "";
-    uint _keypadCommandId = 0;
-    int _keypadCommandEnabled = 1;
-    uint8_t _queryCommands = 0;
-
-    // Timestamps for network monitoring
-    int64_t _checkIpTs = -1;
-    int64_t _lastConnectedTs = 0;
-    int64_t _lastMaintenanceTs = 0;
-    int64_t _lastNetworkServiceTs = 0;
-    int64_t _publishedUpTime = 0;
-    int64_t _lastRssiTs = 0;
-
-    // Network services & connection parameters
-    WebServer *_server = nullptr; // for REST-API Requests
-    HTTPClient *_httpClient = nullptr;
-    int _foundNetworks = 0;
-    int _networkTimeout = 0;
-    int _rssiSendInterval = 0;
-    int _MaintenanceSendIntervall = 0;
-    int _networkServicesConnectCounter = 0;
-
-    // Signal strength & network type
-    NetworkDeviceType _networkDeviceType = NetworkDeviceType::UNDEFINED;
-    int8_t _lastRssi = 127;
-
-    // Home automation parameters
-    bool _homeAutomationEnabled = false;
-    String _homeAutomationAdress;
-    String _homeAutomationUser;
-    String _homeAutomationPassword;
-    int _homeAutomationPort;
-
-    char *_buffer;
-    const size_t _bufferSize;
-    char _apiBridgePath[129] = {0};
-    char _apiLockPath[129] = {0};
-    int _apiPort;
-
-    LockActionResult (*_lockActionReceivedCallback)(const char *value) = nullptr;
-    void (*_configUpdateReceivedCallback)(const char *value) = nullptr;
-    void (*_keypadCommandReceivedReceivedCallback)(const char *command, const uint &id, const String &name, const String &code, const int &enabled) = nullptr;
-    void (*_timeControlCommandReceivedReceivedCallback)(const char *value) = nullptr;
-    void (*_authCommandReceivedReceivedCallback)(const char *value) = nullptr;
+    // Callback handlers
+    LockActionResult (*_lockActionReceivedCallback)(const char *value) = nullptr;                                                                              // Lock command handler
+    void (*_configUpdateReceivedCallback)(const char *value) = nullptr;                                                                                        // Config update handler
+    void (*_keypadCommandReceivedReceivedCallback)(const char *command, const uint &id, const String &name, const String &code, const int &enabled) = nullptr; // Keypad handler
+    void (*_timeControlCommandReceivedReceivedCallback)(const char *value) = nullptr;                                                                          // Time control handler
+    void (*_authCommandReceivedReceivedCallback)(const char *value) = nullptr;                                                                                 // Auth command handler
 };
