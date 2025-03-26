@@ -289,7 +289,7 @@ bool NukiNetwork::update()
             if (path && query)
                 sendToHAString(path.c_str(), query.c_str(), NUKI_REST_BRIDGE_BUILD);
         }
-        if (_publishDebugInfo)
+        if (_sendDebugInfo)
         {
             String path = _preferences->getString(preference_ha_path_freeheap);
             String query = _preferences->getString(preference_ha_query_freeheap);
@@ -376,7 +376,8 @@ bool NukiNetwork::isWifiConfigured() const
 
 String NukiNetwork::localIP() const
 {
-    return (_networkDeviceType == NetworkDeviceType::ETH ? ETH.localIP().toString() : WiFi.localIP().toString());
+    return (_networkDeviceType == NetworkDeviceType::ETH ? ETH.localIP().toString() : (WiFi.getMode() & WIFI_AP) ? WiFi.softAPIP().toString()
+                                                                                                                 : WiFi.localIP().toString());
 }
 
 String NukiNetwork::networkBSSID() const
@@ -591,7 +592,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             triggerToString(keyTurnerState.trigger, str);
 
-            if (_firstTunerStatePublish || keyTurnerState.trigger != lastKeyTurnerState.trigger)
+            if (_firstTunerStateSent || keyTurnerState.trigger != lastKeyTurnerState.trigger)
             {
                 path = _preferences->getString(preference_ha_path_lock_trigger);
                 query = _preferences->getString(preference_ha_query_lock_trigger);
@@ -613,7 +614,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
             memset(&str, 0, sizeof(str));
             NukiLock::completionStatusToString(keyTurnerState.lastLockActionCompletionStatus, str);
 
-            if (_firstTunerStatePublish || keyTurnerState.lastLockActionCompletionStatus != lastKeyTurnerState.lastLockActionCompletionStatus)
+            if (_firstTunerStateSent || keyTurnerState.lastLockActionCompletionStatus != lastKeyTurnerState.lastLockActionCompletionStatus)
             {
                 path = _preferences->getString(preference_ha_path_lock_completionStatus);
                 query = _preferences->getString(preference_ha_query_lock_completionStatus);
@@ -628,7 +629,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             NukiLock::doorSensorStateToString(keyTurnerState.doorSensorState, str);
 
-            if (_firstTunerStatePublish || keyTurnerState.doorSensorState != lastKeyTurnerState.doorSensorState)
+            if (_firstTunerStateSent || keyTurnerState.doorSensorState != lastKeyTurnerState.doorSensorState)
             {
                 path = _preferences->getString(preference_ha_path_doorsensor_state);
                 query = _preferences->getString(preference_ha_query_doorsensor_state);
@@ -644,7 +645,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
             uint8_t level = ((keyTurnerState.criticalBatteryState & 0b11111100) >> 1);
             bool keypadCritical = keyTurnerState.accessoryBatteryState != 255 ? ((keyTurnerState.accessoryBatteryState & 1) == 1 ? (keyTurnerState.accessoryBatteryState & 3) == 3 : false) : false;
 
-            if ((_firstTunerStatePublish || keyTurnerState.criticalBatteryState != lastKeyTurnerState.criticalBatteryState))
+            if ((_firstTunerStateSent || keyTurnerState.criticalBatteryState != lastKeyTurnerState.criticalBatteryState))
             {
                 path = _preferences->getString(preference_ha_path_lock_battery_critical);
                 query = _preferences->getString(preference_ha_query_lock_battery_critical);
@@ -671,7 +672,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 }
             }
 
-            if ((_firstTunerStatePublish || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
+            if ((_firstTunerStateSent || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
             {
                 path = _preferences->getString(preference_ha_path_keypad_critical);
                 query = _preferences->getString(preference_ha_query_keypad_critical);
@@ -684,7 +685,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             bool doorSensorCritical = keyTurnerState.accessoryBatteryState != 255 ? ((keyTurnerState.accessoryBatteryState & 4) == 4 ? (keyTurnerState.accessoryBatteryState & 12) == 12 : false) : false;
 
-            if ((_firstTunerStatePublish || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
+            if ((_firstTunerStateSent || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
             {
                 path = _preferences->getString(preference_ha_path_doorsensor_critical);
                 query = _preferences->getString(preference_ha_query_doorsensor_critical);
@@ -714,7 +715,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 }
             }
 
-            _firstTunerStatePublish = false;
+            _firstTunerStateSent = false;
         }
     }
 }
@@ -810,7 +811,7 @@ void NukiNetwork::readSettings()
         _networkTimeout = -1;
         _preferences->putInt(preference_network_timeout, _networkTimeout);
     }
-    _publishDebugInfo = _preferences->getBool(preference_send_debug_info, false);
+    _sendDebugInfo = _preferences->getBool(preference_send_debug_info, false);
 }
 
 // -----------------------------------------------------------------------------
@@ -913,7 +914,7 @@ void NukiNetwork::startNetworkServices()
 {
     if (_homeAutomationEnabled)
         Log->println(F("[INFO] start Home Automation Report Service"));
-        _httpClient = new HTTPClient();
+    _httpClient = new HTTPClient();
     if (_apiEnabled)
     {
         Log->println(F("[INFO] start REST API Server"));
@@ -1306,7 +1307,7 @@ void NukiNetwork::restartNetworkServices(NetworkServiceStates status)
 {
     if (!_homeAutomationEnabled && !_apiEnabled)
         return;
-        
+
     if (status == NetworkServiceStates::UNDEFINED)
     {
         status = testNetworkServices();
