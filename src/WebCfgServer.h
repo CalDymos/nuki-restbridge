@@ -476,8 +476,6 @@ private:
     WebServer *_webServer = nullptr;     // Pointer to the internal web server instance.
     JsonDocument _httpSessions;          // In-memory representation of active HTTP login sessions.
                                          //
-    bool _APIConfigured = false;         // True if REST API configuration was completed.
-    bool _HAConfigured = false;          // True if Home Automation Reporting (HAR) was configured.
     bool _rebootRequired = false;        // True if a system reboot is required after saving settings.
                                          //
     String _confirmCode = "----";        // Temporary confirmation code displayed after saving.

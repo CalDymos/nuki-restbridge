@@ -1296,8 +1296,8 @@ void WebCfgServer::buildHtml(WebServer *server)
     response += F("</table><br><ul id=\"tblnav\">");
 
     appendNavigationMenuEntry(response, "Network Configuration", "/get?page=ntwconfig");
-    appendNavigationMenuEntry(response, "REST API Configuration", "/get?page=apiconfig", _APIConfigured ? "" : "Please configure REST API");
-    appendNavigationMenuEntry(response, "Home Automation Configuration", "/get?page=harconfig", _HAConfigured ? "" : "Please configure Home Automation");
+    appendNavigationMenuEntry(response, "REST API Configuration", "/get?page=apiconfig");
+    appendNavigationMenuEntry(response, "Home Automation Configuration", "/get?page=harconfig");
     appendNavigationMenuEntry(response, "Nuki Configuration", "/get?page=nukicfg");
     appendNavigationMenuEntry(response, "Access Level Configuration", "/get?page=acclvl");
     appendNavigationMenuEntry(response, "Credentials", "/get?page=cred");
@@ -1454,7 +1454,7 @@ void WebCfgServer::buildConnectHtml(WebServer *server)
                         0,                              // Parameter rows
                         2,                              // Buttons
                         0,                              // Navigation menus
-                        (_ssidList.size() * 160) + 2048 // extra content
+                        (_ssidList.size() * 160) + header.length() // extra content
     );
 
     buildHtmlHeader(response, header);
@@ -1554,6 +1554,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += "\nNetwork task stack high watermark: " + String(uxTaskGetStackHighWaterMark(networkTaskHandle));
     response += "\nNuki task stack high watermark: " + String(uxTaskGetStackHighWaterMark(nukiTaskHandle));
     response += "\nWeb configurator task stack high watermark: " + String(uxTaskGetStackHighWaterMark(webCfgTaskHandle));
+    response += "\nNuki Bridge log level: " + String(Log->logLevelToString(Log->getLogLevel()));
 
     response += F("\n\n------------ SPIFFS ------------");
     if (!SPIFFS.begin(true))
