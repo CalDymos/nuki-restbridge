@@ -1,4 +1,4 @@
-# nuki-restbridge – Control Nuki Smart Locks via REST and ESP32
+# Nuki Rest Bridge – Control Nuki Smart Locks via REST and ESP32
 
 ![Beta Status](https://img.shields.io/badge/status-beta-yellow)
 [![Project Maintenance](https://img.shields.io/maintenance/yes/2024.svg)](https://github.com/CalDymos/nuki-restbridge 'GitHub Repository')
@@ -17,7 +17,14 @@ It communicates with a Nuki Lock through Bluetooth (BLE) and uses REST to integr
 <br>
 It exposes the lock state (and much more) through REST and allows executing commands like locking and unlocking as well as changing the Nuki Lock configuration through REST.<br>
 
-***Nuki Bridge does not integrate with the Nuki mobile app, it <span style="color:red;">can't</span> register itself as a bridge in the official Nuki mobile app.***
+<div style="border: 2px solid #f39c12; padding: 10px; background-color:rgb(49, 48, 45); border-radius: 5px;">
+  <strong>Note:</strong>  
+  <em>This project is a <strong>disconnected fork</strong> of <a href=https://github.com/technyon/nuki_hub target="_blank">Nuki Hub</a>, and is no longer active or only partially synchronized with the upstream repository.</em>
+  <ul>
+    <li>It may have diverged significantly from the original repository.</li>
+    <li>Should serve as a method of Nuki integration without an additional mqtt broker for e.g. Loxone Miniserver.</li>
+  </ul>
+</div>
 
 ## Supported devices
 
