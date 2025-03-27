@@ -402,7 +402,7 @@ void WebCfgServer::initialize()
                 {
                     return buildConfirmHtml(this->_webServer, "Can't reset WiFi when network device is Ethernet", 3, true);
                 }
-                buildConfirmHtml(this->_webServer, "Restarting. Connect to ESP access point (\"NukiRESTBridge\" with password \"NukiBridgeESP32\") to reconfigure Wi-Fi.", 0);
+                buildConfirmHtml(this->_webServer, "Restarting. Connect to ESP access point (\"NukiRestBridge\" with password \"NukiBridgeESP32\") to reconfigure Wi-Fi.", 0);
                 waitAndProcess(false, 1000);
                 return _network->reconfigure();
             }
