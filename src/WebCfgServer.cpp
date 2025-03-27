@@ -372,7 +372,7 @@ void WebCfgServer::initialize()
             }
             else if (value == "harconfig")
             {
-                //return buildHARConfigHtml(this->_webServer); // Site to Configure the Home Automation (enable, Adress, Port, Mode [udp, rest], user, password)
+                return buildHARConfigHtml(this->_webServer); 
             }
             else if (value == "nukicfg")
             {
@@ -526,7 +526,7 @@ void WebCfgServer::initialize()
     _webServer->on("/", HTTP_GET, [this]()
                    {
 #ifdef DEBUG
-                       Log->println("[DEBUG] Anfrage an / erhalten : " + this->_webServer->uri());
+                       Log->println("[DEBUG] webCfgServer Anfrage erhalten : " + this->_webServer->uri());
 #endif
 
                        int authReq = doAuthentication(this->_webServer);
@@ -568,23 +568,7 @@ void WebCfgServer::initialize()
     // Actually starting the web server
     _webServer->begin();
 
-    IPAddress ip;
-
-    if (WiFi.getMode() & WIFI_STA)
-    {
-        ip = WiFi.localIP();
-    }
-    else if (WiFi.getMode() & WIFI_AP)
-    {
-        ip = WiFi.softAPIP();
-    }
-    else if (ETH.linkUp())
-    {
-
-        ip = ETH.localIP();
-    }
-
-    Log->println("[INFO] WebCfgServer started on http://" + ip.toString() + ":" + String(WEBCFGSERVER_PORT));
+    Log->println("[INFO] WebCfgServer started on http://" + _network->localIP() + ":" + String(WEBCFGSERVER_PORT));
 
     if (MDNS.begin(_preferences->getString(preference_hostname, "nukirestbridge").c_str()))
     {
@@ -1189,9 +1173,9 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
     response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
-    response += F("<h3>Home Automation Configuration</h3><table>");
+    response += F("<h3>Home Automation Report Configuration</h3><table>");
 
-    appendCheckBoxRow(response, "HAENA", "Enable Home Automation", _preferences->getBool(preference_ha_enabled, false), "", "");
+    appendCheckBoxRow(response, "HAENA", "Enable Home Automation Report", _preferences->getBool(preference_ha_enabled, false), "", "");
     appendInputFieldRow(response, "HAHOST", "Address", _preferences->getString(preference_ha_address, "").c_str(), 64, "");
     appendInputFieldRow(response, "HAPORT", "Port", _preferences->getInt(preference_ha_port, 8081), 6, "");
 
@@ -1272,11 +1256,29 @@ void WebCfgServer::buildHtml(WebServer *server)
             "  </tbody>\n"
             "</table>");
     }
+#ifdef DEBUG
+    response += F("<table>\n"
+                  "  <tbody>\n"
+                  "    <tr>\n"
+                  "      <td colspan=\"2\" style=\""
+                  "border: 0; "
+                  "color: red; "
+                  "font-size: 32px; "
+                  "font-weight: bold; "
+                  "text-align: center;"
+                  "\">\n"
+                  "        RUNNING DEBUG BUILD, SWITCH TO RELEASE BUILD ASAP\n"
+                  "      </td>\n"
+                  "    </tr>\n"
+                  "  </tbody>\n"
+                  "</table>");
+
+#endif
 
     response += F("<h3>Info</h3><br><table>");
     appendParameterRow(response, "Hostname", _hostname.c_str(), "", "hostname");
-    appendParameterRow(response, "REST API reachable", (_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? "Yes" : "No", "", "APIState");
-    appendParameterRow(response, "Home Automation reachable", (_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? "Yes" : "No", "", "HAState");
+    appendParameterRow(response, "REST API active", (_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? "Yes" : "No", "", "APIState");
+    appendParameterRow(response, "HAR active", (_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? "Yes" : "No", "", "HARState");
 
     if (_nuki != nullptr)
     {
@@ -1293,11 +1295,12 @@ void WebCfgServer::buildHtml(WebServer *server)
     }
 
     appendParameterRow(response, "Firmware", NUKI_REST_BRIDGE_VERSION, "/get?page=info", "firmware");
-    response += F("</table><br><ul id=\"tblnav\">");
+    response += F("</table><br>"
+                  "<ul id=\"tblnav\">");
 
     appendNavigationMenuEntry(response, "Network Configuration", "/get?page=ntwconfig");
     appendNavigationMenuEntry(response, "REST API Configuration", "/get?page=apiconfig");
-    appendNavigationMenuEntry(response, "Home Automation Configuration", "/get?page=harconfig");
+    appendNavigationMenuEntry(response, "HAR Configuration", "/get?page=harconfig");
     appendNavigationMenuEntry(response, "Nuki Configuration", "/get?page=nukicfg");
     appendNavigationMenuEntry(response, "Access Level Configuration", "/get?page=acclvl");
     appendNavigationMenuEntry(response, "Credentials", "/get?page=cred");
@@ -1446,14 +1449,14 @@ void WebCfgServer::buildConnectHtml(WebServer *server)
 
     String response;
     reserveHtmlResponse(response,
-                        2,                              // Checkbox
-                        7,                              // Input fields
-                        1,                              // Dropdown
-                        hwOptions.size(),               // Dropdown options
-                        0,                              // Textareas
-                        0,                              // Parameter rows
-                        2,                              // Buttons
-                        0,                              // Navigation menus
+                        2,                                         // Checkbox
+                        7,                                         // Input fields
+                        1,                                         // Dropdown
+                        hwOptions.size(),                          // Dropdown options
+                        0,                                         // Textareas
+                        0,                                         // Parameter rows
+                        2,                                         // Buttons
+                        0,                                         // Navigation menus
                         (_ssidList.size() * 160) + header.length() // extra content
     );
 
@@ -1981,7 +1984,7 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
         json[F("APIState")] = F("Yes");
         APIDone = true;
         json[F("HARState")] = F("Yes");
-        HARDone = true;        
+        HARDone = true;
     }
     else if (_network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE)
     {
@@ -2008,8 +2011,8 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
         NukiLock::lockstateToString(_nuki->keyTurnerState().lockState, lockStateArr);
 
         String paired = (_nuki->isPaired()
-            ? ("Yes (BLE Address " + _nuki->getBleAddress().toString() + ")").c_str()
-            : "No");
+                             ? ("Yes (BLE Address " + _nuki->getBleAddress().toString() + ")").c_str()
+                             : "No");
         json[F("lockPaired")] = paired;
         json[F("lockState")] = String(lockStateArr);
 
@@ -2037,7 +2040,6 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
     serializeJson(json, jsonStr);
     return server->send(200, "application/json", jsonStr.c_str());
 }
-
 
 void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage)
 {
