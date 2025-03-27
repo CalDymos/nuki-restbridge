@@ -41,9 +41,19 @@ public:
     _serial->println(F("[TRACE] clearLog() called - no file operations in debug mode"));
   }
 
-  void setLogLevel(int level)
+  void setLogLevel(msgtype level)
   {
-    _serial->println(F("[TRACE] setLogLevel() called"));
+    _serial->printf(F("[TRACE] setLogLevel() called : %d\n"), level);
+  }
+
+  msgtype getLogLevel()
+  {
+    return MSG_TRACE;
+  }
+
+  String logLevelToString(msgtype level)
+  {
+    return "TRACE";
   }
 
   size_t write(uint8_t c) override
@@ -217,6 +227,11 @@ extern DebugLog *Log;
   void setLogLevel(msgtype level)
   {
     _currentLogLevel = level;
+  }
+
+  msgtype getLogLevel()
+  {
+    return _currentLogLevel;
   }
 
 private:
