@@ -503,6 +503,7 @@ void setup()
 
   Serial.begin(115200);
   Log = new DebugLog(&Serial, preferences);
+  Log->setLogLevel((DebugLog::msgtype) preferences->getInt(preference_log_level, 0));
 
   initializeRestartReason();
 
