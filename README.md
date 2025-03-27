@@ -57,7 +57,7 @@ Flash the firmware to an ESP32.
 
 ## Initial setup (Network)
 
-Power up the ESP32 and a new Wi-Fi access point named "NukiRESTBridge" should appear.<br>
+Power up the ESP32 and a new Wi-Fi access point named "NukiRestBridge" should appear.<br>
 The password of the access point is "NukiBridgeESP32".<br>
 Connect a client device to this access point and in a browser navigate to "http://192.168.4.1".<br>
 Use the web interface to connect the ESP to your preferred network.<br>
