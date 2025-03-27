@@ -43,7 +43,7 @@ public:
 
   void setLogLevel(msgtype level)
   {
-    _serial->printf(F("[TRACE] setLogLevel() called : %d\n"), level);
+    _serial->printf(F("[TRACE] setLogLevel() called : %d\n"), logLevelToString(level));
   }
 
   msgtype getLogLevel()
