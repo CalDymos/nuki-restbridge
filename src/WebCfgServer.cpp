@@ -1171,20 +1171,21 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
     String response;
     reserveHtmlResponse(response,
                         1, // Checkbox
-                        4, // Input fields
+                        90, // Input fields
                         1, // Dropdown
                         2, // Dropdown options
                         0, // Textareas
                         0, // Parameter rows
                         0, // Buttons (Generate Bypass/Admin)
                         0, // menus
-                        0  // extra bytes
+                        2048  // extra bytes
     );
 
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
     response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
-    response += F("<h3>Home Automation Report Configuration</h3><table>");
+    response += F("<h3>Home Automation Report Configuration</h3>");
+    response += F("<table>");
 
     appendCheckBoxRow(response, "HAENA", "Enable Home Automation Report", _preferences->getBool(preference_ha_enabled, false), "", "");
     appendInputFieldRow(response, "HAHOST", "Address", _preferences->getString(preference_ha_address, "").c_str(), 64, "");
@@ -1198,7 +1199,80 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
     appendInputFieldRow(response, "HAUSER", "Username", _preferences->getString(preference_ha_user, "").c_str(), 32, "");
     appendInputFieldRow(response, "HAPASS", "Password", _preferences->getString(preference_ha_password, "").c_str(), 32, "", true, true);
 
-    response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
+    response += F("</table><br>");
+
+    // --- Tabs ---
+    response += F("<div>");
+    response += F("<button type=\"button\" onclick=\"showTab('general')\">General</button>");
+    response += F("<button type=\"button\" onclick=\"showTab('keystate')\">Key Turner State</button>");
+    response += F("<button type=\"button\" onclick=\"showTab('battery')\">Battery Report</button>");
+    response += F("</div><br>\n");
+
+    const struct {
+        const char* id;
+        const char* label;
+        const char* pathKey;
+        const char* queryKey;
+    } fields[] = {
+        // --- General ---
+        {"STAT", preference_ha_path_state, nullptr},
+        {"UPTM", preference_ha_path_uptime, preference_ha_query_uptime},
+        {"REASONFW", preference_ha_path_restart_reason_fw, preference_ha_query_restart_reason_fw},
+        {"REASONESP", preference_ha_path_restart_reason_esp, preference_ha_query_restart_reason_esp},
+        {"NBVER", preference_ha_path_info_nuki_bridge_version, preference_ha_query_info_nuki_bridge_version},
+        {"NBBUIL", preference_ha_path_info_nuki_bridge_build, preference_ha_query_info_nuki_bridge_build},
+        {"FREEHP", preference_ha_path_freeheap, preference_ha_query_freeheap},
+        {"WFRSSI", preference_ha_path_wifi_rssi, preference_ha_query_wifi_rssi},
+        {"BLEADDR", preference_ha_path_ble_address, preference_ha_query_ble_address},
+        {"BLERSSI", preference_ha_path_ble_rssi, preference_ha_query_ble_rssi},
+    
+        // --- KeyTurnerState ---
+        {"LCKSTAT", preference_ha_path_lock_state, preference_ha_query_lock_state},
+        {"LCKNGSTAT", preference_ha_path_lockngo_state, preference_ha_query_lockngo_state},
+        {"LCKTRIG", preference_ha_path_lock_trigger, preference_ha_query_lock_trigger},
+        {"LCKNMOD", preference_ha_path_lock_night_mode, preference_ha_query_lock_night_mode},
+        {"LCKCMPLSTAT", preference_ha_path_lock_completionStatus, preference_ha_query_lock_completionStatus},
+        {"LCKBATCRIT", preference_ha_path_lock_battery_critical, preference_ha_query_lock_battery_critical},
+        {"LCKBATLEV", preference_ha_path_lock_battery_level, preference_ha_query_lock_battery_level},
+        {"LCKBATCHRG", preference_ha_path_lock_battery_charging, preference_ha_query_lock_battery_charging},
+        {"DOORSTAT", preference_ha_path_doorsensor_state, preference_ha_query_doorsensor_state},
+        {"DOORSCRIT", preference_ha_path_doorsensor_critical, preference_ha_query_doorsensor_critical},
+        {"KEYPCRIT", preference_ha_path_keypad_critical, preference_ha_query_keypad_critical},
+        {"REMACCSTAT", preference_ha_path_remote_access_state, preference_ha_query_remote_access_state},
+        {"BLESTR", preference_ha_path_ble_strength, preference_ha_query_ble_strength},
+
+        // --- BatteryReport ---
+        {"BATVOLT", preference_ha_path_battery_voltage, preference_ha_query_battery_voltage},
+        {"BATDRAIN", preference_ha_path_battery_drain, preference_ha_query_battery_drain},
+        {"BATMAXTURNCUR", preference_ha_path_battery_max_turn_current, preference_ha_query_battery_max_turn_current},
+        {"BATLOCKDIST", preference_ha_path_battery_lock_distance, preference_ha_query_battery_lock_distance},
+    };
+    
+    for (const char *cat : {"general", "keystate", "battery"})
+    {
+        response += "<div id='tab_" + String(cat) + "' style='display:none'>";
+        response += "<table>";
+        for (const auto &f : fields)
+        {
+            if (strcmp(f.id, cat) == 0)
+            {
+                appendInputFieldRow(response, ("PATH_" + String(f.label)).c_str(), ("Path: " + String(f.label)).c_str(), _preferences->getString(f.pathKey, "").c_str(), 64, "");
+                if (f.queryKey)
+                    appendInputFieldRow(response, ("QUERY_" + String(f.label)).c_str(), ("Query: " + String(f.label)).c_str(), _preferences->getString(f.queryKey, "").c_str(), 64, "");
+            }
+        }
+        response += "</table></div>";
+    }
+
+    response += F("<br><input type=\"submit\" name=\"submit\" value=\"Save\">\n</form>\n");
+    response += F("<script>\n"
+                  "function showTab(tab) {\n"
+                  "  ['general','keystate','battery'].forEach(id => {\n"
+                  "    document.getElementById('tab_' + id).style.display = (id === tab) ? 'block' : 'none';\n"
+                  "  });\n"
+                  "}\n"
+                  "showTab('general');\n"
+                  "</script></body></html>");
 
     server->send(200, F("text/html"), response);
 }
@@ -2643,15 +2717,28 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
                 clearSession = true;
             }
-        }   
-        // std::vector<std::pair<String, String>> modeOptions = {
-        //     {"0", "UDP"},
-        //     {"1", "REST"}};
-        // appendDropDownRow(response, "HAMODE", "Mode", String(_preferences->getInt(preference_ha_mode, 0)), modeOptions);
-    
-        // appendInputFieldRow(response, "HAUSER", "Username", _preferences->getString(preference_ha_user, "").c_str(), 32, "");
-        // appendInputFieldRow(response, "HAPASS", "Password", _preferences->getString(preference_ha_password, "").c_str(), 32, "", true, true);
-
+        }
+        else if (key == "APIENA")
+        {
+            if (_preferences->getBool(preference_api_enabled, false) != (value == "1"))
+            {
+                _network->disableAPI();
+                _preferences->putBool(preference_api_enabled, (value == "1"));
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                // configChanged = true;
+            }
+        }
+        else if (key == "APIPORT")
+        {
+            if (_preferences->getInt(preference_api_port, 0) != value.toInt())
+            {
+                _preferences->putInt(preference_api_port, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
         else if (key == "HAENA")
         {
             if (_preferences->getBool(preference_ha_enabled, false) != (value == "1"))
@@ -2660,7 +2747,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 _preferences->putBool(preference_ha_enabled, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                configChanged = true;
+                // configChanged = true;
             }
         }
         else if (key == "HAHOST")
@@ -2670,17 +2757,51 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 _preferences->putString(preference_ha_address, value);
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                configChanged = true;
             }
         }
-        else if(key == "HAPORT")
+        else if (key == "HAPORT")
         {
-            if(_preferences->getInt(preference_ha_port, 0) !=  value.toInt())
+            if (_preferences->getInt(preference_ha_port, 0) != value.toInt())
             {
-                _preferences->putInt(preference_ha_port,  value.toInt());
+                _preferences->putInt(preference_ha_port, value.toInt());
                 Log->print("Setting changed: ");
                 Log->println(key);
-                //configChanged = true;
+                configChanged = true;
+            }
+        }
+        else if (key == "HAMODE")
+        {
+            if (_preferences->getInt(preference_ha_mode, 0) != value.toInt())
+            {
+                if (value.toInt() >= 0 && value.toInt() <= 1)
+                {
+                    Log->setLogLevel((DebugLog::msgtype)value.toInt());
+                }
+                _preferences->putInt(preference_ha_mode, value.toInt());
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "HAUSER")
+        {
+            if (_preferences->getString(preference_ha_user, "") != value)
+            {
+                _preferences->putString(preference_ha_user, value);
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "HAPASS")
+        {
+            if (_preferences->getString(preference_ha_password, "") != value)
+            {
+                _preferences->putString(preference_ha_password, value);
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                configChanged = true;
             }
         }
         else if (key == "HOSTNAME")
@@ -2890,14 +3011,14 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         {
             if (_preferences->getInt(preference_log_level, 0) != value.toInt())
             {
-                if (value.toInt() >= 0 &&  value.toInt() <= 5)
+                if (value.toInt() >= 0 && value.toInt() <= 5)
                 {
-                    Log->setLogLevel((DebugLog::msgtype) value.toInt());
+                    Log->setLogLevel((DebugLog::msgtype)value.toInt());
                 }
                 _preferences->putInt(preference_log_level, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
         else if (key == "ALMAX")
