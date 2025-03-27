@@ -765,6 +765,17 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
     response += F("<tr><td>Advised minimum network task size based on current settings</td><td id=\"minnetworktask\"></td>");
     appendInputFieldRow(response, "TSKNUKI", "Task size Nuki (min 8192, max 65536)", _preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE), 6, "");
 
+    std::vector<std::pair<String, String>> lvlOptions;
+
+    for (int i = 0; i <= 5; ++i)
+    {
+        DebugLog::msgtype lvl = static_cast<DebugLog::msgtype>(i);
+        String key = String(i); // z. B. "0", "1", ...
+        String label = Log->logLevelToString(lvl);
+        lvlOptions.push_back(std::make_pair(key, label));
+    }
+    appendDropDownRow(response, "LOGLEVEL", "Log level for Nuki Bridge", String(Log->getLogLevel()), lvlOptions);
+
     appendInputFieldRow(response, "ALMAX", "Max auth log entries (min 1, max 100)", _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG), 3, "id=\"inputmaxauthlog\"");
     appendInputFieldRow(response, "KPMAX", "Max keypad entries (min 1, max 200)", _preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD), 3, "id=\"inputmaxkeypad\"");
     appendInputFieldRow(response, "TCMAX", "Max timecontrol entries (min 1, max 100)", _preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL), 3, "id=\"inputmaxtimecontrol\"");
@@ -2632,6 +2643,45 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
                 clearSession = true;
             }
+        }   
+        // std::vector<std::pair<String, String>> modeOptions = {
+        //     {"0", "UDP"},
+        //     {"1", "REST"}};
+        // appendDropDownRow(response, "HAMODE", "Mode", String(_preferences->getInt(preference_ha_mode, 0)), modeOptions);
+    
+        // appendInputFieldRow(response, "HAUSER", "Username", _preferences->getString(preference_ha_user, "").c_str(), 32, "");
+        // appendInputFieldRow(response, "HAPASS", "Password", _preferences->getString(preference_ha_password, "").c_str(), 32, "", true, true);
+
+        else if (key == "HAENA")
+        {
+            if (_preferences->getBool(preference_ha_enabled, false) != (value == "1"))
+            {
+                _network->disableHAR();
+                _preferences->putBool(preference_ha_enabled, (value == "1"));
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "HAHOST")
+        {
+            if (_preferences->getString(preference_ha_address, "") != value)
+            {
+                _preferences->putString(preference_ha_address, value);
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "HAPORT")
+        {
+            if(_preferences->getInt(preference_ha_port, 0) !=  value.toInt())
+            {
+                _preferences->putInt(preference_ha_port,  value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
         }
         else if (key == "HOSTNAME")
         {
@@ -2834,6 +2884,20 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                     Log->println(key);
                     configChanged = true;
                 }
+            }
+        }
+        else if (key == "LOGLEVEL")
+        {
+            if (_preferences->getInt(preference_log_level, 0) != value.toInt())
+            {
+                if (value.toInt() >= 0 &&  value.toInt() <= 5)
+                {
+                    Log->setLogLevel((DebugLog::msgtype) value.toInt());
+                }
+                _preferences->putInt(preference_log_level, value.toInt());
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                //configChanged = true;
             }
         }
         else if (key == "ALMAX")
