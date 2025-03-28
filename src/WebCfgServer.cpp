@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ESPmDNS.h>
 #include "WebCfgServer.h"
+#include "WebCfgServerConstants.h"
 #include "Logger.hpp"
 #include "PreferencesKeys.h"
 #include "RestartReason.h"
@@ -280,7 +281,7 @@ void WebCfgServer::initialize()
             {
                 if (doAuthentication(this->_webServer) != 4)
                 {
-                    this->_webServer->send(200, "application/json", "{}");
+                    this->_webServer->send(200, F("application/json"), "{}");
                 }
             }
             if (value == "login")
@@ -872,7 +873,7 @@ void WebCfgServer::buildLoginHtml(WebServer *server)
     response += F("<label><input type=\"checkbox\" name=\"remember\"> Remember me</label></div>");
     response += F("</form></center></body></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect, String redirectTo)
@@ -983,7 +984,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
     response += F("</form>");
     response += F("</body></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
@@ -1128,7 +1129,7 @@ void WebCfgServer::buildCredHtml(WebServer *server)
 #endif
     response += F("</table><br><button type=\"submit\">OK</button></form></body></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildApiConfigHtml(WebServer *server)
@@ -1163,7 +1164,7 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
 
-    server->send(200, "text/html", response);
+    server->send(200, F("text/html"), response);
 }
 
 void WebCfgServer::buildHARConfigHtml(WebServer *server)
@@ -1187,17 +1188,17 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
     response += F("<h3>Home Automation Report Configuration</h3>");
     response += F("<table>");
 
-    appendCheckBoxRow(response, "HAENA", "Enable Home Automation Report", _preferences->getBool(preference_ha_enabled, false), "", "");
-    appendInputFieldRow(response, "HAHOST", "Address", _preferences->getString(preference_ha_address, "").c_str(), 64, "");
-    appendInputFieldRow(response, "HAPORT", "Port", _preferences->getInt(preference_ha_port, 8081), 6, "");
+    appendCheckBoxRow(response, "HARENA", "Enable Home Automation Report", _preferences->getBool(preference_har_enabled, false), "", "");
+    appendInputFieldRow(response, "HARHOST", "Address", _preferences->getString(preference_har_address, "").c_str(), 64, "");
+    appendInputFieldRow(response, "HARPORT", "Port", _preferences->getInt(preference_har_port, 8081), 6, "");
 
     std::vector<std::pair<String, String>> modeOptions = {
         {"0", "UDP"},
         {"1", "REST"}};
-    appendDropDownRow(response, "HAMODE", "Mode", String(_preferences->getInt(preference_ha_mode, 0)), modeOptions);
+    appendDropDownRow(response, "HARMODE", "Mode", String(_preferences->getInt(preference_har_mode, 0)), modeOptions);
 
-    appendInputFieldRow(response, "HAUSER", "Username", _preferences->getString(preference_ha_user, "").c_str(), 32, "");
-    appendInputFieldRow(response, "HAPASS", "Password", _preferences->getString(preference_ha_password, "").c_str(), 32, "", true, true);
+    appendInputFieldRow(response, "HARUSER", "Username", _preferences->getString(preference_har_user, "").c_str(), 32, "");
+    appendInputFieldRow(response, "HARPASS", "Password", _preferences->getString(preference_har_password, "").c_str(), 32, "", true, true);
 
     response += F("</table><br>");
 
@@ -1215,37 +1216,37 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
         const char* queryKey;
     } fields[] = {
         // --- General ---
-        {"STAT", preference_ha_path_state, nullptr},
-        {"UPTM", preference_ha_path_uptime, preference_ha_query_uptime},
-        {"REASONFW", preference_ha_path_restart_reason_fw, preference_ha_query_restart_reason_fw},
-        {"REASONESP", preference_ha_path_restart_reason_esp, preference_ha_query_restart_reason_esp},
-        {"NBVER", preference_ha_path_info_nuki_bridge_version, preference_ha_query_info_nuki_bridge_version},
-        {"NBBUIL", preference_ha_path_info_nuki_bridge_build, preference_ha_query_info_nuki_bridge_build},
-        {"FREEHP", preference_ha_path_freeheap, preference_ha_query_freeheap},
-        {"WFRSSI", preference_ha_path_wifi_rssi, preference_ha_query_wifi_rssi},
-        {"BLEADDR", preference_ha_path_ble_address, preference_ha_query_ble_address},
-        {"BLERSSI", preference_ha_path_ble_rssi, preference_ha_query_ble_rssi},
+        {TOKEN_SUFFIX_STAT, preference_har_path_state, nullptr},
+        {TOKEN_SUFFIX_UPTM, preference_har_path_uptime, preference_har_query_uptime},
+        {TOKEN_SUFFIX_REASONFW, preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
+        {TOKEN_SUFFIX_REASONESP, preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
+        {TOKEN_SUFFIX_NBVER, preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
+        {TOKEN_SUFFIX_NBBUIL, preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
+        {TOKEN_SUFFIX_FREEHP, preference_har_path_freeheap, preference_har_query_freeheap},
+        {TOKEN_SUFFIX_WFRSSI, preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
+        {TOKEN_SUFFIX_BLEADDR, preference_har_path_ble_address, preference_har_query_ble_address},
+        {TOKEN_SUFFIX_BLERSSI, preference_har_path_ble_rssi, preference_har_query_ble_rssi},
     
         // --- KeyTurnerState ---
-        {"LCKSTAT", preference_ha_path_lock_state, preference_ha_query_lock_state},
-        {"LCKNGSTAT", preference_ha_path_lockngo_state, preference_ha_query_lockngo_state},
-        {"LCKTRIG", preference_ha_path_lock_trigger, preference_ha_query_lock_trigger},
-        {"LCKNMOD", preference_ha_path_lock_night_mode, preference_ha_query_lock_night_mode},
-        {"LCKCMPLSTAT", preference_ha_path_lock_completionStatus, preference_ha_query_lock_completionStatus},
-        {"LCKBATCRIT", preference_ha_path_lock_battery_critical, preference_ha_query_lock_battery_critical},
-        {"LCKBATLEV", preference_ha_path_lock_battery_level, preference_ha_query_lock_battery_level},
-        {"LCKBATCHRG", preference_ha_path_lock_battery_charging, preference_ha_query_lock_battery_charging},
-        {"DOORSTAT", preference_ha_path_doorsensor_state, preference_ha_query_doorsensor_state},
-        {"DOORSCRIT", preference_ha_path_doorsensor_critical, preference_ha_query_doorsensor_critical},
-        {"KEYPCRIT", preference_ha_path_keypad_critical, preference_ha_query_keypad_critical},
-        {"REMACCSTAT", preference_ha_path_remote_access_state, preference_ha_query_remote_access_state},
-        {"BLESTR", preference_ha_path_ble_strength, preference_ha_query_ble_strength},
+        {TOKEN_SUFFIX_LCKSTAT, preference_har_path_lock_state, preference_har_query_lock_state},
+        {TOKEN_SUFFIX_LCKNGSTAT, preference_har_path_lockngo_state, preference_har_query_lockngo_state},
+        {TOKEN_SUFFIX_LCKTRIG, preference_har_path_lock_trigger, preference_har_query_lock_trigger},
+        {TOKEN_SUFFIX_LCKNMOD, preference_har_path_lock_night_mode, preference_har_query_lock_night_mode},
+        {TOKEN_SUFFIX_LCKCMPLSTAT, preference_har_path_lock_completionStatus, preference_har_query_lock_completionStatus},
+        {TOKEN_SUFFIX_LCKBATCRIT, preference_har_path_lock_battery_critical, preference_har_query_lock_battery_critical},
+        {TOKEN_SUFFIX_LCKBATLEV, preference_har_path_lock_battery_level, preference_har_query_lock_battery_level},
+        {TOKEN_SUFFIX_LCKBATCHRG, preference_har_path_lock_battery_charging, preference_har_query_lock_battery_charging},
+        {TOKEN_SUFFIX_DOORSTAT, preference_har_path_doorsensor_state, preference_har_query_doorsensor_state},
+        {TOKEN_SUFFIX_DOORSCRIT, preference_har_path_doorsensor_critical, preference_har_query_doorsensor_critical},
+        {TOKEN_SUFFIX_KEYPCRIT, preference_har_path_keypad_critical, preference_har_query_keypad_critical},
+        {TOKEN_SUFFIX_REMACCSTAT, preference_har_path_remote_access_state, preference_har_query_remote_access_state},
+        {TOKEN_SUFFIX_BLESTR, preference_har_path_ble_strength, preference_har_query_ble_strength},
 
         // --- BatteryReport ---
-        {"BATVOLT", preference_ha_path_battery_voltage, preference_ha_query_battery_voltage},
-        {"BATDRAIN", preference_ha_path_battery_drain, preference_ha_query_battery_drain},
-        {"BATMAXTURNCUR", preference_ha_path_battery_max_turn_current, preference_ha_query_battery_max_turn_current},
-        {"BATLOCKDIST", preference_ha_path_battery_lock_distance, preference_ha_query_battery_lock_distance},
+        {TOKEN_SUFFIX_BATVOLT, preference_har_path_battery_voltage, preference_har_query_battery_voltage},
+        {TOKEN_SUFFIX_BATDRAIN, preference_har_path_battery_drain, preference_har_query_battery_drain},
+        {TOKEN_SUFFIX_BATMAXTURNCUR, preference_har_path_battery_max_turn_current, preference_har_query_battery_max_turn_current},
+        {TOKEN_SUFFIX_BATLOCKDIST, preference_har_path_battery_lock_distance, preference_har_query_battery_lock_distance},
     };
     
     for (const char *cat : {"general", "keystate", "battery"})
@@ -1789,17 +1790,17 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     // HomeAutomation
     response += F("\n\n------------ HOME AUTOMATION REPORTING ------------");
     response += F("\nHAR enabled: ");
-    response += String(_preferences->getBool(preference_ha_enabled, false) != false ? "Yes" : "No");
+    response += String(_preferences->getBool(preference_har_enabled, false) != false ? "Yes" : "No");
     response += F("\nHA reachable: ");
     response += String((_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? "Yes" : "No");
     response += F("\nHA address: ");
-    response += _preferences->getString(preference_ha_address, "not defined");
+    response += _preferences->getString(preference_har_address, "not defined");
     response += F("\nHA user: ");
-    response += _preferences->getString(preference_ha_user, "not defined");
+    response += _preferences->getString(preference_har_user, "not defined");
     response += F("\nHA password: ");
-    response += _preferences->getString(preference_ha_password, "not defined");
+    response += _preferences->getString(preference_har_password, "not defined");
     response += F("\nHAR mode: ");
-    response += _preferences->getString(preference_ha_mode, "not defined");
+    response += _preferences->getString(preference_har_mode, "not defined");
 
     // Bluetooth Infos
     response += F("\n\n------------ BLUETOOTH ------------");
@@ -2123,7 +2124,7 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
     }
 
     serializeJson(json, jsonStr);
-    return server->send(200, "application/json", jsonStr.c_str());
+    return server->send(200, F("application/json"), jsonStr.c_str());
 }
 
 void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage)
@@ -2458,11 +2459,11 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         String key = server->argName(i);
         String value = server->arg(i);
 
-        if (key == "HARADDRESS")
+        if (key == "HARHOST")
         {
-            if (_preferences->getString(preference_ha_address, "") != value)
+            if (_preferences->getString(preference_har_address, "") != value)
             {
-                _preferences->putString(preference_ha_address, value);
+                _preferences->putString(preference_har_address, value);
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
@@ -2470,9 +2471,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         }
         else if (key == "HARPORT")
         {
-            if (_preferences->getInt(preference_ha_port, 0) != value.toInt())
+            if (_preferences->getInt(preference_har_port, 0) != value.toInt())
             {
-                _preferences->putInt(preference_ha_port, value.toInt());
+                _preferences->putInt(preference_har_port, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
@@ -2486,9 +2487,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             }
             else
             {
-                if (_preferences->getString(preference_ha_user, "") != value)
+                if (_preferences->getString(preference_har_user, "") != value)
                 {
-                    _preferences->putString(preference_ha_user, value);
+                    _preferences->putString(preference_har_user, value);
                     Log->print(F("[DEBUG] Setting changed: "));
                     Log->println(key);
                     configChanged = true;
@@ -2497,24 +2498,43 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         }
         else if (key == "HARPASS")
         {
-            if (_preferences->getString(preference_ha_password, "") != value)
+            if (_preferences->getString(preference_har_password, "") != value)
             {
-                _preferences->putString(preference_ha_password, value);
+                _preferences->putString(preference_har_password, value);
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
         }
-        else if (key == "ENHAR")
+        else if (key == "HARENA")
         {
-            if (_preferences->getBool(preference_ha_enabled, false) != (value == "1"))
+            if (_preferences->getBool(preference_har_enabled, false) != (value == "1"))
             {
                 _network->disableHAR();
-                _preferences->putBool(preference_ha_enabled, (value == "1"));
+                _preferences->putBool(preference_har_enabled, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
+        }
+        else if (key == "HARMODE")
+        {
+            if (_preferences->getInt(preference_har_mode, 0) != value.toInt())
+            {
+                if (value.toInt() >= 0 && value.toInt() <= 1)
+                {
+                    Log->setLogLevel((DebugLog::msgtype)value.toInt());
+                }
+                _preferences->putInt(preference_har_mode, value.toInt());
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key.startsWith("PATH_") || key.startsWith("QUERY_"))
+        {
+            String message = "";
+            processHARArgs(this->_webServer, message);
         }
         else if (key == "UPTIME")
         {
@@ -2735,71 +2755,6 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 _preferences->putInt(preference_api_port, value.toInt());
                 Log->print("Setting changed: ");
-                Log->println(key);
-                configChanged = true;
-            }
-        }
-        else if (key == "HAENA")
-        {
-            if (_preferences->getBool(preference_ha_enabled, false) != (value == "1"))
-            {
-                _network->disableHAR();
-                _preferences->putBool(preference_ha_enabled, (value == "1"));
-                Log->print(F("[DEBUG] Setting changed: "));
-                Log->println(key);
-                // configChanged = true;
-            }
-        }
-        else if (key == "HAHOST")
-        {
-            if (_preferences->getString(preference_ha_address, "") != value)
-            {
-                _preferences->putString(preference_ha_address, value);
-                Log->print(F("[DEBUG] Setting changed: "));
-                Log->println(key);
-                configChanged = true;
-            }
-        }
-        else if (key == "HAPORT")
-        {
-            if (_preferences->getInt(preference_ha_port, 0) != value.toInt())
-            {
-                _preferences->putInt(preference_ha_port, value.toInt());
-                Log->print("Setting changed: ");
-                Log->println(key);
-                configChanged = true;
-            }
-        }
-        else if (key == "HAMODE")
-        {
-            if (_preferences->getInt(preference_ha_mode, 0) != value.toInt())
-            {
-                if (value.toInt() >= 0 && value.toInt() <= 1)
-                {
-                    Log->setLogLevel((DebugLog::msgtype)value.toInt());
-                }
-                _preferences->putInt(preference_ha_mode, value.toInt());
-                Log->print(F("[DEBUG] Setting changed: "));
-                Log->println(key);
-                configChanged = true;
-            }
-        }
-        else if (key == "HAUSER")
-        {
-            if (_preferences->getString(preference_ha_user, "") != value)
-            {
-                _preferences->putString(preference_ha_user, value);
-                Log->print(F("[DEBUG] Setting changed: "));
-                Log->println(key);
-                configChanged = true;
-            }
-        }
-        else if (key == "HAPASS")
-        {
-            if (_preferences->getString(preference_ha_password, "") != value)
-            {
-                _preferences->putString(preference_ha_password, value);
-                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
@@ -3592,16 +3547,16 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
 
     if (clearHARCredentials)
     {
-        if (_preferences->getString(preference_ha_user, "") != "")
+        if (_preferences->getString(preference_har_user, "") != "")
         {
-            _preferences->putString(preference_ha_user, "");
+            _preferences->putString(preference_har_user, "");
             Log->print(F("[DEBUG] Setting changed: "));
             Log->println(F("HARUSER"));
             configChanged = true;
         }
-        if (_preferences->getString(preference_ha_password, "") != "")
+        if (_preferences->getString(preference_har_password, "") != "")
         {
-            _preferences->putString(preference_ha_password, "");
+            _preferences->putString(preference_har_password, "");
             Log->print(F("[DEBUG] Setting changed: "));
             Log->println("HARPASS");
             configChanged = true;
@@ -3705,7 +3660,7 @@ bool WebCfgServer::processBypass(WebServer *server)
                 snprintf(buffer + (i * 8), 9, "%08lx", (unsigned long)esp_random());
             }
 
-            server->sendHeader("Set-Cookie", "bypassId=" + String(buffer) + "; Max-Age=3600; HttpOnly");
+            server->sendHeader(F("Set-Cookie"), "bypassId=" + String(buffer) + "; Max-Age=3600; HttpOnly");
 
             struct timeval time;
             gettimeofday(&time, NULL);
@@ -3727,6 +3682,79 @@ bool WebCfgServer::processBypass(WebServer *server)
         }
     }
     return false;
+}
+
+bool WebCfgServer::processHARArgs(WebServer *server, String &message)
+{
+    if (!server)
+        return false;
+
+    bool changed = false;
+
+    // --- Handle all HAR preferences dynamically ---
+    const struct {
+        const char* tokenSuffix;
+        const char* pathKey;
+        const char* queryKey;
+    } fields[] = {
+        // --- General ---
+        {TOKEN_SUFFIX_STAT, preference_har_path_state, nullptr},
+        {TOKEN_SUFFIX_UPTM, preference_har_path_uptime, preference_har_query_uptime},
+        {TOKEN_SUFFIX_REASONFW, preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
+        {TOKEN_SUFFIX_REASONESP, preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
+        {TOKEN_SUFFIX_NBVER, preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
+        {TOKEN_SUFFIX_NBBUIL, preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
+        {TOKEN_SUFFIX_FREEHP, preference_har_path_freeheap, preference_har_query_freeheap},
+        {TOKEN_SUFFIX_WFRSSI, preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
+        {TOKEN_SUFFIX_BLEADDR, preference_har_path_ble_address, preference_har_query_ble_address},
+        {TOKEN_SUFFIX_BLERSSI, preference_har_path_ble_rssi, preference_har_query_ble_rssi},
+    
+        // --- KeyTurnerState ---
+        {TOKEN_SUFFIX_LCKSTAT, preference_har_path_lock_state, preference_har_query_lock_state},
+        {TOKEN_SUFFIX_LCKNGSTAT, preference_har_path_lockngo_state, preference_har_query_lockngo_state},
+        {TOKEN_SUFFIX_LCKTRIG, preference_har_path_lock_trigger, preference_har_query_lock_trigger},
+        {TOKEN_SUFFIX_LCKNMOD, preference_har_path_lock_night_mode, preference_har_query_lock_night_mode},
+        {TOKEN_SUFFIX_LCKCMPLSTAT, preference_har_path_lock_completionStatus, preference_har_query_lock_completionStatus},
+        {TOKEN_SUFFIX_LCKBATCRIT, preference_har_path_lock_battery_critical, preference_har_query_lock_battery_critical},
+        {TOKEN_SUFFIX_LCKBATLEV, preference_har_path_lock_battery_level, preference_har_query_lock_battery_level},
+        {TOKEN_SUFFIX_LCKBATCHRG, preference_har_path_lock_battery_charging, preference_har_query_lock_battery_charging},
+        {TOKEN_SUFFIX_DOORSTAT, preference_har_path_doorsensor_state, preference_har_query_doorsensor_state},
+        {TOKEN_SUFFIX_DOORSCRIT, preference_har_path_doorsensor_critical, preference_har_query_doorsensor_critical},
+        {TOKEN_SUFFIX_KEYPCRIT, preference_har_path_keypad_critical, preference_har_query_keypad_critical},
+        {TOKEN_SUFFIX_REMACCSTAT, preference_har_path_remote_access_state, preference_har_query_remote_access_state},
+        {TOKEN_SUFFIX_BLESTR, preference_har_path_ble_strength, preference_har_query_ble_strength},
+
+        // --- BatteryReport ---
+        {TOKEN_SUFFIX_BATVOLT, preference_har_path_battery_voltage, preference_har_query_battery_voltage},
+        {TOKEN_SUFFIX_BATDRAIN, preference_har_path_battery_drain, preference_har_query_battery_drain},
+        {TOKEN_SUFFIX_BATMAXTURNCUR, preference_har_path_battery_max_turn_current, preference_har_query_battery_max_turn_current},
+        {TOKEN_SUFFIX_BATLOCKDIST, preference_har_path_battery_lock_distance, preference_har_query_battery_lock_distance},
+    };
+
+    for (const auto &f : fields)
+    {
+        String tokenPath = "PATH_" + String(f.tokenSuffix);
+        if (server->hasArg(tokenPath))
+            changed |= _preferences->putString(f.pathKey, server->arg(tokenPath));
+
+        if (f.queryKey)
+        {
+            String tokenQuery = "QUERY_" + String(f.tokenSuffix);
+            if (server->hasArg(tokenQuery))
+                changed |= _preferences->putString(f.queryKey, server->arg(tokenQuery));
+        }
+    }
+
+    if (changed)
+    {
+        message = F("Settings updated successfully");
+        return true;
+    }
+    else
+    {
+        message = F("No changes detected");
+        return false;
+    }
 }
 
 bool WebCfgServer::processLogin(WebServer *server)

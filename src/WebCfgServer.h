@@ -224,6 +224,15 @@ private:
     bool processArgs(WebServer *server, String &message);
 
     /**
+     * Processes the transmitted Path & Query settings of the buildHARConfigHtml page
+     *
+     * @param server   Pointer to the WebServer object with the request data.
+     * @param message  [out] Message with the status of processing (e.g. error message).
+     * @return         true for success, false for error.
+     */
+    bool processHARArgs(WebServer *server, String &message);
+
+    /**
      * @brief Processes the current bypass request from the web UI.
      * @param server Pointer to the WebServer instance.
      * @return True if bypass settings were updated successfully.
