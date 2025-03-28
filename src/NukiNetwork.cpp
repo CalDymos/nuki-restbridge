@@ -89,8 +89,8 @@ void NukiNetwork::initialize()
         strncpy(_apiLockPath, api_path_lock, sizeof(_apiLockPath) - 1);
         strncpy(_apiBridgePath, api_path_bridge, sizeof(_apiBridgePath) - 1);
 
-        _homeAutomationEnabled = _preferences->getBool(preference_ha_enabled, false);
-        _homeAutomationAdress = _preferences->getString(preference_ha_address, "");
+        _homeAutomationEnabled = _preferences->getBool(preference_har_enabled, false);
+        _homeAutomationAdress = _preferences->getString(preference_har_address, "");
 
         _hostname = _preferences->getString(preference_hostname, "");
 
@@ -100,12 +100,12 @@ void NukiNetwork::initialize()
             _preferences->putString(preference_hostname, _hostname);
         }
 
-        _homeAutomationPort = _preferences->getInt(preference_ha_port, 0);
+        _homeAutomationPort = _preferences->getInt(preference_har_port, 0);
 
         if (_homeAutomationPort == 0)
         {
             _homeAutomationPort = 80;
-            _preferences->putInt(preference_ha_port, _homeAutomationPort);
+            _preferences->putInt(preference_har_port, _homeAutomationPort);
         }
 
         switch (_networkDeviceType)
@@ -123,9 +123,9 @@ void NukiNetwork::initialize()
         Log->print(F("[DEBUG] Host name: "));
         Log->println(_hostname);
 
-        String _homeAutomationUser = _preferences->getString(preference_ha_user);
+        String _homeAutomationUser = _preferences->getString(preference_har_user);
 
-        String _homeAutomationPass = _preferences->getString(preference_ha_password);
+        String _homeAutomationPass = _preferences->getString(preference_har_password);
 
         readSettings();
 
@@ -241,8 +241,8 @@ bool NukiNetwork::update()
 
         if (rssi != _lastRssi)
         {
-            String path = _preferences->getString(preference_ha_path_wifi_rssi);
-            String query = _preferences->getString(preference_ha_query_wifi_rssi);
+            String path = _preferences->getString(preference_har_path_wifi_rssi);
+            String query = _preferences->getString(preference_har_query_wifi_rssi);
 
             if (path && query)
                 sendToHAInt(path.c_str(), query.c_str(), signalStrength());
@@ -255,8 +255,8 @@ bool NukiNetwork::update()
         int64_t curUptime = ts / 1000 / 60;
         if (curUptime > _publishedUpTime)
         {
-            String path = _preferences->getString(preference_ha_path_uptime);
-            String query = _preferences->getString(preference_ha_query_uptime);
+            String path = _preferences->getString(preference_har_path_uptime);
+            String query = _preferences->getString(preference_har_query_uptime);
 
             if (path && query)
                 sendToHAULong(path.c_str(), query.c_str(), curUptime);
@@ -265,34 +265,34 @@ bool NukiNetwork::update()
 
         if (_lastMaintenanceTs == 0)
         {
-            String path = _preferences->getString(preference_ha_path_restart_reason_fw);
-            String query = _preferences->getString(preference_ha_query_restart_reason_fw);
+            String path = _preferences->getString(preference_har_path_restart_reason_fw);
+            String query = _preferences->getString(preference_har_query_restart_reason_fw);
 
             if (path && query)
                 sendToHAString(path.c_str(), query.c_str(), getRestartReason().c_str());
 
-            path = _preferences->getString(preference_ha_path_restart_reason_esp);
-            query = _preferences->getString(preference_ha_query_restart_reason_esp);
+            path = _preferences->getString(preference_har_path_restart_reason_esp);
+            query = _preferences->getString(preference_har_query_restart_reason_esp);
 
             if (path && query)
                 sendToHAString(path.c_str(), query.c_str(), getEspRestartReason().c_str());
 
-            path = _preferences->getString(preference_ha_path_info_nuki_bridge_version);
-            query = _preferences->getString(preference_ha_query_info_nuki_bridge_version);
+            path = _preferences->getString(preference_har_path_info_nuki_bridge_version);
+            query = _preferences->getString(preference_har_query_info_nuki_bridge_version);
 
             if (path && query)
                 sendToHAString(path.c_str(), query.c_str(), NUKI_REST_BRIDGE_VERSION);
 
-            path = _preferences->getString(preference_ha_path_info_nuki_bridge_build);
-            query = _preferences->getString(preference_ha_query_info_nuki_bridge_build);
+            path = _preferences->getString(preference_har_path_info_nuki_bridge_build);
+            query = _preferences->getString(preference_har_query_info_nuki_bridge_build);
 
             if (path && query)
                 sendToHAString(path.c_str(), query.c_str(), NUKI_REST_BRIDGE_BUILD);
         }
         if (_sendDebugInfo)
         {
-            String path = _preferences->getString(preference_ha_path_freeheap);
-            String query = _preferences->getString(preference_ha_query_freeheap);
+            String path = _preferences->getString(preference_har_path_freeheap);
+            String query = _preferences->getString(preference_har_query_freeheap);
 
             if (path && query)
                 sendToHAUInt(path.c_str(), query.c_str(), esp_get_free_heap_size());
@@ -500,8 +500,8 @@ void NukiNetwork::sendToHALockBleAddress(const std::string &address)
     if (_homeAutomationEnabled)
     {
 
-        String path = _preferences->getString(preference_ha_path_ble_address);
-        String query = _preferences->getString(preference_ha_query_ble_address);
+        String path = _preferences->getString(preference_har_path_ble_address);
+        String query = _preferences->getString(preference_har_query_ble_address);
 
         if (path && query)
             sendRequestToHA(path.c_str(), query.c_str(), address.c_str());
@@ -517,26 +517,26 @@ void NukiNetwork::sendToHABatteryReport(const NukiLock::BatteryReport &batteryRe
         String query;
         query.reserve(128);
 
-        path = _preferences->getString(preference_ha_path_battery_voltage);
-        query = _preferences->getString(preference_ha_query_battery_voltage);
+        path = _preferences->getString(preference_har_path_battery_voltage);
+        query = _preferences->getString(preference_har_query_battery_voltage);
         if (path && query)
         {
             sendToHAFloat(path.c_str(), query.c_str(), (float)batteryReport.batteryVoltage / 1000.0, true);
         }
-        path = _preferences->getString(preference_ha_path_battery_drain);
-        query = _preferences->getString(preference_ha_query_battery_drain);
+        path = _preferences->getString(preference_har_path_battery_drain);
+        query = _preferences->getString(preference_har_query_battery_drain);
         if (path && query)
         {
             sendToHAFloat(path.c_str(), query.c_str(), batteryReport.batteryDrain, true); // milliwatt seconds
         }
-        path = _preferences->getString(preference_ha_path_battery_max_turn_current);
-        query = _preferences->getString(preference_ha_query_battery_max_turn_current);
+        path = _preferences->getString(preference_har_path_battery_max_turn_current);
+        query = _preferences->getString(preference_har_query_battery_max_turn_current);
         if (path && query)
         {
             sendToHAFloat(path.c_str(), query.c_str(), (float)batteryReport.maxTurnCurrent / 1000.0, true);
         }
-        path = _preferences->getString(preference_ha_path_battery_lock_distance);
-        query = _preferences->getString(preference_ha_query_battery_lock_distance);
+        path = _preferences->getString(preference_har_path_battery_lock_distance);
+        query = _preferences->getString(preference_har_query_battery_lock_distance);
         if (path && query)
         {
             sendToHAFloat(path.c_str(), query.c_str(), batteryReport.lockDistance, true); // degrees
@@ -548,8 +548,8 @@ void NukiNetwork::sendToHABleRssi(const int &rssi)
 {
     if (_homeAutomationEnabled)
     {
-        String path = _preferences->getString(preference_ha_path_ble_rssi);
-        String query = _preferences->getString(preference_ha_query_ble_rssi);
+        String path = _preferences->getString(preference_har_path_ble_rssi);
+        String query = _preferences->getString(preference_har_query_ble_rssi);
 
         if (path && query)
             sendToHAInt(path.c_str(), query.c_str(), rssi);
@@ -572,16 +572,16 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
         {
             lockstateToString(keyTurnerState.lockState, str);
 
-            path = _preferences->getString(preference_ha_path_lock_state);
-            query = _preferences->getString(preference_ha_query_lock_state);
+            path = _preferences->getString(preference_har_path_lock_state);
+            query = _preferences->getString(preference_har_query_lock_state);
 
             if (path && query)
             {
                 sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.lockState);
             }
 
-            path = _preferences->getString(preference_ha_path_lockngo_state);
-            query = _preferences->getString(preference_ha_query_lockngo_state);
+            path = _preferences->getString(preference_har_path_lockngo_state);
+            query = _preferences->getString(preference_har_query_lockngo_state);
 
             if (path && query)
             {
@@ -594,8 +594,8 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if (_firstTunerStateSent || keyTurnerState.trigger != lastKeyTurnerState.trigger)
             {
-                path = _preferences->getString(preference_ha_path_lock_trigger);
-                query = _preferences->getString(preference_ha_query_lock_trigger);
+                path = _preferences->getString(preference_har_path_lock_trigger);
+                query = _preferences->getString(preference_har_query_lock_trigger);
 
                 if (path && query)
                 {
@@ -603,8 +603,8 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 }
             }
 
-            path = _preferences->getString(preference_ha_path_lock_night_mode);
-            query = _preferences->getString(preference_ha_query_lock_night_mode);
+            path = _preferences->getString(preference_har_path_lock_night_mode);
+            query = _preferences->getString(preference_har_query_lock_night_mode);
 
             if (path && query)
             {
@@ -616,8 +616,8 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if (_firstTunerStateSent || keyTurnerState.lastLockActionCompletionStatus != lastKeyTurnerState.lastLockActionCompletionStatus)
             {
-                path = _preferences->getString(preference_ha_path_lock_completionStatus);
-                query = _preferences->getString(preference_ha_query_lock_completionStatus);
+                path = _preferences->getString(preference_har_path_lock_completionStatus);
+                query = _preferences->getString(preference_har_query_lock_completionStatus);
 
                 if (path && query)
                 {
@@ -631,8 +631,8 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if (_firstTunerStateSent || keyTurnerState.doorSensorState != lastKeyTurnerState.doorSensorState)
             {
-                path = _preferences->getString(preference_ha_path_doorsensor_state);
-                query = _preferences->getString(preference_ha_query_doorsensor_state);
+                path = _preferences->getString(preference_har_path_doorsensor_state);
+                query = _preferences->getString(preference_har_query_doorsensor_state);
 
                 if (path && query)
                 {
@@ -647,24 +647,24 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if ((_firstTunerStateSent || keyTurnerState.criticalBatteryState != lastKeyTurnerState.criticalBatteryState))
             {
-                path = _preferences->getString(preference_ha_path_lock_battery_critical);
-                query = _preferences->getString(preference_ha_query_lock_battery_critical);
+                path = _preferences->getString(preference_har_path_lock_battery_critical);
+                query = _preferences->getString(preference_har_query_lock_battery_critical);
 
                 if (path && query)
                 {
                     sendToHAInt(path.c_str(), query.c_str(), (int)critical);
                 }
 
-                path = _preferences->getString(preference_ha_path_lock_battery_level);
-                query = _preferences->getString(preference_ha_query_lock_battery_level);
+                path = _preferences->getString(preference_har_path_lock_battery_level);
+                query = _preferences->getString(preference_har_query_lock_battery_level);
 
                 if (path && query)
                 {
                     sendToHAInt(path.c_str(), query.c_str(), (int)level);
                 }
 
-                path = _preferences->getString(preference_ha_path_lock_battery_charging);
-                query = _preferences->getString(preference_ha_query_lock_battery_charging);
+                path = _preferences->getString(preference_har_path_lock_battery_charging);
+                query = _preferences->getString(preference_har_query_lock_battery_charging);
 
                 if (path && query)
                 {
@@ -674,8 +674,8 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if ((_firstTunerStateSent || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
             {
-                path = _preferences->getString(preference_ha_path_keypad_critical);
-                query = _preferences->getString(preference_ha_query_keypad_critical);
+                path = _preferences->getString(preference_har_path_keypad_critical);
+                query = _preferences->getString(preference_har_query_keypad_critical);
 
                 if (path && query)
                 {
@@ -687,8 +687,8 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if ((_firstTunerStateSent || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
             {
-                path = _preferences->getString(preference_ha_path_doorsensor_critical);
-                query = _preferences->getString(preference_ha_query_doorsensor_critical);
+                path = _preferences->getString(preference_har_path_doorsensor_critical);
+                query = _preferences->getString(preference_har_query_doorsensor_critical);
 
                 if (path && query)
                 {
@@ -696,8 +696,8 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 }
             }
 
-            path = _preferences->getString(preference_ha_path_remote_access_state);
-            query = _preferences->getString(preference_ha_query_remote_access_state);
+            path = _preferences->getString(preference_har_path_remote_access_state);
+            query = _preferences->getString(preference_har_query_remote_access_state);
 
             if (path && query)
             {
@@ -706,8 +706,8 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if (keyTurnerState.bleConnectionStrength != 1)
             {
-                path = _preferences->getString(preference_ha_path_ble_strength);
-                query = _preferences->getString(preference_ha_query_ble_strength);
+                path = _preferences->getString(preference_har_path_ble_strength);
+                query = _preferences->getString(preference_har_query_ble_strength);
 
                 if (path && query)
                 {
@@ -1248,7 +1248,7 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
         }
 
         // 3. if Home Automation API path exists, execute GET request
-        String strPath = _preferences->getString(preference_ha_path_state, "");
+        String strPath = _preferences->getString(preference_har_path_state, "");
         if (!strPath.isEmpty() && httpClientOk)
         {
             String url = "http://" + _homeAutomationAdress + ":" + String(_homeAutomationPort) + "/" + strPath;
