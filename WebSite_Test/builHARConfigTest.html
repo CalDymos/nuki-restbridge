@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<link rel='stylesheet' href='style.css'>
+<title>Nuki Bridge</title>
+</head>
+<body>
+<form class="adapt" method="post" action="post">
+    <input type="hidden" name="page" value="savecfg">
+    <h3>Home Automation Report Configuration</h3>
+    <table>
+        <tr><td>Enable Home Automation Report</td><td><input type="checkbox" name="HARENA" value="1" checked></td></tr>
+        <tr><td>Address</td><td><input type="text" name="HARHOST" value="192.168.1.100" maxlength="64"/></td></tr>
+        <tr><td>Port</td><td><input type="text" name="HARPORT" value="8081" maxlength="6"/></td></tr>
+        <tr><td>Mode</td><td><select name="HARMODE"><option value="0" selected>UDP</option><option value="1">REST</option></select></td></tr>
+        <tr><td>Username</td><td><input type="text" name="HARUSER" value="admin" maxlength="32"/></td></tr>
+        <tr><td>Password</td><td><input type="password" name="HARPASS" value="" maxlength="32"/></td></tr>
+    </table>
+    <br>
+    <div>
+        <button type="button" class="tab-button" onclick="showTab('general')">General</button>
+        <button type="button" class="tab-button" onclick="showTab('keystate')">Key Turner State</button>
+        <button type="button" class="tab-button" onclick="showTab('battery')">Battery Report</button>
+    </div>
+    <br>
+    <div id="tab_general" style="display:none">
+        <table>
+            <tr><td>Path: uptime</td><td><input type="text" name="PATH_UPTM" value="/uptime" maxlength="64"/></td></tr>
+            <tr><td>Query: uptime</td><td><input type="text" name="QUERY_UPTM" value="uptime" maxlength="64"/></td></tr>
+        </table>
+    </div>
+    <div id="tab_keystate" style="display:none">
+        <table>
+            <tr><td>Path: lock_state</td><td><input type="text" name="PATH_LCKSTAT" value="/lockstate" maxlength="64"/></td></tr>
+            <tr><td>Query: lock_state</td><td><input type="text" name="QUERY_LCKSTAT" value="state" maxlength="64"/></td></tr>
+        </table>
+    </div>
+    <div id="tab_battery" style="display:none">
+        <table>
+            <tr><td>Path: battery_voltage</td><td><input type="text" name="PATH_BATVOLT" value="/voltage" maxlength="64"/></td></tr>
+            <tr><td>Query: battery_voltage</td><td><input type="text" name="QUERY_BATVOLT" value="voltage" maxlength="64"/></td></tr>
+        </table>
+    </div>
+    <br><input type="submit" name="submit" value="Save">
+</form>
+<script>
+function showTab(tab) {
+  const tabs = ['general','keystate','battery'];
+  tabs.forEach((id, idx) => {
+    document.getElementById('tab_' + id).style.display = (id === tab) ? 'block' : 'none';
+    document.querySelectorAll('.tab-button')[idx].classList.toggle('active', id === tab);
+  });
+}
+showTab('general');
+</script>
+</body>
+</html>
