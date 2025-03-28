@@ -1640,7 +1640,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += "\nTotal internal heap: " + String(ESP.getHeapSize());
 
 #ifdef CONFIG_SOC_SPIRAM_SUPPORTED
-    if (esp_psram_get_size() > 0)
+    if (psramFound() && esp_psram_get_size() > 0)
     {
         response += F("\nPSRAM Available: Yes");
         response += F("\nFree usable PSRAM: ");
