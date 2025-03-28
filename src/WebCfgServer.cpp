@@ -10,7 +10,7 @@
 #include "esp_psram.h"
 #endif
 
-const char css[] PROGMEM = ":root{--nc-font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,'Open Sans','Helvetica Neue',sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';--nc-font-mono:Consolas,monaco,'Ubuntu Mono','Liberation Mono','Courier New',Courier,monospace;--nc-tx-1:#000;--nc-tx-2:#1a1a1a;--nc-bg-1:#fff;--nc-bg-2:#f6f8fa;--nc-bg-3:#e5e7eb;--nc-lk-1:#0070f3;--nc-lk-2:#0366d6;--nc-lk-tx:#fff;--nc-ac-1:#79ffe1;--nc-ac-tx:#0c4047}@media(prefers-color-scheme:dark){:root{--nc-tx-1:#fff;--nc-tx-2:#eee;--nc-bg-1:#000;--nc-bg-2:#111;--nc-bg-3:#222;--nc-lk-1:#3291ff;--nc-lk-2:#0070f3;--nc-lk-tx:#fff;--nc-ac-1:#7928ca;--nc-ac-tx:#fff}}*{margin:0;padding:0}img,input,option,p,table,textarea,ul{margin-bottom:1rem}button,html,input,select{font-family:var(--nc-font-sans)}body{margin:0 auto;max-width:750px;padding:2rem;border-radius:6px;overflow-x:hidden;word-break:normal;overflow-wrap:anywhere;background:var(--nc-bg-1);color:var(--nc-tx-2);font-size:1.03rem;line-height:1.5}::selection{background:var(--nc-ac-1);color:var(--nc-ac-tx)}h1,h2,h3,h4,h5,h6{line-height:1;color:var(--nc-tx-1);padding-top:.875rem}h1,h2,h3{color:var(--nc-tx-1);padding-bottom:2px;margin-bottom:8px;border-bottom:1px solid var(--nc-bg-2)}h4,h5,h6{margin-bottom:.3rem}h1{font-size:2.25rem}h2{font-size:1.85rem}h3{font-size:1.55rem}h4{font-size:1.25rem}h5{font-size:1rem}h6{font-size:.875rem}a{color:var(--nc-lk-1)}a:hover{color:var(--nc-lk-2) !important;}abbr{cursor:help}abbr:hover{cursor:help}a button,button,input[type=button],input[type=reset],input[type=submit]{font-size:1rem;display:inline-block;padding:6px 12px;text-align:center;text-decoration:none;white-space:nowrap;background:var(--nc-lk-1);color:var(--nc-lk-tx);border:0;border-radius:4px;box-sizing:border-box;cursor:pointer;color:var(--nc-lk-tx)}a button[disabled],button[disabled],input[type=button][disabled],input[type=reset][disabled],input[type=submit][disabled]{cursor:default;opacity:.5;cursor:not-allowed}.button:focus,.button:hover,button:focus,button:hover,input[type=button]:focus,input[type=button]:hover,input[type=reset]:focus,input[type=reset]:hover,input[type=submit]:focus,input[type=submit]:hover{background:var(--nc-lk-2)}table{border-collapse:collapse;width:100%}td,th{border:1px solid var(--nc-bg-3);text-align:left;padding:.5rem}th{background:var(--nc-bg-2)}tr:nth-child(even){background:var(--nc-bg-2)}textarea{max-width:100%}input,select,textarea{padding:6px 12px;margin-bottom:.5rem;background:var(--nc-bg-2);color:var(--nc-tx-2);border:1px solid var(--nc-bg-3);border-radius:4px;box-shadow:none;box-sizing:border-box}img{max-width:100%}td>input{margin-top:0;margin-bottom:0}td>textarea{margin-top:0;margin-bottom:0}td>select{margin-top:0;margin-bottom:0}.warning{color:red}@media only screen and (max-width:600px){.adapt td{display:block}.adapt input[type=text],.adapt input[type=password],.adapt input[type=submit],.adapt textarea,.adapt select{width:100%}.adapt td:has(input[type=checkbox]){text-align:center}.adapt input[type=checkbox]{width:1.5em;height:1.5em}.adapt table td:first-child{border-bottom:0}.adapt table td:last-child{border-top:0}#tblnav a li>span{max-width:140px}}#tblnav a{border:0;border-bottom:1px solid;display:block;font-size:1rem;font-weight:bold;padding:.6rem 0;line-height:1;color:var(--nc-tx-1);text-decoration:none;background:linear-gradient(to left,transparent 50%,rgba(255,255,255,0.4) 50%) right;background-size:200% 100%;transition:all .2s ease}#tblnav a{background:linear-gradient(to left,var(--nc-bg-2) 50%,rgba(255,255,255,0.4) 50%) right;background-size:200% 100%}#tblnav a:hover{background-position:left;transition:all .45s ease}#tblnav a:active{background:var(--nc-lk-1);transition:all .15s ease}#tblnav a li{list-style:none;padding:.5rem;display:inline-block;width:100%}#tblnav a li>span{float:right;text-align:right;margin-right:10px;color:#f70;font-weight:100;font-style:italic;display:block}.tdbtn{text-align:center;vertical-align:middle}.naventry{float:left;max-width:375px;width:100%}";
+const char css[] PROGMEM = ":root{--nc-font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,'Open Sans','Helvetica Neue',sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';--nc-font-mono:Consolas,monaco,'Ubuntu Mono','Liberation Mono','Courier New',Courier,monospace;--nc-tx-1:#000;--nc-tx-2:#1a1a1a;--nc-bg-1:#fff;--nc-bg-2:#f6f8fa;--nc-bg-3:#e5e7eb;--nc-lk-1:#0070f3;--nc-lk-2:#0366d6;--nc-lk-tx:#fff;--nc-ac-1:#79ffe1;--nc-ac-tx:#0c4047}@media(prefers-color-scheme:dark){:root{--nc-tx-1:#fff;--nc-tx-2:#eee;--nc-bg-1:#000;--nc-bg-2:#111;--nc-bg-3:#222;--nc-lk-1:#3291ff;--nc-lk-2:#0070f3;--nc-lk-tx:#fff;--nc-ac-1:#7928ca;--nc-ac-tx:#fff}}*{margin:0;padding:0}img,input,option,p,table,textarea,ul{margin-bottom:1rem}button,html,input,select{font-family:var(--nc-font-sans)}body{margin:0 auto;max-width:750px;padding:2rem;border-radius:6px;overflow-x:hidden;word-break:normal;overflow-wrap:anywhere;background:var(--nc-bg-1);color:var(--nc-tx-2);font-size:1.03rem;line-height:1.5}::selection{background:var(--nc-ac-1);color:var(--nc-ac-tx)}h1,h2,h3,h4,h5,h6{line-height:1;color:var(--nc-tx-1);padding-top:.875rem}h1,h2,h3{color:var(--nc-tx-1);padding-bottom:2px;margin-bottom:8px;border-bottom:1px solid var(--nc-bg-2)}h4,h5,h6{margin-bottom:.3rem}h1{font-size:2.25rem}h2{font-size:1.85rem}h3{font-size:1.55rem}h4{font-size:1.25rem}h5{font-size:1rem}h6{font-size:.875rem}a{color:var(--nc-lk-1)}a:hover{color:var(--nc-lk-2) !important;}abbr{cursor:help}abbr:hover{cursor:help}a button,button,input[type=button],input[type=reset],input[type=submit]{font-size:1rem;display:inline-block;padding:6px 12px;text-align:center;text-decoration:none;white-space:nowrap;background:var(--nc-lk-1);color:var(--nc-lk-tx);border:0;border-radius:4px;box-sizing:border-box;cursor:pointer;color:var(--nc-lk-tx)}a button[disabled],button[disabled],input[type=button][disabled],input[type=reset][disabled],input[type=submit][disabled]{cursor:default;opacity:.5;cursor:not-allowed}.button:focus,.button:hover,button:focus,button:hover,input[type=button]:focus,input[type=button]:hover,input[type=reset]:focus,input[type=reset]:hover,input[type=submit]:focus,input[type=submit]:hover{background:var(--nc-lk-2)}table{border-collapse:collapse;width:100%}td,th{border:1px solid var(--nc-bg-3);text-align:left;padding:.5rem}th{background:var(--nc-bg-2)}tr:nth-child(even){background:var(--nc-bg-2)}textarea{max-width:100%}input,select,textarea{padding:6px 12px;margin-bottom:.5rem;background:var(--nc-bg-2);color:var(--nc-tx-2);border:1px solid var(--nc-bg-3);border-radius:4px;box-shadow:none;box-sizing:border-box}img{max-width:100%}td>input{margin-top:0;margin-bottom:0}td>textarea{margin-top:0;margin-bottom:0}td>select{margin-top:0;margin-bottom:0}.warning{color:red}@media only screen and (max-width:600px){.adapt td{display:block}.adapt input[type=text],.adapt input[type=password],.adapt input[type=submit],.adapt textarea,.adapt select{width:100%}.adapt td:has(input[type=checkbox]){text-align:center}.adapt input[type=checkbox]{width:1.5em;height:1.5em}.adapt table td:first-child{border-bottom:0}.adapt table td:last-child{border-top:0}#tblnav a li>span{max-width:140px}}#tblnav a{border:0;border-bottom:1px solid;display:block;font-size:1rem;font-weight:bold;padding:.6rem 0;line-height:1;color:var(--nc-tx-1);text-decoration:none;background:linear-gradient(to left,transparent 50%,rgba(255,255,255,0.4) 50%) right;background-size:200% 100%;transition:all .2s ease}#tblnav a{background:linear-gradient(to left,var(--nc-bg-2) 50%,rgba(255,255,255,0.4) 50%) right;background-size:200% 100%}#tblnav a:hover{background-position:left;transition:all .45s ease}#tblnav a:active{background:var(--nc-lk-1);transition:all .15s ease}#tblnav a li{list-style:none;padding:.5rem;display:inline-block;width:100%}#tblnav a li>span{float:right;text-align:right;margin-right:10px;color:#f70;font-weight:100;font-style:italic;display:block}.tdbtn{text-align:center;vertical-align:middle}.naventry{float:left;max-width:375px;width:100%}.tab-button.active{background-color: var(--nc-ac-1);color: var(--nc-ac-tx);font-weight: bold;}";
 extern bool timeSynced;
 
 WebCfgServer::WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences *preferences)
@@ -526,7 +526,7 @@ void WebCfgServer::initialize()
 
     _webServer->on("/", HTTP_GET, [this]()
                    {
-#ifdef DEBUG
+#ifdef DEBUG_NUKIBRIDGE
                        Log->println("[DEBUG] webCfgServer Anfrage erhalten : " + this->_webServer->uri());
 #endif
 
@@ -1158,7 +1158,9 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
     const char *currentToken = _network->getApiToken();
 
     response += F("<tr><td>Access Token</td><td>");
-    response += "<input type=\"text\" value=\"" + String(currentToken) + "\" readonly>";
+    response += F("<input type=\"text\" value=\"");
+    response += String(currentToken);
+    response += F("\" readonly>");
     response += F("&nbsp;<a href=\"/get?page=apiconfig&genapitoken=1\"><input type=\"button\" value=\"Generate new token\"></a>");
     response += F("</td></tr>");
 
@@ -1171,15 +1173,15 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
 {
     String response;
     reserveHtmlResponse(response,
-                        1, // Checkbox
-                        90, // Input fields
-                        1, // Dropdown
-                        2, // Dropdown options
-                        0, // Textareas
-                        0, // Parameter rows
-                        0, // Buttons (Generate Bypass/Admin)
-                        0, // menus
-                        2048  // extra bytes
+                        1,   // Checkbox
+                        90,  // Input fields
+                        1,   // Dropdown
+                        2,   // Dropdown options
+                        0,   // Textareas
+                        0,   // Parameter rows
+                        0,   // Buttons (Generate Bypass/Admin)
+                        0,   // menus
+                        2048 // extra bytes
     );
 
     buildHtmlHeader(response);
@@ -1204,75 +1206,94 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
 
     // --- Tabs ---
     response += F("<div>");
-    response += F("<button type=\"button\" onclick=\"showTab('general')\">General</button>");
-    response += F("<button type=\"button\" onclick=\"showTab('keystate')\">Key Turner State</button>");
-    response += F("<button type=\"button\" onclick=\"showTab('battery')\">Battery Report</button>");
-    response += F("</div><br>\n");
+   
+    response += F("<button type=\"button\" class=\"tab-button\" onclick=\"showTab('");
+    response += F(HAR_CAT_GENERAL);
+    response += F("')\">General</button>");
 
-    const struct {
-        const char* id;
-        const char* label;
-        const char* pathKey;
-        const char* queryKey;
+    response += F("<button type=\"button\" class=\"tab-button\" onclick=\"showTab('");
+    response += F(HAR_CAT_KEY_TURN_STATE);
+    response += F("')\">Key Turner State</button>");
+
+    response += F("<button type=\"button\" class=\"tab-button\" onclick=\"showTab('");
+    response += F(HAR_CAT_BATTERY_REPORT);
+    response += F("')\">Battery Report</button>");
+
+    response += F("</div><br>");
+
+    const struct
+    {
+        const char *tab;
+        const char *id;
+        const char *pathKey;
+        const char *queryKey;
     } fields[] = {
         // --- General ---
-        {TOKEN_SUFFIX_STAT, preference_har_path_state, nullptr},
-        {TOKEN_SUFFIX_UPTM, preference_har_path_uptime, preference_har_query_uptime},
-        {TOKEN_SUFFIX_REASONFW, preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
-        {TOKEN_SUFFIX_REASONESP, preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
-        {TOKEN_SUFFIX_NBVER, preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
-        {TOKEN_SUFFIX_NBBUIL, preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
-        {TOKEN_SUFFIX_FREEHP, preference_har_path_freeheap, preference_har_query_freeheap},
-        {TOKEN_SUFFIX_WFRSSI, preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
-        {TOKEN_SUFFIX_BLEADDR, preference_har_path_ble_address, preference_har_query_ble_address},
-        {TOKEN_SUFFIX_BLERSSI, preference_har_path_ble_rssi, preference_har_query_ble_rssi},
-    
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_STAT, preference_har_path_state, nullptr},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_UPTM, preference_har_path_uptime, preference_har_query_uptime},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTFW, preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTESP, preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBVER, preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBBUILD, preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_FREEHP, preference_har_path_freeheap, preference_har_query_freeheap},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_WFRSSI, preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLEADDR, preference_har_path_ble_address, preference_har_query_ble_address},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLERSSI, preference_har_path_ble_rssi, preference_har_query_ble_rssi},
+
         // --- KeyTurnerState ---
-        {TOKEN_SUFFIX_LCKSTAT, preference_har_path_lock_state, preference_har_query_lock_state},
-        {TOKEN_SUFFIX_LCKNGSTAT, preference_har_path_lockngo_state, preference_har_query_lockngo_state},
-        {TOKEN_SUFFIX_LCKTRIG, preference_har_path_lock_trigger, preference_har_query_lock_trigger},
-        {TOKEN_SUFFIX_LCKNMOD, preference_har_path_lock_night_mode, preference_har_query_lock_night_mode},
-        {TOKEN_SUFFIX_LCKCMPLSTAT, preference_har_path_lock_completionStatus, preference_har_query_lock_completionStatus},
-        {TOKEN_SUFFIX_LCKBATCRIT, preference_har_path_lock_battery_critical, preference_har_query_lock_battery_critical},
-        {TOKEN_SUFFIX_LCKBATLEV, preference_har_path_lock_battery_level, preference_har_query_lock_battery_level},
-        {TOKEN_SUFFIX_LCKBATCHRG, preference_har_path_lock_battery_charging, preference_har_query_lock_battery_charging},
-        {TOKEN_SUFFIX_DOORSTAT, preference_har_path_doorsensor_state, preference_har_query_doorsensor_state},
-        {TOKEN_SUFFIX_DOORSCRIT, preference_har_path_doorsensor_critical, preference_har_query_doorsensor_critical},
-        {TOKEN_SUFFIX_KEYPCRIT, preference_har_path_keypad_critical, preference_har_query_keypad_critical},
-        {TOKEN_SUFFIX_REMACCSTAT, preference_har_path_remote_access_state, preference_har_query_remote_access_state},
-        {TOKEN_SUFFIX_BLESTR, preference_har_path_ble_strength, preference_har_query_ble_strength},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKSTAT, preference_har_path_lock_state, preference_har_query_lock_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNGOSTAT, preference_har_path_lockngo_state, preference_har_query_lockngo_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKTRIG, preference_har_path_lock_trigger, preference_har_query_lock_trigger},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNMOD, preference_har_path_lock_night_mode, preference_har_query_lock_night_mode},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKCMPLSTAT, preference_har_path_lock_completionStatus, preference_har_query_lock_completionStatus},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCRIT, preference_har_path_lock_battery_critical, preference_har_query_lock_battery_critical},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATLVL, preference_har_path_lock_battery_level, preference_har_query_lock_battery_level},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCHRG, preference_har_path_lock_battery_charging, preference_har_query_lock_battery_charging},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSTAT, preference_har_path_doorsensor_state, preference_har_query_doorsensor_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSCRIT, preference_har_path_doorsensor_critical, preference_har_query_doorsensor_critical},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_KPCRIT, preference_har_path_keypad_critical, preference_har_query_keypad_critical},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_REMACCSTAT, preference_har_path_remote_access_state, preference_har_query_remote_access_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_BLESTR, preference_har_path_ble_strength, preference_har_query_ble_strength},
 
         // --- BatteryReport ---
-        {TOKEN_SUFFIX_BATVOLT, preference_har_path_battery_voltage, preference_har_query_battery_voltage},
-        {TOKEN_SUFFIX_BATDRAIN, preference_har_path_battery_drain, preference_har_query_battery_drain},
-        {TOKEN_SUFFIX_BATMAXTURNCUR, preference_har_path_battery_max_turn_current, preference_har_query_battery_max_turn_current},
-        {TOKEN_SUFFIX_BATLOCKDIST, preference_har_path_battery_lock_distance, preference_har_query_battery_lock_distance},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATVOLT, preference_har_path_battery_voltage, preference_har_query_battery_voltage},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATDRAIN, preference_har_path_battery_drain, preference_har_query_battery_drain},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATMAXTURNCUR, preference_har_path_battery_max_turn_current, preference_har_query_battery_max_turn_current},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATLCKDIST, preference_har_path_battery_lock_distance, preference_har_query_battery_lock_distance},
     };
-    
-    for (const char *cat : {"general", "keystate", "battery"})
+
+    for (const char *cat : {HAR_CAT_GENERAL, HAR_CAT_KEY_TURN_STATE, HAR_CAT_BATTERY_REPORT})
     {
         response += "<div id='tab_" + String(cat) + "' style='display:none'>";
-        response += "<table>";
+        response += F("<table>");
         for (const auto &f : fields)
         {
-            if (strcmp(f.id, cat) == 0)
+            if (strcmp(f.tab, cat) == 0)
             {
-                appendInputFieldRow(response, ("PATH_" + String(f.label)).c_str(), ("Path: " + String(f.label)).c_str(), _preferences->getString(f.pathKey, "").c_str(), 64, "");
+                appendInputFieldRow(response, ("PATH_" + String(f.id)).c_str(), ("Path: " + String(f.id)).c_str(), _preferences->getString(f.pathKey, "").c_str(), 64, "");
                 if (f.queryKey)
-                    appendInputFieldRow(response, ("QUERY_" + String(f.label)).c_str(), ("Query: " + String(f.label)).c_str(), _preferences->getString(f.queryKey, "").c_str(), 64, "");
+                    appendInputFieldRow(response, ("QUERY_" + String(f.id)).c_str(), ("Query: " + String(f.id)).c_str(), _preferences->getString(f.queryKey, "").c_str(), 64, "");
             }
         }
-        response += "</table></div>";
+        response += F("</table></div>");
     }
 
-    response += F("<br><input type=\"submit\" name=\"submit\" value=\"Save\">\n</form>\n");
-    response += F("<script>\n"
-                  "function showTab(tab) {\n"
-                  "  ['general','keystate','battery'].forEach(id => {\n"
-                  "    document.getElementById('tab_' + id).style.display = (id === tab) ? 'block' : 'none';\n"
-                  "  });\n"
-                  "}\n"
-                  "showTab('general');\n"
+    response += F("<br><input type=\"submit\" name=\"submit\" value=\"Save\"></form>");
+    response += F("<script>"
+                  "function showTab(tab) {");
+    response += F("['");
+    response += F(HAR_CAT_GENERAL);
+    response += F("','");
+    response += F(HAR_CAT_KEY_TURN_STATE);
+    response += F("','");
+    response += F(HAR_CAT_BATTERY_REPORT);
+    response += F("']");
+    response += F(".forEach((id, idx) => {"
+                  "document.getElementById('tab_' + id).style.display = (id === tab) ? 'block' : 'none';"
+                  "document.querySelectorAll('.tab-button')[idx].classList.toggle('active', id === tab);"
+                  "});"
+                  "}"
+                  "showTab('general');"
                   "</script></body></html>");
 
     server->send(200, F("text/html"), response);
@@ -1281,31 +1302,30 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
 void WebCfgServer::buildHtml(WebServer *server)
 {
     String header = F(
-        "<script>\n"
-        "  let intervalId;\n"
-        "  window.onload = function() {\n"
-        "    updateInfo();\n"
-        "    intervalId = setInterval(updateInfo, 3000);\n"
-        "  };\n"
-        "\n"
-        "  function updateInfo() {\n"
-        "    var request = new XMLHttpRequest();\n"
-        "    request.open('GET', '/get?page=status', true);\n"
-        "    request.onload = () => {\n"
-        "      const obj = JSON.parse(request.responseText);\n"
-        "      if (obj.stop == 1) {\n"
-        "        clearInterval(intervalId);\n"
-        "      }\n"
-        "      for (var key of Object.keys(obj)) {\n"
-        "        if (key == 'ota' && document.getElementById(key) !== null) {\n"
-        "          document.getElementById(key).innerText = \"<a href='/ota'>\" + obj[key] + \"</a>\";\n"
-        "        } else if (document.getElementById(key) !== null) {\n"
-        "          document.getElementById(key).innerText = obj[key];\n"
-        "        }\n"
-        "      }\n"
-        "    };\n"
-        "    request.send();\n"
-        "  }\n"
+        "<script>"
+        "let intervalId;"
+        "window.onload = function() {"
+        "updateInfo();"
+        "intervalId = setInterval(updateInfo, 3000);"
+        "};"
+        "function updateInfo() {"
+        "var request = new XMLHttpRequest();"
+        "request.open('GET', '/get?page=status', true);"
+        "request.onload = () => {"
+        "const obj = JSON.parse(request.responseText);"
+        "if (obj.stop == 1) {"
+        "clearInterval(intervalId);"
+        "}"
+        "for (var key of Object.keys(obj)) {"
+        "if (key == 'ota' && document.getElementById(key) !== null) {"
+        "document.getElementById(key).innerText = \"<a href='/ota'>\" + obj[key] + \"</a>\";"
+        "} else if (document.getElementById(key) !== null) {"
+        "document.getElementById(key).innerText = obj[key];"
+        "}"
+        "}"
+        "};"
+        "request.send();"
+        "}"
         "</script>");
 
     String response;
@@ -1326,37 +1346,37 @@ void WebCfgServer::buildHtml(WebServer *server)
     if (_rebootRequired)
     {
         response += F(
-            "<table>\n"
-            "  <tbody>\n"
-            "    <tr>\n"
-            "      <td colspan=\"2\" style=\""
+            "<table>"
+            "<tbody>"
+            "<tr>"
+            "<td colspan=\"2\" style=\""
             "border: 0; "
             "color: red; "
             "font-size: 32px; "
             "font-weight: bold; "
             "text-align: center;"
-            "\">\n"
-            "        REBOOT REQUIRED TO APPLY SETTINGS\n"
-            "      </td>\n"
-            "    </tr>\n"
-            "  </tbody>\n"
+            "\">"
+            "REBOOT REQUIRED TO APPLY SETTINGS"
+            "</td>"
+            "</tr>"
+            "</tbody>"
             "</table>");
     }
-#ifdef DEBUG
-    response += F("<table>\n"
-                  "  <tbody>\n"
-                  "    <tr>\n"
-                  "      <td colspan=\"2\" style=\""
+#ifdef DEBUG_NUKIBRIDGE
+    response += F("<table>"
+                  "<tbody>"
+                  "<tr>"
+                  "<td colspan=\"2\" style=\""
                   "border: 0; "
                   "color: red; "
                   "font-size: 32px; "
                   "font-weight: bold; "
                   "text-align: center;"
-                  "\">\n"
-                  "        RUNNING DEBUG BUILD, SWITCH TO RELEASE BUILD ASAP\n"
-                  "      </td>\n"
-                  "    </tr>\n"
-                  "  </tbody>\n"
+                  "\">"
+                  "RUNNING DEBUG BUILD, SWITCH TO RELEASE BUILD ASAP"
+                  "</td>"
+                  "</tr>"
+                  "</tbody>"
                   "</table>");
 
 #endif
@@ -1505,27 +1525,27 @@ void WebCfgServer::buildConnectHtml(WebServer *server)
                       "<script>"
                       "let intervalId = null;"
                       "function updateSSID() {"
-                      "  var request = new XMLHttpRequest();"
-                      "  request.open('GET', '/ssidlist', true);"
-                      "  request.onload = () => {"
-                      "    const aplist = document.getElementById(\"aplist\");"
-                      "    if (aplist !== null) { aplist.innerHTML = request.responseText; }"
-                      "  };"
-                      "  request.send();"
+                      "var request = new XMLHttpRequest();"
+                      "request.open('GET', '/ssidlist', true);"
+                      "request.onload = () => {"
+                      "const aplist = document.getElementById(\"aplist\");"
+                      "if (aplist !== null) { aplist.innerHTML = request.responseText; }"
+                      "};"
+                      "request.send();"
                       "}"
                       "function startScan() {"
-                      "  if (!intervalId) { intervalId = setInterval(updateSSID, 5000); }"
+                      "if (!intervalId) { intervalId = setInterval(updateSSID, 5000); }"
                       "}"
                       "function stopScan() {"
-                      "  if (intervalId) { clearInterval(intervalId); intervalId = null; }"
+                      "if (intervalId) { clearInterval(intervalId); intervalId = null; }"
                       "}"
                       "function toggleMode() {"
-                      "  const isWifi = document.getElementById('nwmode').value === '1';"
-                      "  document.getElementById('wlanConfig').style.display = isWifi ? 'block' : 'none';"
-                      "  document.getElementById('inputssid').disabled = !isWifi;"
-                      "  document.getElementById('inputpass').disabled = !isWifi;"
-                      "  document.getElementById('cbfindbestrssi').disabled = !isWifi;"
-                      "  if (isWifi) { startScan(); updateSSID(); } else { stopScan(); }"
+                      "const isWifi = document.getElementById('nwmode').value === '1';"
+                      "document.getElementById('wlanConfig').style.display = isWifi ? 'block' : 'none';"
+                      "document.getElementById('inputssid').disabled = !isWifi;"
+                      "document.getElementById('inputpass').disabled = !isWifi;"
+                      "document.getElementById('cbfindbestrssi').disabled = !isWifi;"
+                      "if (isWifi) { startScan(); updateSSID(); } else { stopScan(); }"
                       "}"
                       "window.onload = function() { toggleMode(); if (document.getElementById('nwmode').value === '1') { updateSSID(); } };"
                       "</script>");
@@ -1602,15 +1622,15 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response.reserve(12288);
 
     buildHtmlHeader(response);
-    response += "<h3>System Information</h3><pre>";
-    response += "\n----------- NUKI BRIDGE ------------";
+    response += F("<h3>System Information</h3><pre>");
+    response += F("\n----------- NUKI BRIDGE ------------");
     response += "\nDevice: " + String(NUKI_REST_BRIDGE_HW);
     response += "\nVersion: " + String(NUKI_REST_BRIDGE_VERSION);
     response += "\nBuild: " + String(NUKI_REST_BRIDGE_BUILD);
-#ifndef DEBUG
-    response += "\nBuild type: Release";
+#ifndef DEBUG_NUKIBRIDGE
+    response += F("\nBuild type: Release");
 #else
-    response += "\nBuild type: Debug";
+    response += F("\nBuild type: Debug");
 #endif
     response += "\nBuild date: " + String(NUKI_REST_BRIDGE_DATE);
     response += "\nUptime (min): " + String(espMillis() / 1000 / 60);
@@ -2430,6 +2450,21 @@ size_t WebCfgServer::estimateHtmlSize(
     return total;
 }
 
+#define HANDLE_STRING_PREF_ARG(KEYNAME, PREFNAME, CONFIG_CHANGED)   \
+    else if (key == KEYNAME)                                \
+    {                                                       \
+        if (_preferences->getString(PREFNAME, "") != value) \
+        {                                                   \
+            _preferences->putString(PREFNAME, value);       \
+            Log->print(F("[DEBUG] Setting changed: "));     \
+            Log->println(KEYNAME);                          \
+            if (CONFIG_CHANGED)                                \
+            {                                               \
+                configChanged = true;                       \
+            }                                               \
+        }                                                   \
+    }
+
 bool WebCfgServer::processArgs(WebServer *server, String &message)
 {
     bool configChanged = false;
@@ -2531,11 +2566,59 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if (key.startsWith("PATH_") || key.startsWith("QUERY_"))
-        {
-            String message = "";
-            processHARArgs(this->_webServer, message);
-        }
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_STAT, preference_har_path_state, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_REMACCSTAT, preference_har_path_remote_access_state, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_REMACCSTAT, preference_har_query_remote_access_state, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_WFRSSI, preference_har_path_wifi_rssi, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_WFRSSI, preference_har_query_wifi_rssi, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_UPTM, preference_har_path_uptime, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_UPTM, preference_har_query_uptime, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_RSTFW, preference_har_path_restart_reason_fw, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_RSTFW, preference_har_query_restart_reason_fw, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_RSTESP, preference_har_path_restart_reason_esp, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_RSTESP, preference_har_query_restart_reason_esp, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_NBVER, preference_har_path_info_nuki_bridge_version, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_NBVER, preference_har_query_info_nuki_bridge_version, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_NBBUILD, preference_har_path_info_nuki_bridge_build, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_NBBUILD, preference_har_query_info_nuki_bridge_build, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_FREEHP, preference_har_path_freeheap, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_FREEHP, preference_har_query_freeheap, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_BLEADDR, preference_har_path_ble_address, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_BLEADDR, preference_har_query_ble_address, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_BLESTR, preference_har_path_ble_strength, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_BLESTR, preference_har_query_ble_strength, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_BLERSSI, preference_har_path_ble_rssi, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_BLERSSI, preference_har_query_ble_rssi, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_LCKSTAT, preference_har_path_lock_state, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_LCKSTAT, preference_har_query_lock_state, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_LCKNGOSTAT, preference_har_path_lockngo_state, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_LCKNGOSTAT, preference_har_query_lockngo_state, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_LCKTRIG, preference_har_path_lock_trigger, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_LCKTRIG, preference_har_query_lock_trigger, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_LCKNMOD, preference_har_path_lock_night_mode, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_LCKNMOD, preference_har_query_lock_night_mode, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_LCKCMPLSTAT, preference_har_path_lock_completionStatus, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_LCKCMPLSTAT, preference_har_query_lock_completionStatus, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_DOORSTAT, preference_har_path_doorsensor_state, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_DOORSTAT, preference_har_query_doorsensor_state, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_DOORSCRIT, preference_har_path_doorsensor_critical, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_DOORSCRIT, preference_har_query_doorsensor_critical, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_KPCRIT, preference_har_path_keypad_critical, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_KPCRIT, preference_har_query_keypad_critical, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_LCKBATCRIT, preference_har_path_lock_battery_critical, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_LCKBATCRIT, preference_har_query_lock_battery_critical, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_LCKBATLVL, preference_har_path_lock_battery_level, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_LCKBATLVL, preference_har_query_lock_battery_level, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_LCKBATCHRG, preference_har_path_lock_battery_charging, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_LCKBATCHRG, preference_har_query_lock_battery_charging, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_BATVOLT, preference_har_path_battery_voltage, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_BATVOLT, preference_har_query_battery_voltage, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_BATDRAIN, preference_har_path_battery_drain, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_BATDRAIN, preference_har_query_battery_drain, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_BATMAXTURNCUR, preference_har_path_battery_max_turn_current, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_BATMAXTURNCUR, preference_har_query_battery_max_turn_current, true)
+        HANDLE_STRING_PREF_ARG("PATH_" TOKEN_SUFFIX_BATLCKDIST, preference_har_path_battery_lock_distance, true)
+        HANDLE_STRING_PREF_ARG("QUERY_" TOKEN_SUFFIX_BATLCKDIST, preference_har_query_battery_lock_distance, true)
         else if (key == "UPTIME")
         {
             if (_preferences->getBool(preference_update_time, false) != (value == "1"))
@@ -3682,79 +3765,6 @@ bool WebCfgServer::processBypass(WebServer *server)
         }
     }
     return false;
-}
-
-bool WebCfgServer::processHARArgs(WebServer *server, String &message)
-{
-    if (!server)
-        return false;
-
-    bool changed = false;
-
-    // --- Handle all HAR preferences dynamically ---
-    const struct {
-        const char* tokenSuffix;
-        const char* pathKey;
-        const char* queryKey;
-    } fields[] = {
-        // --- General ---
-        {TOKEN_SUFFIX_STAT, preference_har_path_state, nullptr},
-        {TOKEN_SUFFIX_UPTM, preference_har_path_uptime, preference_har_query_uptime},
-        {TOKEN_SUFFIX_REASONFW, preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
-        {TOKEN_SUFFIX_REASONESP, preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
-        {TOKEN_SUFFIX_NBVER, preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
-        {TOKEN_SUFFIX_NBBUIL, preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
-        {TOKEN_SUFFIX_FREEHP, preference_har_path_freeheap, preference_har_query_freeheap},
-        {TOKEN_SUFFIX_WFRSSI, preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
-        {TOKEN_SUFFIX_BLEADDR, preference_har_path_ble_address, preference_har_query_ble_address},
-        {TOKEN_SUFFIX_BLERSSI, preference_har_path_ble_rssi, preference_har_query_ble_rssi},
-    
-        // --- KeyTurnerState ---
-        {TOKEN_SUFFIX_LCKSTAT, preference_har_path_lock_state, preference_har_query_lock_state},
-        {TOKEN_SUFFIX_LCKNGSTAT, preference_har_path_lockngo_state, preference_har_query_lockngo_state},
-        {TOKEN_SUFFIX_LCKTRIG, preference_har_path_lock_trigger, preference_har_query_lock_trigger},
-        {TOKEN_SUFFIX_LCKNMOD, preference_har_path_lock_night_mode, preference_har_query_lock_night_mode},
-        {TOKEN_SUFFIX_LCKCMPLSTAT, preference_har_path_lock_completionStatus, preference_har_query_lock_completionStatus},
-        {TOKEN_SUFFIX_LCKBATCRIT, preference_har_path_lock_battery_critical, preference_har_query_lock_battery_critical},
-        {TOKEN_SUFFIX_LCKBATLEV, preference_har_path_lock_battery_level, preference_har_query_lock_battery_level},
-        {TOKEN_SUFFIX_LCKBATCHRG, preference_har_path_lock_battery_charging, preference_har_query_lock_battery_charging},
-        {TOKEN_SUFFIX_DOORSTAT, preference_har_path_doorsensor_state, preference_har_query_doorsensor_state},
-        {TOKEN_SUFFIX_DOORSCRIT, preference_har_path_doorsensor_critical, preference_har_query_doorsensor_critical},
-        {TOKEN_SUFFIX_KEYPCRIT, preference_har_path_keypad_critical, preference_har_query_keypad_critical},
-        {TOKEN_SUFFIX_REMACCSTAT, preference_har_path_remote_access_state, preference_har_query_remote_access_state},
-        {TOKEN_SUFFIX_BLESTR, preference_har_path_ble_strength, preference_har_query_ble_strength},
-
-        // --- BatteryReport ---
-        {TOKEN_SUFFIX_BATVOLT, preference_har_path_battery_voltage, preference_har_query_battery_voltage},
-        {TOKEN_SUFFIX_BATDRAIN, preference_har_path_battery_drain, preference_har_query_battery_drain},
-        {TOKEN_SUFFIX_BATMAXTURNCUR, preference_har_path_battery_max_turn_current, preference_har_query_battery_max_turn_current},
-        {TOKEN_SUFFIX_BATLOCKDIST, preference_har_path_battery_lock_distance, preference_har_query_battery_lock_distance},
-    };
-
-    for (const auto &f : fields)
-    {
-        String tokenPath = "PATH_" + String(f.tokenSuffix);
-        if (server->hasArg(tokenPath))
-            changed |= _preferences->putString(f.pathKey, server->arg(tokenPath));
-
-        if (f.queryKey)
-        {
-            String tokenQuery = "QUERY_" + String(f.tokenSuffix);
-            if (server->hasArg(tokenQuery))
-                changed |= _preferences->putString(f.queryKey, server->arg(tokenQuery));
-        }
-    }
-
-    if (changed)
-    {
-        message = F("Settings updated successfully");
-        return true;
-    }
-    else
-    {
-        message = F("No changes detected");
-        return false;
-    }
 }
 
 bool WebCfgServer::processLogin(WebServer *server)
