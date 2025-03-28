@@ -27,7 +27,7 @@ public:
     MSG_CRITICAL, // Log CRITICAL only
   };
 
-#ifdef DEBUG
+#ifdef DEBUG_NUKIBRIDGE
   DebugLog(Print *serial, Preferences *prefs)
       : _serial(serial),
         _preferences(prefs)
@@ -497,4 +497,4 @@ private:
 
 extern DebugLog *Log;
 
-#endif // DEBUG
+#endif // DEBUG_NUKIBRIDGE
