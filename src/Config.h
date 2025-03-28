@@ -1,6 +1,5 @@
 #pragma once
 
-#define DEBUG
 #define NUKI_REST_BRIDGE_VERSION "0.98c"
 #define NUKI_REST_BRIDGE_BUILD "main"
 #define NUKI_REST_BRIDGE_DATE "2025-03-28"
