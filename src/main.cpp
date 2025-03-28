@@ -517,7 +517,7 @@ void setup()
 
   if (SPIFFS.begin(true))
   {
-#ifdef DEBUG
+#ifdef DEBUG_NUKIBRIDGE
     listDir(SPIFFS, "/", 1);
 #endif
   }
@@ -594,13 +594,13 @@ void setup()
   config.sync_cb = cbSyncTime;
   esp_netif_sntp_init(&config);
 
-#ifdef DEBUG
+#ifdef DEBUG_NUKIBRIDGE
   Log->printf("[DEBUG] Heap before setupTasks: %d bytes\n", ESP.getFreeHeap());
 #endif
 
   setupTasks();
 
-#ifdef DEBUG
+#ifdef DEBUG_NUKIBRIDGE
   Log->printf("[DEBUG] Heap after setupTasks: %d bytes\n", ESP.getFreeHeap());
   printTaskInfo();
 #endif
