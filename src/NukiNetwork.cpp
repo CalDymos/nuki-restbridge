@@ -1,6 +1,6 @@
 #include "NukiNetwork.h"
 #include "PreferencesKeys.h"
-#include "Logger.hpp"
+#include "Logger.h"
 #include "Config.h"
 #include "RestartReason.h"
 #include "hal/wdt_hal.h"
@@ -1384,10 +1384,7 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
 
     case ARDUINO_EVENT_ETH_CONNECTED:
         Log->println(F("[INFO] ETH Connected"));
-        if (!localIP().equals("0.0.0.0"))
-        {
-            _connected = true;
-        }
+        _ethConnected = true;
         break;
 
     case ARDUINO_EVENT_ETH_GOT_IP:
@@ -1400,7 +1397,19 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
             _preferences->putBool(preference_ntw_reconfigure, false);
         }
         break;
+    case ARDUINO_EVENT_ETH_GOT_IP6:
+        if (!_connected)
+        {
+            Log->printf("[DEBUG] ETH Got IP: '%s'\n", esp_netif_get_desc(info.got_ip.esp_netif));
+            Log->println(ETH.localIP().toString());
 
+            _connected = true;
+            if (_preferences->getBool(preference_ntw_reconfigure, false))
+            {
+                _preferences->putBool(preference_ntw_reconfigure, false);
+            }
+            break;
+        }
     case ARDUINO_EVENT_ETH_LOST_IP:
         Log->println(F("[WARNING] ETH Lost IP"));
         _connected = false;
