@@ -167,8 +167,8 @@ public:
     bool isConnected() const;
 
     /**
-     * @brief Prüft, ob (zumindest) das WiFi-Modul verbunden ist.
-     *        (Bei Ethernet kann man anders entscheiden.)
+     * @brief Checks whether (at least) the WiFi module is connected.
+     *        
      */
     bool isWifiConnected();
 
@@ -388,6 +388,7 @@ private:
     bool _APisReady = false;                                                      // True if AP is initialized and ready
     bool _startAP = true;                                                         // True if AP should be started due to no WiFi
     bool _connected = false;                                                      // Network connection state
+    bool _ethConnected = false;                                                   // Flag to temporarily store (ARDUINO_EVENT_ETH_CONNECTED)  
     bool _lockEnabled = false;                                                    // Whether lock control via API is enabled
     bool _hardwareInitialized = false;                                            // Flag indicating that network hardware is initialized
     bool _sendDebugInfo = false;                                                  // Whether extended debug info should be published
