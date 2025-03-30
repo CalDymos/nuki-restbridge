@@ -2,7 +2,7 @@
 #include <ESPmDNS.h>
 #include "WebCfgServer.h"
 #include "WebCfgServerConstants.h"
-#include "Logger.hpp"
+#include "Logger.h"
 #include "PreferencesKeys.h"
 #include "RestartReason.h"
 #include "NetworkDeviceType.h"
@@ -770,7 +770,7 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
 
     for (int i = 0; i <= 5; ++i)
     {
-        DebugLog::msgtype lvl = static_cast<DebugLog::msgtype>(i);
+        Logger::msgtype lvl = static_cast<Logger::msgtype>(i);
         String key = String(i); // z. B. "0", "1", ...
         String label = Log->logLevelToString(lvl);
         lvlOptions.push_back(std::make_pair(key, label));
@@ -827,7 +827,7 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
                   "var sizeauth = 300 * auth, sizeauthlog = 280 * authlog, sizekeypad = 350 * keypad, sizetimecontrol = 120 * timecontrol;"
                   "charbuf = Math.max(sizeauth, sizeauthlog, sizekeypad, sizetimecontrol, 4096);"
                   "charbuf = Math.min(charbuf, 65536);"
-                  "networktask = Math.max(10240 + charbuf, 12288);"
+                  "networktask = Math.max(6144 + charbuf, 8192);"
                   "networktask = Math.min(networktask, 65536);"
                   "document.getElementById(\"mincharbuffer\").innerHTML = charbuf;"
                   "document.getElementById(\"minnetworktask\").innerHTML = networktask;"
@@ -1685,6 +1685,8 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += String(_preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE));
     response += F("\nNuki task stack size: ");
     response += String(_preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE));
+    response += F("\nWeb Configurator task stack size: ");
+    response += String(WEBCFGSERVER_TASK_SIZE);
     response += F("\nUpdate Nuki Bridge and Nuki devices time using NTP: ");
     response += String(_preferences->getBool(preference_update_time, false) ? "Yes" : "No");
 
@@ -2558,7 +2560,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 if (value.toInt() >= 0 && value.toInt() <= 1)
                 {
-                    Log->setLogLevel((DebugLog::msgtype)value.toInt());
+                    Log->setLogLevel((Logger::msgtype)value.toInt());
                 }
                 _preferences->putInt(preference_har_mode, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -3051,7 +3053,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 if (value.toInt() >= 0 && value.toInt() <= 5)
                 {
-                    Log->setLogLevel((DebugLog::msgtype)value.toInt());
+                    Log->setLogLevel((Logger::msgtype)value.toInt());
                 }
                 _preferences->putInt(preference_log_level, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));

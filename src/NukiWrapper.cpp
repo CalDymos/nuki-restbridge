@@ -1,6 +1,6 @@
 #include "NukiWrapper.h"
 #include "PreferencesKeys.h"
-#include "Logger.hpp"
+#include "Logger.h"
 #include "RestartReason.h"
 #include "Config.h"
 #include "NukiPinState.h"
