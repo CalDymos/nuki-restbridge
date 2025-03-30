@@ -15,7 +15,7 @@ def get_available_port_names():
     ports = list(serial.tools.list_ports.comports())
     return [port.device for port in ports] 
 
-def reset_esp(port, baudrate):
+def reset_esp(port, baudrate, mode):
     """Performs a reset on the ESP."""
     try:
         with serial.Serial(port, baudrate, timeout=1) as ser:
@@ -26,12 +26,18 @@ def reset_esp(port, baudrate):
         return
 
     # Serial Monitor in eigenem Thread starten, damit GUI nicht blockiert
-    threading.Thread(target=start_serial_monitor, args=(port, baudrate), daemon=True).start()
+    threading.Thread(target=start_serial_monitor, args=(port, baudrate, mode), daemon=True).start()
 
-def start_serial_monitor(port, baudrate):
+def start_serial_monitor(port, baudrate, mode):
     """Opens the serial monitor using PlatformIO in a non-blocking way."""
+    
+    cmd = ["platformio", "device", "monitor", "--port", port, "--baud", str(baudrate)]
+
+    if mode == "HEX":
+        cmd += ["--filter", "hexlify"]
+
     try:
-        subprocess.Popen(["platformio", "device", "monitor", "--port", port, "--baud", str(baudrate)], shell=True)
+        subprocess.Popen(cmd, shell=True)
     except Exception as e:
         print(f"Error opening Serial Monitor: {e}")
 
@@ -39,6 +45,7 @@ def start():
     """Starts the ESP reset process with user-selected settings."""
     selected_entry = port_var.get()
     selected_baud = baud_var.get()
+    selected_mode = mode_var.get()
 
     if not selected_entry or not selected_baud:
         print("Error: No port or baud rate selected")
@@ -47,7 +54,7 @@ def start():
     # Extrahiere nur den COM-Port aus "COM5 - USB-Serial"
     selected_port = selected_entry.split(" - ")[0]
 
-    reset_esp(selected_port, int(selected_baud))
+    reset_esp(selected_port, int(selected_baud), selected_mode)
     root.destroy()  # GUI schließen nach Start
 
 def center_window(window, width=400, height=150):
@@ -82,8 +89,14 @@ baud_var = tk.StringVar(value="115200")  # Standard baud rate
 baud_combobox = ttk.Combobox(root, textvariable=baud_var, values=["9600", "19200", "38400", "57600", "115200", "230400"], state="readonly")
 baud_combobox.grid(row=1, column=1, padx=5, pady=5)
 
+# Mode selection
+tk.Label(root, text="Monitor Mode:").grid(row=2, column=0, padx=5, pady=5)
+mode_var = tk.StringVar(value="TEXT")
+mode_combobox = ttk.Combobox(root, textvariable=mode_var, values=["TEXT", "HEX"], state="readonly")
+mode_combobox.grid(row=2, column=1, padx=5, pady=5)
+
 # Buttons
 ok_button = tk.Button(root, text="OK", command=start)
-ok_button.grid(row=2, column=0, columnspan=2, pady=10)
+ok_button.grid(row=3, column=0, columnspan=2, pady=10)
 
 root.mainloop()
