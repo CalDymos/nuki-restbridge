@@ -1,3 +1,5 @@
+#define IS_VALID_DETECT 0xa00ab00bc00bd00d;
+
 #include <Arduino.h>
 #include "esp_http_client.h"
 #include "esp_task_wdt.h"
@@ -17,7 +19,7 @@
 #include "CharBuffer.hpp"
 #include "NukiDeviceId.hpp"
 #include "WebCfgServer.h"
-#include "Logger.hpp"
+#include "Logger.h"
 #include "PreferencesKeys.h"
 #include "RestartReason.h"
 #include "EspMillis.h"
@@ -28,11 +30,10 @@ BleScanner::Scanner *bleScanner = nullptr; // BLE scanner to discover/connect Nu
 NukiWrapper *nuki = nullptr;               // Core smart lock wrapper.
 NukiDeviceId *deviceIdLock = nullptr;      // Unique device ID handler.
 WebCfgServer *webCfgServer = nullptr;      // Web-based configuration interface.
-DebugLog *Log = nullptr;                   // Global logger instance.
+Logger *Log = nullptr;                   // Global logger instance.
 
-bool lockEnabled = false;   // Whether lock operations are currently permitted.
-bool wifiConnected = false; // WiFi connection status.
-bool rebootLock = false;    // Whether to reboot lock logic after failure.
+bool lockEnabled = false; // Whether lock operations are currently permitted.
+bool rebootLock = false;  // Whether to reboot lock logic after failure.
 
 int64_t restartTs = (pow(2, 63) - (5 * 1000 * 60000)) / 1000; // Time stamp for restarting the ESP to prevent the ESPtimer from overflowing
 
@@ -43,6 +44,8 @@ RTC_NOINIT_ATTR bool forceEnableWebCfgServer;      // Flag to force-enable web c
 RTC_NOINIT_ATTR bool disableNetwork;               // Flag to disable all network activity.
 RTC_NOINIT_ATTR bool wifiFallback;                 // Whether WiFi fallback was triggered (e.g. AP mode).
 RTC_NOINIT_ATTR bool ethCriticalFailure;           // Flag for Ethernet hardware failure (e.g. PHY).
+RTC_NOINIT_ATTR uint64_t bootloopValidDetect;
+RTC_NOINIT_ATTR int8_t bootloopCounter;
 
 bool coredumpPrinted = true; // Prevent repeated printing of core dump on each boot.
 bool timeSynced = false;     // Whether NTP time sync was successful.
@@ -75,7 +78,7 @@ void cbSyncTime(struct timeval *tv)
  */
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 {
-  Log->printf("[DEBUG] Listing directory: %s\r\n", dirname);
+  Log->printf(F("[DEBUG] Listing directory: %s\r\n"), dirname);
 
   File root = fs.open(dirname);
   if (!root)
@@ -103,10 +106,7 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
     }
     else
     {
-      Log->print("[DEBUG]  FILE: ");
-      Log->print(file.name());
-      Log->print("\tSIZE: ");
-      Log->println(file.size());
+      Log->printf(F("[DEBUG]  FILE: %s\tSIZE: %lu\n"), file.name(), file.name());
     }
 
     if (file.size() > (int)(SPIFFS.totalBytes() * 0.4))
@@ -116,6 +116,43 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 
     file = root.openNextFile();
   }
+}
+
+void bootloopDetection()
+{
+    uint64_t cmp = IS_VALID_DETECT;
+    bool bootloopIsValid = (bootloopValidDetect == cmp);
+    Log->printf(F("[DEBUG] %d\n"), bootloopIsValid);
+
+    if(!bootloopIsValid)
+    {
+        bootloopCounter = (int8_t)0;
+        bootloopValidDetect = IS_VALID_DETECT;
+        return;
+    }
+
+    if(esp_reset_reason() == esp_reset_reason_t::ESP_RST_PANIC ||
+            esp_reset_reason() == esp_reset_reason_t::ESP_RST_INT_WDT ||
+            esp_reset_reason() == esp_reset_reason_t::ESP_RST_TASK_WDT ||
+            esp_reset_reason() == esp_reset_reason_t::ESP_RST_WDT)
+    {
+        bootloopCounter++;
+        Log->printf(F("[DEBUG] Bootloop counter incremented: %d\n"), bootloopCounter);
+
+        if(bootloopCounter == 10)
+        {
+            Log->print("Bootloop detected.");
+
+            preferences->putInt(preference_buffer_size, CHAR_BUFFER_SIZE);
+            preferences->putInt(preference_task_size_network, NETWORK_TASK_SIZE);
+            preferences->putInt(preference_task_size_nuki, NUKI_TASK_SIZE);
+            preferences->putInt(preference_authlog_max_entries, MAX_AUTHLOG);
+            preferences->putInt(preference_keypad_max_entries, MAX_KEYPAD);
+            preferences->putInt(preference_timecontrol_max_entries, MAX_TIMECONTROL);
+            preferences->putInt(preference_auth_max_entries, MAX_AUTH);
+            bootloopCounter = 0;
+        }
+    }
 }
 
 /**
@@ -131,31 +168,29 @@ void nukiTask(void *parameter)
 
   while (true)
   {
-    if (disableNetwork || wifiConnected)
+
+    bleScanner->update();
+    delay(20);
+
+    bool needsPairing = (lockEnabled && !nuki->isPaired());
+
+    if (needsPairing)
     {
-      bleScanner->update();
-      delay(20);
-
-      bool needsPairing = (lockEnabled && !nuki->isPaired());
-
-      if (needsPairing)
-      {
-        delay(2500);
-      }
-      else if (!whiteListed)
-      {
-        whiteListed = true;
-        if (lockEnabled)
-        {
-          bleScanner->whitelist(nuki->getBleAddress());
-        }
-      }
-
+      delay(2500);
+    }
+    else if (!whiteListed)
+    {
+      whiteListed = true;
       if (lockEnabled)
       {
-        nuki->update(rebootLock);
-        rebootLock = false;
+        bleScanner->whitelist(nuki->getBleAddress());
       }
+    }
+
+    if (lockEnabled)
+    {
+      nuki->update(rebootLock);
+      rebootLock = false;
     }
 
     if (espMillis() - nukiLoopTs > 120000)
@@ -183,8 +218,23 @@ void networkTask(void *parameter)
   if (!networkLoopTs)
     Log->println(F("[DEBUG] run networkTask()"));
 
+  if (preferences->getBool(preference_show_secrets, false))
+  {
+    preferences->putBool(preference_show_secrets, false);
+  }
+
   while (true)
   {
+
+    int64_t ts = espMillis();
+    if(ts > 120000 && ts < 125000)
+    {
+        if(bootloopCounter > 0)
+        {
+            bootloopCounter = (int8_t)0;
+            Log->println("Bootloop counter reset");
+        }
+    }
 
     network->update();
     bool connected = network->isConnected();
@@ -197,8 +247,6 @@ void networkTask(void *parameter)
       }
       updateTime = false;
     }
-
-    wifiConnected = network->isWifiConnected();
 
     if (connected && lockEnabled)
     {
@@ -271,7 +319,7 @@ void printTaskInfo()
     Log->println(F("Name\t\tState\tPrio\tStack\tTask Number"));
     for (UBaseType_t i = 0; i < numTasksRecorded; i++)
     {
-      Log->printf("%s\t\t%d\t%d\t%d\t%d\n",
+      Log->printf(F("%s\t\t%d\t%d\t%d\t%d\n"),
                   taskArray[i].pcTaskName,
                   taskArray[i].eCurrentState,
                   taskArray[i].uxCurrentPriority,
@@ -310,7 +358,7 @@ void setupTasks()
 
   if (err != ESP_OK)
   {
-    Log->printf("[ERROR] esp_task_wdt_reconfigure failed: %d\n", err);
+    Log->printf(F("[ERROR] esp_task_wdt_reconfigure failed: %d\n"), err);
   }
   else
   {
@@ -322,7 +370,7 @@ void setupTasks()
   {
     Log->println(F("[ERROR] webCfgTask could not be started!"));
   }
-  Log->printf("[DEBUG] Created webCfgTaskHandle: %p\n", webCfgTaskHandle);
+  Log->printf(F("[DEBUG] Created webCfgTaskHandle: %p\n"), webCfgTaskHandle);
 
   Log->println(F("[DEBUG] Adding webCfgTask to Watchdog..."));
   if (webCfgTaskHandle != NULL)
@@ -330,7 +378,7 @@ void setupTasks()
     esp_err_t err = esp_task_wdt_add(webCfgTaskHandle);
     if (err != ESP_OK)
     {
-      Log->printf("[ERROR] esp_task_wdt_add failed for webCfgTask: %d\n", err);
+      Log->printf(F("[ERROR] esp_task_wdt_add failed for webCfgTask: %d\n"), err);
     }
     else
     {
@@ -349,14 +397,14 @@ void setupTasks()
     {
       Log->println(F("[ERROR] networkTask could not be started!"));
     }
-    Log->printf("[DEBUG] Created networkTaskHandle: %p\n", networkTaskHandle);
+    Log->printf(F("[DEBUG] Created networkTaskHandle: %p\n"), networkTaskHandle);
     Log->println(F("[DEBUG] Adding networkTask to Watchdog..."));
     if (networkTaskHandle != NULL)
     {
       esp_err_t err = esp_task_wdt_add(networkTaskHandle);
       if (err != ESP_OK)
       {
-        Log->printf("[ERROR] esp_task_wdt_add failed for networkTask: %d\n", err);
+        Log->printf(F("[ERROR] esp_task_wdt_add failed for networkTask: %d\n"), err);
       }
       else
       {
@@ -382,7 +430,7 @@ void setupTasks()
       esp_err_t err = esp_task_wdt_add(nukiTaskHandle);
       if (err != ESP_OK)
       {
-        Log->printf("[ERROR] esp_task_wdt_add failed for nukiTask: %d\n", err);
+        Log->printf(F("[ERROR] esp_task_wdt_add failed for nukiTask: %d\n"), err);
       }
       else
       {
@@ -502,8 +550,8 @@ void setup()
   initPreferences(preferences);
 
   Serial.begin(115200);
-  Log = new DebugLog(&Serial, preferences);
-  Log->setLogLevel((DebugLog::msgtype) preferences->getInt(preference_log_level, 0));
+  Log = new Logger(&Serial, preferences);
+  Log->setLogLevel((Logger::msgtype)preferences->getInt(preference_log_level, 0));
 
   initializeRestartReason();
 
@@ -532,10 +580,15 @@ void setup()
     ethCriticalFailure = false;
   }
 
+  if(preferences->getBool(preference_enable_bootloop_reset, false))
+  {
+      bootloopDetection();
+  }
+  
   Log->print("[DEBUG] Nuki Bridge version: ");
   Log->println(NUKI_REST_BRIDGE_VERSION);
   Log->print("[DEBUG] Nuki Bridge build date: ");
-  Log->println(NUKI_REST_BRIDGE_BUILD);
+  Log->println(NUKI_REST_BRIDGE_DATE);
 
   deviceIdLock = new NukiDeviceId(preferences, preference_device_id_lock);
 
@@ -544,6 +597,15 @@ void setup()
 
   network = new NukiNetwork(preferences, CharBuffer::get(), buffer_size);
   network->initialize();
+
+  // Give the network time to get an IP
+  unsigned long startMillis;
+  startMillis = millis();
+  // Wait until there is a connection or 3 seconds have elapsed
+  while (!network->isConnected() && (millis() - startMillis < 3000))
+  {
+    yield();
+  }
 
   lockEnabled = preferences->getBool(preference_lock_enabled);
 
