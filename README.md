@@ -130,28 +130,28 @@ You can configure:
 
 #### General Settings
 
-- Host name: Set the hostname for the Nuki Rest Bridge ESP
-- Network hardware: "Wi-Fi only" by default, set to ethernet if available
-- RSSI send interval: Set to a positive integer to specify the number of seconds between sending the current Wi-Fi RSSI; set to -1 to disable, default value 60
-*(Requires Home Automation Reporting to be enabled)*
-- Restart on disconnect: Enable to restart the Nuki Rest Bridge when disconnected from the network.
-- Find Wi-Fi AP with strongest signal: Uses the AP with the strongest signal for the connection via Wi-Fi
+- *Host name*: Set the hostname for the Nuki Rest Bridge ESP
+- *Network hardware*: "Wi-Fi only" by default, set to ethernet if available
+- *RSSI send interval*: Set to a positive integer to specify the number of seconds between sending the current Wi-Fi RSSI; set to -1 to disable, default value 60
+**(Requires Home Automation Reporting to be enabled)**
+- *Restart on disconnect*: Enable to restart the Nuki Rest Bridge when disconnected from the network.
+- *Find Wi-Fi AP with strongest signal*: Uses the AP with the strongest signal for the connection via Wi-Fi
 
 #### IP Address Assignment
 
-- Enable DHCP: Enable to use DHCP for obtaining an IP address, disable to use the static IP settings below
-- Static IP address: When DHCP is disabled set to the preferred static IP address for the Nuki Bridge to use
-- Subnet: When DHCP is disabled set to the preferred subnet for the Nuki Hub to use
-- Default gateway: When DHCP is disabled set to the preferred gateway IP address for the Nuki Bridge to use
-- DNS Server: When DHCP is disabled set to the preferred DNS server IP address for the Nuki Bridge to use
+- *Enable DHCP*: Enable to use DHCP for obtaining an IP address, disable to use the static IP settings below
+- *Static IP address*: When DHCP is disabled set to the preferred static IP address for the Nuki Bridge to use
+- *Subnet*: When DHCP is disabled set to the preferred subnet for the Nuki Hub to use
+- *Default gateway*: When DHCP is disabled set to the preferred gateway IP address for the Nuki Bridge to use
+- *DNS Server*: When DHCP is disabled set to the preferred DNS server IP address for the Nuki Bridge to use
 
 ---
 
 ### REST API Configuration
 
-- Enable REST API: Activate the Rest Web Server to receive requests
-- API Port: Set the port number for the REST API (default: 80)
-- Access Token: Set an access token to secure the REST API.
+- *Enable REST API*: Activate the Rest Web Server to receive requests
+- *API Port*: Set the port number for the REST API (default: 80)
+- *Access Token*: Set an access token to secure the REST API.
 
 ---
 
@@ -159,20 +159,54 @@ You can configure:
 
 #### Connection Settings
 
-- Enable Home Automation Report:
-- Address: Set to the IP address of the MQTT broker
-- Port: Set to the Port of the MQTT broker (usually 1883)
-- Mode: (UDP / REST)
-- User: If using authentication on the MQTT broker set to a username with read/write rights on the MQTT broker, set to # to clear
-- Password : If using authentication on the MQTT broker set to the password belonging to a username with read/write rights on the MQTT broker, set to # to clear
-- MQTT Nuki Hub Path: Set to the preferred MQTT root topic for Nuki Hub, defaults to "nukihub". Make sure this topic is unique when using multiple ESP32 Nuki Hub devices
-- Enable Home Assistant auto discovery: Enable Home Assistant MQTT auto discovery. Will automatically create entities in Home Assistant for Nuki Hub and connected Nuki Lock and/or Opener when enabled.
+- *Enable Home Automation Report*: Enable to periodically send status updates (e.g. RSSI, lock state, battery) to a Home Automation system.
+- *Address*: Set to the IP address of Home Automation
+- *Port*: Set to the Port of Home Automation
+- *Mode*: (UDP / REST)
+- *User*: Optional username for authenticating with the Home Automation system. Use `#` to disable authentication.
+- *Password*: Password corresponding to the username. Use `#` to disable authentication.
+
 
 #### Report Settings
 
 ##### General
-- State Path: Home Automation API path that returns the status of the HAR in response to a GET request. Is used as an additional check to ping whether a home automation system can be reached. Empty field = there is no status query
+
+- *State Path*: Home Automation API path that returns the status of the HAR in response to a GET request. Used as an additional check to verify if the Home Automation system is reachable. Leave empty to disable status check.
+- *Uptime Path*: URL path to report ESP system uptime to Home Automation (e.g. `/api/system/uptime`)
+- *Uptime Query*: Optional query string to append to the request (e.g. `?value=`)
+
+- *Restart Reason FW Path*: URL path to report the firmware restart reason to Home Automation (e.g. `/api/system/fwrestart`)
+- *Restart Reason FW Query*: Optional query string to append to the request (e.g. `?value=`)
+
+- *Restart Reason ESP Path*: URL path to report the ESP restart reason to Home Automation (e.g. `/api/system/esprestart`)
+- *Restart Reason ESP Query*: Optional query string to append to the request (e.g. `?value=`)
+
+- *Info Nuki Bridge Version Path*: URL path to report the Nuki Bridge firmware version (e.g. `/api/system/version`)
+- *Info Nuki Bridge Version Query*: Optional query string to append to the request (e.g. `?value=`)
+
 
 ##### Key Turner State
 
+- *Lock State Path*: URL path to report the current lock state (e.g. `/api/lock/state`)
+- *Lock State Query*: Optional query string to append to the request (e.g. `?value=`)
+
+- *Lock 'N' Go Path*: URL path to report if a Lock ’n’ Go action was triggered (e.g. `/api/lock/lockngo`)
+- *Lock 'N' Go Query*: Optional query string to append to the request (e.g. `?value=`)
+
+- *Lock Trigger Path*: URL path to report the last trigger source (e.g. `/api/lock/trigger`)
+- *Lock Trigger Query*: Optional query string to append to the request (e.g. `?source=`)
+
+
 ##### Battery Report
+
+- *Battery Voltage Path*: URL path to report the current battery voltage (e.g. `/api/battery/voltage`)
+- *Battery Voltage Query*: Optional query string to append to the request (e.g. `?v=`)
+
+- *Battery Drain Path*: URL path to report battery drain rate (e.g. `/api/battery/drain`)
+- *Battery Drain Query*: Optional query string to append to the request (e.g. `?value=`)
+
+- *Battery Max Turn Current Path*: URL path to report the peak current while turning the motor (e.g. `/api/battery/maxcurrent`)
+- *Battery Max Turn Current Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- *Battery Lock Distance Path*: URL path to report motor lock distance (e.g. `/api/battery/lockdistance`)
+- *Battery Lock Distance Query*: Optional query string to append to the request (e.g. `?value=`)
