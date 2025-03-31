@@ -357,6 +357,10 @@ void WebCfgServer::initialize()
             {
                 return buildCredHtml(this->_webServer);
             }
+            else if (value == "logging")
+            {
+                return buildLoggingHtml(this->_webServer);
+            }
             else if (value == "ntwconfig")
             {
                 return buildNetworkConfigHtml(this->_webServer);
@@ -766,17 +770,6 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
     response += F("<tr><td>Advised minimum network task size based on current settings</td><td id=\"minnetworktask\"></td>");
     appendInputFieldRow(response, "TSKNUKI", "Task size Nuki (min 8192, max 65536)", _preferences->getInt(preference_task_size_nuki, NUKI_TASK_SIZE), 6, "");
 
-    std::vector<std::pair<String, String>> lvlOptions;
-
-    for (int i = 0; i <= 5; ++i)
-    {
-        Logger::msgtype lvl = static_cast<Logger::msgtype>(i);
-        String key = String(i); // z. B. "0", "1", ...
-        String label = Log->logLevelToString(lvl);
-        lvlOptions.push_back(std::make_pair(key, label));
-    }
-    appendDropDownRow(response, "LOGLEVEL", "Log level for Nuki Bridge", String(Log->getLogLevel()), lvlOptions);
-
     appendInputFieldRow(response, "ALMAX", "Max auth log entries (min 1, max 100)", _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG), 3, "id=\"inputmaxauthlog\"");
     appendInputFieldRow(response, "KPMAX", "Max keypad entries (min 1, max 200)", _preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD), 3, "id=\"inputmaxkeypad\"");
     appendInputFieldRow(response, "TCMAX", "Max timecontrol entries (min 1, max 100)", _preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL), 3, "id=\"inputmaxtimecontrol\"");
@@ -1132,6 +1125,55 @@ void WebCfgServer::buildCredHtml(WebServer *server)
     server->send(200, F("text/html"), response);
 }
 
+void WebCfgServer::buildLoggingHtml(WebServer *server)
+{
+    String response;
+    reserveHtmlResponse(response,
+                        1,   // Checkbox
+                        10,  // Input fields
+                        1,   // Dropdown
+                        6,   // Dropdown options
+                        0,   // Textareas
+                        0,   // Parameter rows
+                        0,   // Buttons
+                        0,   // menus
+                        1024 // extra bytes
+    );
+
+    buildHtmlHeader(response);
+    response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"savelog\">");
+    response += F("<h3>Logging Configuration</h3>");
+    response += F("<table>");
+
+    appendInputFieldRow(response, "LOGFILE", "Filename", LOGGER_FILENAME, 64, "readonly");
+    appendInputFieldRow(response, "LOGMSGLEN", "Max. message length (min 1, max 1024)", _preferences->getInt(preference_log_max_msg_len, 128), 6, "min='1' max='1024'");
+    appendInputFieldRow(response, "LOGMAXSIZE", "Max. log file size (min 256KB, max 1024KB)", _preferences->getInt(preference_log_max_file_size, 256), 6, "min='256' max='1024'");
+
+    // Log level dropdown
+    std::vector<std::pair<String, String>> lvlOptions;
+    for (int i = 0; i <= 5; ++i)
+    {
+        Logger::msgtype lvl = static_cast<Logger::msgtype>(i);
+        String key = String(i);
+        String label = Log->levelToString(lvl);
+        lvlOptions.emplace_back(key, label);
+    }
+    appendDropDownRow(response, "LOGLEVEL", "Log level for Nuki Bridge", String(_preferences->getInt(preference_log_level, 0)), lvlOptions);
+
+    appendCheckBoxRow(response, "LOGBCKENA", "Enable FTP log backup", _preferences->getBool(preference_log_backup_enabled, false), "", "");
+    appendInputFieldRow(response, "LOGBCKSRV", "FTP Server", _preferences->getString(preference_log_backup_ftp_server, "").c_str(), 64, "");
+    appendInputFieldRow(response, "LOGBCKDIR", "FTP Directory", _preferences->getString(preference_log_backup_ftp_dir, "").c_str(), 64, "");
+    appendInputFieldRow(response, "LOGBCKUSR", "FTP Username", _preferences->getString(preference_log_backup_ftp_user, "").c_str(), 32, "");
+    appendInputFieldRow(response, "LOGBCKPWD", "FTP Password", _preferences->getString(preference_log_backup_ftp_pwd, "").c_str(), 32, "", true, true);
+
+    response += F("</table><br>");
+    response += F("<br><input type=\"submit\" name=\"submit\" value=\"Save\">");
+    response += F("</form></body></html>");
+
+    server->send(200, F("text/html"), response);
+}
+
 void WebCfgServer::buildApiConfigHtml(WebServer *server)
 {
     String response;
@@ -1206,7 +1248,7 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
 
     // --- Tabs ---
     response += F("<div>");
-   
+
     response += F("<button type=\"button\" class=\"tab-button\" onclick=\"showTab('");
     response += F(HAR_CAT_GENERAL);
     response += F("')\">General</button>");
@@ -1410,6 +1452,7 @@ void WebCfgServer::buildHtml(WebServer *server)
     appendNavigationMenuEntry(response, "Nuki Configuration", "/get?page=nukicfg");
     appendNavigationMenuEntry(response, "Access Level Configuration", "/get?page=acclvl");
     appendNavigationMenuEntry(response, "Credentials", "/get?page=cred");
+    appendNavigationMenuEntry(response, "Log Configuration", "/get?page=logging");
 
     if (_preferences->getInt(preference_network_hardware, 0) == 11)
     {
@@ -1663,7 +1706,33 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += "\nNetwork task stack high watermark: " + String(uxTaskGetStackHighWaterMark(networkTaskHandle));
     response += "\nNuki task stack high watermark: " + String(uxTaskGetStackHighWaterMark(nukiTaskHandle));
     response += "\nWeb configurator task stack high watermark: " + String(uxTaskGetStackHighWaterMark(webCfgTaskHandle));
-    response += "\nNuki Bridge log level: " + String(Log->logLevelToString(Log->getLogLevel()));
+
+    response += F("\n\n------------NUKI BRIDGE LOG ------------");
+    response += F("\nMax message length: ");
+    response += String(_preferences->getInt(preference_log_max_msg_len), 128);
+    response += F("\nFilename: ");
+    response += LOGGER_FILENAME;
+    response += F("\nLevel: ");
+    response += Log->levelToString(Log->getLevel());
+    response += F("\nCurrent file size: ");
+    response += String(Log->getFileSize());
+    response += F(" kb");
+    response += F("\nMax file size: ");
+    response += String(_preferences->getInt(preference_log_max_file_size, 256));
+    response += F(" kb");
+    response += F("\nEnable backup to ftp server: ");
+    response += _preferences->getBool(preference_log_backup_enabled, false) ? F("Yes") : F("No");
+    response += F("\nBackup ftp server address: ");
+    response += _preferences->getString(preference_log_backup_ftp_server, F("Not set"));
+    response += F("\nBackup ftp server username: ");
+    response += _preferences->getString(preference_log_backup_ftp_user, "").length() > 0 ? F("***") : F("Not set");
+    response += F("\nBackup ftp server password: ");
+    response += _preferences->getString(preference_log_backup_ftp_pwd, "").length() > 0 ? F("***") : F("Not set");
+    response += F("\nBackup ftp server directory: ");
+    response += _preferences->getString(preference_log_backup_ftp_dir, "");
+    response += F("\nCurrent backup file index: ");
+    response += String(_preferences->getInt(preference_log_backup_file_index, 1));
+    response += F("\nMax backup file index before rollover: 100");
 
     response += F("\n\n------------ SPIFFS ------------");
     if (!SPIFFS.begin(true))
@@ -1688,19 +1757,19 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += F("\nWeb Configurator task stack size: ");
     response += String(WEBCFGSERVER_TASK_SIZE);
     response += F("\nUpdate Nuki Bridge and Nuki devices time using NTP: ");
-    response += String(_preferences->getBool(preference_update_time, false) ? "Yes" : "No");
+    response += _preferences->getBool(preference_update_time, false) ? F("Yes") : F("No");
 
     response += F("\nWeb configurator enabled: ");
-    response += String(_preferences->getBool(preference_webcfgserver_enabled, true) ? "Yes" : "No");
+    response += _preferences->getBool(preference_webcfgserver_enabled, true) ? F("Yes") : F("No");
     response += F("\nWeb configurator username: ");
-    response += String(_preferences->getString(preference_cred_user, "").length() > 0 ? "***" : "Not set");
+    response += _preferences->getString(preference_cred_user, "").length() > 0 ? F("***") : F("Not set");
     response += F("\nWeb configurator password: ");
-    response += String(_preferences->getString(preference_cred_password, "").length() > 0 ? "***" : "Not set");
+    response += _preferences->getString(preference_cred_password, "").length() > 0 ? F("***") : F("Not set");
     response += F("\nWeb configurator bypass for proxy IP: ");
-    response += String(_preferences->getString(preference_bypass_proxy, "").length() > 0 ? "***" : "Not set");
+    response += _preferences->getString(preference_bypass_proxy, "").length() > 0 ? F("***") : F("Not set");
     response += F("\nWeb configurator authentication: ");
-    response += String(_preferences->getInt(preference_http_auth_type, 0) == 0 ? "Basic" : _preferences->getInt(preference_http_auth_type, 0) == 1 ? "Digest"
-                                                                                                                                                   : "Form");
+    response += _preferences->getInt(preference_http_auth_type, 0) == 0 ? F("Basic") : _preferences->getInt(preference_http_auth_type, 0) == 1 ? F("Digest")
+                                                                                                                                               : F("Form");
     response += F("\nSession validity (in seconds): ");
     response += String(_preferences->getInt(preference_cred_session_lifetime, 3600));
     response += F("\nSession validity remember (in hours): ");
@@ -1734,7 +1803,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += F("\nNetwork device: ");
     response += devType;
     response += F("\nNetwork connected: ");
-    response += String(_network->isConnected() ? "Yes" : "No");
+    response += _network->isConnected() ? F("Yes") : F("No");
     if (_network->isConnected())
     {
         response += F("\nIP Address: ");
@@ -1801,33 +1870,33 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     // REST Api Infos
     response += F("\n\n------------ REST API ------------");
     response += F("\nAPI enabled: ");
-    response += String(_preferences->getBool(preference_api_enabled, false) != false ? "Yes" : "No");
+    response += _preferences->getBool(preference_api_enabled, false) != false ? F("Yes") : F("No");
     response += F("\nAPI connected: ");
-    response += String((_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? "Yes" : "No");
+    response += (_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE) ? F("Yes") : F("No");
     response += F("\nAPI Port: ");
     response += String(_preferences->getInt(preference_api_port, 0));
     response += F("\nAPI auth token: ");
-    response += _preferences->getString(preference_api_token, "not defined");
+    response += _preferences->getString(preference_api_token).length() > 0 ? F("***") : F("Not set");
 
     // HomeAutomation
     response += F("\n\n------------ HOME AUTOMATION REPORTING ------------");
     response += F("\nHAR enabled: ");
-    response += String(_preferences->getBool(preference_har_enabled, false) != false ? "Yes" : "No");
+    response += _preferences->getBool(preference_har_enabled, false) != false ? F("Yes") : F("No");
     response += F("\nHA reachable: ");
-    response += String((_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? "Yes" : "No");
+    response += (_network->networkServicesState() == NetworkServiceStates::OK || _network->networkServicesState() == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) ? F("Yes") : F("No");
     response += F("\nHA address: ");
-    response += _preferences->getString(preference_har_address, "not defined");
+    response += _preferences->getString(preference_har_address, F("Not set"));
     response += F("\nHA user: ");
-    response += _preferences->getString(preference_har_user, "not defined");
+    response += _preferences->getString(preference_har_user).length() > 0 ? F("***") : F("Not set");
     response += F("\nHA password: ");
-    response += _preferences->getString(preference_har_password, "not defined");
+    response += _preferences->getString(preference_har_password).length() > 0 ? F("***") : F("Not set");
     response += F("\nHAR mode: ");
-    response += _preferences->getString(preference_har_mode, "not defined");
+    response += _preferences->getString(preference_har_mode, F("Not set"));
 
     // Bluetooth Infos
     response += F("\n\n------------ BLUETOOTH ------------");
     response += F("\nBluetooth connection mode: ");
-    response += String(_preferences->getBool(preference_connect_mode, true) ? "New" : "Old");
+    response += _preferences->getBool(preference_connect_mode, true) ? F("New") : F("Old");
     response += F("\nBluetooth TX power (dB): ");
     response += String(_preferences->getInt(preference_ble_tx_power, 9));
     response += F("\nBluetooth command nr of retries: ");
@@ -2452,19 +2521,33 @@ size_t WebCfgServer::estimateHtmlSize(
     return total;
 }
 
-#define HANDLE_STRING_PREF_ARG(KEYNAME, PREFNAME, CONFIG_CHANGED)   \
-    else if (key == KEYNAME)                                \
-    {                                                       \
-        if (_preferences->getString(PREFNAME, "") != value) \
-        {                                                   \
-            _preferences->putString(PREFNAME, value);       \
-            Log->print(F("[DEBUG] Setting changed: "));     \
-            Log->println(KEYNAME);                          \
-            if (CONFIG_CHANGED)                                \
-            {                                               \
-                configChanged = true;                       \
-            }                                               \
-        }                                                   \
+#define HANDLE_STRING_PREF_ARG(KEYNAME, PREFNAME, CONFIG_CHANGED) \
+    else if (key == KEYNAME)                                      \
+    {                                                             \
+        if (_preferences->getString(PREFNAME, "") != value)       \
+        {                                                         \
+            _preferences->putString(PREFNAME, value);             \
+            Log->print(F("[DEBUG] Setting changed: "));           \
+            Log->println(KEYNAME);                                \
+            if (CONFIG_CHANGED)                                   \
+            {                                                     \
+                configChanged = true;                             \
+            }                                                     \
+        }                                                         \
+    }
+#define HANDLE_BOOL_PREF_ARG(KEYNAME, PREFNAME, CONFIG_CHANGED)       \
+    else if (key == KEYNAME)                                          \
+    {                                                                 \
+        if (_preferences->getBool(PREFNAME, false) != (value == "1")) \
+        {                                                             \
+            _preferences->putBool(PREFNAME, (value == "1"));          \
+            Log->print(F("[DEBUG] Setting changed: "));               \
+            Log->println(KEYNAME);                                    \
+            if (CONFIG_CHANGED)                                       \
+            {                                                         \
+                configChanged = true;                                 \
+            }                                                         \
+        }                                                             \
     }
 
 bool WebCfgServer::processArgs(WebServer *server, String &message)
@@ -2560,7 +2643,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 if (value.toInt() >= 0 && value.toInt() <= 1)
                 {
-                    Log->setLogLevel((Logger::msgtype)value.toInt());
+                    Log->setLevel((Logger::msgtype)value.toInt());
                 }
                 _preferences->putInt(preference_har_mode, value.toInt());
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -2823,6 +2906,56 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 clearSession = true;
             }
         }
+
+        else if (key == "LOGBCKENA")
+        {
+            if (_preferences->getBool(preference_log_backup_enabled, false) != (value == "1"))
+            {
+                Log->disableBackup();
+                _preferences->putBool(preference_log_backup_enabled, (value == "1"));
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "LOGMSGLEN")
+        {
+            if (_preferences->getInt(preference_log_max_msg_len, 1) != value.toInt())
+            {
+                _preferences->putInt(preference_log_max_msg_len, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if (key == "LOGMAXSIZE")
+        {
+            if (_preferences->getInt(preference_log_max_file_size, 256) != value.toInt())
+            {
+                _preferences->putInt(preference_log_max_file_size, value.toInt());
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        HANDLE_STRING_PREF_ARG("LOGBCKSRV", preference_log_backup_ftp_server, true)
+        HANDLE_STRING_PREF_ARG("LOGBCKDIR", preference_log_backup_ftp_dir, true)
+        HANDLE_STRING_PREF_ARG("LOGBCKUSR", preference_log_backup_ftp_user, true)
+        HANDLE_STRING_PREF_ARG("LOGBCKPWD", preference_log_backup_ftp_pwd, true)
+        else if (key == "LOGLEVEL")
+        {
+            if (_preferences->getInt(preference_log_level, 0) != value.toInt())
+            {
+                if (value.toInt() >= 0 && value.toInt() <= 5)
+                {
+                    Log->setLevel((Logger::msgtype)value.toInt());
+                }
+                _preferences->putInt(preference_log_level, value.toInt());
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                // configChanged = true;
+            }
+        }
         else if (key == "APIENA")
         {
             if (_preferences->getBool(preference_api_enabled, false) != (value == "1"))
@@ -2831,7 +2964,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 _preferences->putBool(preference_api_enabled, (value == "1"));
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
-                // configChanged = true;
+                configChanged = true;
             }
         }
         else if (key == "APIPORT")
@@ -3045,20 +3178,6 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                     Log->println(key);
                     configChanged = true;
                 }
-            }
-        }
-        else if (key == "LOGLEVEL")
-        {
-            if (_preferences->getInt(preference_log_level, 0) != value.toInt())
-            {
-                if (value.toInt() >= 0 && value.toInt() <= 5)
-                {
-                    Log->setLogLevel((Logger::msgtype)value.toInt());
-                }
-                _preferences->putInt(preference_log_level, value.toInt());
-                Log->print(F("[DEBUG] Setting changed: "));
-                Log->println(key);
-                // configChanged = true;
             }
         }
         else if (key == "ALMAX")

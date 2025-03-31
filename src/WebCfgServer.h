@@ -150,6 +150,12 @@ private:
     void buildCredHtml(WebServer *server);
 
     /**
+     * @brief Builds the HTML page for editing die nuki bridge Logging settings.
+     * @param server Pointer to the active WebServer instance.
+     */
+    void buildLoggingHtml(WebServer *server);
+
+    /**
      * @brief Builds the page that allows network mode selection and configuration.
      * @param server Pointer to the active WebServer instance.
      */
