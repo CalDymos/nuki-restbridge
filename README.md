@@ -7,75 +7,125 @@
 
 🚧 **Beta-Status**: This project is in the **beta phase**. Most features are implemented, but there may still be bugs or incomplete parts. Use with caution.
 
-## About
+---
 
-***The scope of Nuki REST Bridge is to integrate Nuki devices in a local Home Automation platform via REST.***
+## 📚 Table of Contents
 
-The Nuki Bridge software runs on a ESP32 module and acts as a bridge between Nuki devices and a Home Automation platform.<br>
-<br>
-It communicates with a Nuki Lock through Bluetooth (BLE) and uses REST to integrate with other systems.<br>
-<br>
-It exposes the lock state (and much more) through REST and allows executing commands like locking and unlocking as well as changing the Nuki Lock configuration through REST.<br>
+- [Overview](#-overview)
+- [Supported Devices](#-supported-devices)
+- [Recommended ESP32 Boards](#-not-recommended)
+- [Getting Started](#-getting-started)
+  - [Installation](#installation)
+  - [Initial Network Setup](#initial-network-setup)
+  - [Pairing with Nuki Lock](#pairing-with-a-nuki-lock-10–40)
+- [Configuration](#-configuration)
+  - [Network Configuration](#network-configuration)
+    - [General Settings](#general-settings)
+    - [IP Address assignment](#ip-address-assignment)
 
-<div style="border: 2px solid #f39c12; padding: 10px; background-color:rgb(49, 48, 45); border-radius: 5px;">
-  <strong>Note:</strong>  
-  <em>This project is a <strong>disconnected fork</strong> of <a href=https://github.com/technyon/nuki_hub target="_blank">Nuki Hub</a>, and is no longer active or only partially synchronized with the upstream repository.</em>
-  <ul>
-    <li>It may have diverged significantly from the original repository.</li>
-    <li>Should serve as a method of Nuki integration without an additional mqtt broker for e.g. Loxone Miniserver.</li>
-  </ul>
-</div>
+---
 
-## Supported devices
+## 📌 Overview
 
-<b>Supported ESP32 devices:</b>
-- Nuki Bridge is compiled against all ESP32 models with Wi-Fi and Bluetooh Low Energy (BLE) which are supported by ESP-IDF 5.3.2 and Arduino Core 3.1.3.
+**Nuki REST Bridge** allows full local integration of Nuki Smart Locks via REST – no cloud, no MQTT broker required. It runs on an ESP32 and connects to Nuki devices over BLE while exposing a simple REST API.
 
-<b>Not supported ESP32 devices:</b>
-- The ESP32-S2 has no built-in BLE and as such can't run Nuki Bridge.
+> 🔗 **Fork Notice**: This project is a **disconnected fork** of [Nuki Hub](https://github.com/technyon/nuki_hub). It's not actively synchronized with upstream and has diverged significantly.
 
-<b>Supported Nuki devices:</b>
-- Nuki Smart Lock 1.0
-- Nuki Smart Lock 2.0
-- Nuki Smart Lock 3.0
-- Nuki Smart Lock 4.0
+- Offers direct REST access for smart home platforms (e.g., Loxone Miniserver).
+- Ideal for standalone environments without MQTT or external bridges.
 
-<b>Supported Ethernet devices:</b><br>
-As an alternative to Wi-Fi (which is available on any supported ESP32), the following ESP32 modules with **built-in** wired ethernet are supported:
-- [Olimex ESP32-POE-{ISO}](https://www.olimex.com/Products/IoT/ESP32/)
+---
+
+## ✅ Supported Devices
+
+### ESP32 Boards (Wi-Fi + BLE)
+
+| ✅ Supported | ❌ Not Supported |
+|-------------|------------------|
+| All dual-core ESP32 boards with Wi-Fi + BLE supported by ESP-IDF 5.3.2 / Arduino Core 3.1.3 | ESP32-S2 (no BLE) |
+
+### Nuki Devices
+
+- Nuki Smart Lock 1.0 → 4.0
+
+### Ethernet Support
+
+The following boards with **built-in Ethernet** are supported:
+
+- [Olimex ESP32-POE / POE-ISO](https://www.olimex.com/Products/IoT/ESP32/)
 - [WT32-ETH01](http://en.wireless-tag.com/product-item-2.html)
-- [LilyGO-T-ETH{-POE}](https://github.com/Xinyuan-LilyGO/LilyGO-T-ETH-Series) 
-- [Waveshare ESP32-S3-{POE}-ETH](https://www.waveshare.com/esp32-s3-eth.htm)
+- [LilyGO T-ETH / T-ETH-POE](https://github.com/Xinyuan-LilyGO/LilyGO-T-ETH-Series)
+- [Waveshare ESP32-S3-ETH / POE](https://www.waveshare.com/esp32-s3-eth.htm)
 - [ESP32-poe-dev board](https://github.com/jorticus/esp32-poe-dev)
 - [wESP32](https://wesp32.com/)
 
-In principle all ESP32 (and variants) devices with built-in ethernet port are supported, but might require additional setup in platformio.ini.<br>
-If Ethernet/PoE is required: an [PoE to Ethernet and USB type B/C splitter](https://www.berrybase.de/poe-splitter-rj45-48v-usb-type-c-stecker-5v-2-5a) can be used.
+> 💡 If using PoE: A [PoE to USB/Ethernet splitter](https://www.berrybase.de/poe-splitter-rj45-48v-usb-type-c-stecker-5v-2-5a) can be used.
 
-## Recommended ESP32 devices
+---
 
-We **don't** recommend using single-core ESP32 devices (ESP32-C3, ESP32-C6, ESP32-H2, ESP32-Solo1).<br>
-Although Nuki Bridge supports single-core devices, Nuki Bridge uses both CPU cores (if available) to process tasks (e.g. HTTP server/BLE scanner/BLE client) and thus runs much better on dual-core devices.<br>
+## 🚫 Not Recommended
 
-## First time installation
+Avoid single-core ESP32 variants (e.g., ESP32-C3, C6, H2, Solo1). The bridge benefits from dual-core execution to handle BLE + REST effectively.
 
-Flash the firmware to an ESP32. 
-<br>
+---
 
-## Initial setup (Network)
+## 🚀 Getting Started
 
-Power up the ESP32 and a new Wi-Fi access point named "NukiRestBridge" should appear.<br>
-The password of the access point is "NukiBridgeESP32".<br>
-Connect a client device to this access point and in a browser navigate to "http://192.168.4.1".<br>
-Use the web interface to connect the ESP to your preferred network.<br>
-<br>
-After configuring network connection, the ESP should automatically connect to your network.<br>
-<br>
+### Installation
 
-## Pairing with a Nuki Lock (1.0-4.0)
+Flash the firmware to your ESP32 board using the provided binaries or by compiling via PlatformIO.
 
-Make sure "Bluetooth pairing" is enabled for the Nuki device by enabling this setting in the official Nuki App in "Settings" > "Features & Configuration" > "Button and LED".
-After enabling the setting press the button on the Nuki device for a few seconds.<br>
-Pairing should be automatic whenever the ESP32 is powered on and no lock is paired.<br>
-<br>
-When pairing is successful, the web interface should show "Paired: Yes".<br>
+### Initial Network Setup
+
+1. Power on the ESP32.
+2. Connect to the new Wi-Fi AP: `NukiRestBridge`
+   - Password: `NukiBridgeESP32`
+3. Open browser: [http://192.168.4.1](http://192.168.4.1)
+4. Select and connect to your home Wi-Fi.
+
+ESP32 will then connect to the selected network.
+
+### Pairing with a Nuki Lock (1.0–4.0)
+
+1. Enable *Bluetooth pairing* in the Nuki app:
+   - Settings → Features & Configuration → Button and LED
+2. Hold button on Nuki device for a few seconds.
+3. ESP32 will auto-pair whenever it is powered and if no lock is currently paired.
+4. Web UI will confirm with: `Paired: Yes`, if successful.
+
+---
+
+## 🛠️ Configuration
+
+In your browser, open the IP address of the ESP32 to access the Web Config interface.
+
+You can configure:
+
+### Network Configuration
+
+#### General Settings
+
+- Host name: Set the hostname for the Nuki Rest Bridge ESP
+- Network hardware: "Wi-Fi only" by default, set to ethernet if available
+- RSSI send interval: Set to a positive integer to specify the number of seconds between sending the current Wi-Fi RSSI; set to -1 to disable, default value 60
+*(Requires Home Automation Reporting to be enabled)*
+- Restart on disconnect: Enable to restart the Nuki Rest Bridge when disconnected from the network.
+- Find WiFi AP with strongest signal: Uses the AP with the strongest signal for the connection via Wifi
+
+#### IP Address assignment
+
+- Enable DHCP: Enable to use DHCP for obtaining an IP address, disable to use the static IP settings below
+- Static IP address: When DHCP is disabled set to the preferred static IP address for the Nuki Bridge to use
+- Subnet: When DHCP is disabled set to the preferred subnet for the Nuki Hub to use
+- Default gateway: When DHCP is disabled set to the preferred gateway IP address for the Nuki Bridge to use
+- DNS Server: When DHCP is disabled set to the preferred DNS server IP address for the Nuki Bridge to use
+
+---
+
+### REST API Configuration
+
+- Enable REST API: Activate the Rest Web Server to receive requests
+- API Port: Set the port number for the REST API (default: 80)
+- Access Token: Set an access token to secure the REST API.
+
+---
