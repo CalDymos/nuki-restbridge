@@ -12,6 +12,8 @@
 #include <Print.h>
 #include <atomic>
 
+#define LOGGER_FILENAME (char *)"nukiBridge.log"
+
 /**
  * @brief Logger class for serial and file-based logging with support for multiple log levels.
  *
@@ -48,9 +50,14 @@ public:
     virtual ~Logger();
 
     /**
+     * @brief get current size of Log file in kb.
+     */
+    size_t getFileSize();
+
+    /**
      * @brief Delete and recreate the log file.
      */
-    void clearLog();
+    void clear();
 
     /**
      * @brief Reset internal fallback state (used when SPIFFS is not usable).
@@ -62,14 +69,14 @@ public:
      *
      * @param level Desired log level.
      */
-    void setLogLevel(msgtype level);
+    void setLevel(msgtype level);
 
     /**
      * @brief Get the current log level.
      *
      * @return msgtype Current log level.
      */
-    msgtype getLogLevel();
+    msgtype getLevel();
 
     /**
      * @brief Convert log level enum to string.
@@ -77,7 +84,7 @@ public:
      * @param level Log level enum value.
      * @return String Representation as string.
      */
-    String logLevelToString(msgtype level);
+    String levelToString(msgtype level);
 
     /**
      * @brief Convert string to log level enum.
@@ -85,7 +92,12 @@ public:
      * @param levelStr Log level string.
      * @return msgtype Enum value.
      */
-    msgtype stringToLogLevel(const String &levelStr);
+    msgtype stringToLevel(const String &levelStr);
+
+    /**
+     * @brief disables saving the log file to an FTP server
+     */
+    void disableBackup();
 
     // -------------------- Print/Write overrides --------------------
 
@@ -133,6 +145,7 @@ private:
     String _buffer;                               // Internal buffer for streaming
     int _maxMsgLen;                               // Maximum message length
     int _maxLogFileSize;                          // Max log file size (KB)
+    bool _backupEnabled;                          // Flag to enable backup of log file
     std::atomic<bool> _logFallBack{false};        // SPIFFS failure fallback flag
     std::atomic<bool> _logBackupIsRunning{false}; // FTP backup activity flag
     msgtype _currentLogLevel;                     // Active log level
@@ -150,15 +163,15 @@ private:
      * @return true If file is too large.
      * @return false Otherwise.
      */
-    bool isLogTooBig();
+    bool isFileTooBig();
 
     /**
-     * @brief Attempt to upload current log to FTP server.
+     * @brief Attempt to upload current log file to FTP server.
      *
      * @return true On success or already running.
      * @return false On failure.
      */
-    bool backupLogToFTPServer();
+    bool backupFileToFTPServer();
 
     /**
      * @brief Format uptime or current time to ISO-8601 string.

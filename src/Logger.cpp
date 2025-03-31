@@ -58,15 +58,16 @@ Logger::Logger(Print *serial, Preferences *prefs)
   if (!_preferences)
   {
     println(F("[ERROR] Preferences not initialized! Using defaults."));
-    _logFile = "nukiBridge.log";
+    _logFile = LOGGER_FILENAME;
     _maxMsgLen = 128;
     _maxLogFileSize = 256;
     _currentLogLevel = MSG_INFO;
+    _backupEnabled = false;
   }
   else
   {
-
-    _logFile = _preferences->getString(preference_log_filename, "nukiBridge.log");
+    _backupEnabled = _preferences->getBool(preference_log_backup_enabled, false);
+    _logFile = LOGGER_FILENAME;
     _maxMsgLen = _preferences->getInt(preference_log_max_msg_len, 128);
     _maxLogFileSize = _preferences->getInt(preference_log_max_file_size, 256); // in kb
     _currentLogLevel = (msgtype)_preferences->getInt(preference_log_level, 2);
@@ -380,7 +381,7 @@ size_t Logger::println(void)
   return write((const uint8_t *)"\r\n", 2);
 }
 
-void Logger::clearLog()
+void Logger::clear()
 {
   if (!SPIFFS.begin(true))
   {
@@ -405,7 +406,7 @@ void Logger::resetFallBack()
   _logFallBack.store(false);
 }
 
-String Logger::logLevelToString(msgtype level)
+String Logger::levelToString(msgtype level)
 {
   switch (level)
   {
@@ -426,7 +427,7 @@ String Logger::logLevelToString(msgtype level)
   }
 }
 
-Logger::msgtype Logger::stringToLogLevel(const String &levelStr)
+Logger::msgtype Logger::stringToLevel(const String &levelStr)
 {
   if (levelStr == "TRACE")
     return MSG_TRACE;
@@ -443,14 +444,19 @@ Logger::msgtype Logger::stringToLogLevel(const String &levelStr)
   return (msgtype)-1; // if unknown type
 }
 
-void Logger::setLogLevel(msgtype level)
+void Logger::setLevel(msgtype level)
 {
   _currentLogLevel = level;
 }
 
-Logger::msgtype Logger::getLogLevel()
+Logger::msgtype Logger::getLevel()
 {
   return _currentLogLevel;
+}
+
+void Logger::disableBackup()
+{
+  _backupEnabled = false;
 }
 
 void Logger::formatUptime(char *buffer, size_t size)
@@ -482,26 +488,31 @@ void Logger::formatUptime(char *buffer, size_t size)
   }
 }
 
-bool Logger::isLogTooBig()
+bool Logger::isFileTooBig()
+{
+  return (getFileSize() > _maxLogFileSize);
+}
+
+size_t Logger::getFileSize()
 {
   if (!SPIFFS.begin(true))
   {
     _logFallBack.store(true);
     println(F("[ERROR] SPIFFS not initialized!"));
-    return false;
+    return 0;
   }
 
   File f = SPIFFS.open(_logFile, FILE_READ);
   if (!f)
   {
-    return false;
+    return 0;
   }
-  bool tooBig = (f.size() > _maxLogFileSize * 1024);
+  size_t size = f.size() * 1024;
   f.close();
-  return tooBig;
+  return size;
 }
 
-bool Logger::backupLogToFTPServer()
+bool Logger::backupFileToFTPServer()
 {
   bool expected = false;
   if (!_logBackupIsRunning.compare_exchange_strong(expected, true))
@@ -509,108 +520,113 @@ bool Logger::backupLogToFTPServer()
     println(F("[INFO] FTP Backup is running"));
     return true;
   }
-
-  if (!_preferences)
+  if (_backupEnabled)
   {
-    println(F("[ERROR] Preferences not initialized!"));
-    _logBackupIsRunning.store(false);
-    _logFallBack.store(true);
-    return false;
-  }
 
-  String ftpServer = _preferences->getString(preference_log_backup_ftp_server, "");
-  String ftpUser = _preferences->getString(preference_log_backup_ftp_user, "");
-  String ftpPass = _preferences->getString(preference_log_backup_ftp_pwd, "");
-  String ftpDir = "/" + _preferences->getString(preference_log_backup_ftp_dir, "");
-  bool backupEnabled = _preferences->getBool(preference_log_backup_enabled, false);
-  int backupIndex = _preferences->getInt(preference_log_backup_file_index, 0) + 1;
-  _preferences->putInt(preference_log_backup_file_index, backupIndex);
-
-  if (!backupEnabled || ftpServer.isEmpty() || ftpUser.isEmpty() || ftpPass.isEmpty())
-  {
-    _serial->println(F("[WARNING] Backup disabled or no FTP Server set."));
-    clearLog();
-    return false;
-  }
-
-  println(F("[INFO] Backing up log file to FTP Server..."));
-
-  char ftpServerChar[ftpServer.length() + 1] = {0};
-  char ftpUserChar[ftpUser.length() + 1] = {0};
-  char ftpPassChar[ftpPass.length() + 1] = {0};
-
-  ftpServer.toCharArray(ftpServerChar, sizeof(ftpServerChar));
-  ftpUser.toCharArray(ftpUserChar, sizeof(ftpUserChar));
-  ftpPass.toCharArray(ftpPassChar, sizeof(ftpPassChar));
-
-  ESP32_FTPClient ftp(ftpServerChar, ftpUserChar, ftpPassChar);
-
-  ftp.OpenConnection();
-  if (!ftp.isConnected())
-  {
-    println(F("[ERROR] FTP connection failed!"));
-    _logBackupIsRunning.store(false);
-    _logFallBack.store(true);
-    return false;
-  }
-  ftp.InitFile("Type A");
-  ftp.ChangeWorkDir(ftpDir.c_str());
-
-  int dotPos = _logFile.indexOf('.');
-  String backupFilename;
-  if (dotPos != -1)
-  {
-    backupFilename = _logFile.substring(0, dotPos) + String(backupIndex) + "." + _logFile.substring(dotPos + 1);
-  }
-  else
-  {
-    backupFilename = _logFile + String(backupIndex) + ".log";
-  }
-  ftp.DeleteFile(backupFilename.c_str());
-  ftp.NewFile(backupFilename.c_str());
-
-  if (!SPIFFS.begin(true))
-  {
-    _logFallBack.store(true);
-    println(F("[ERROR] SPIFFS not initialized!"));
-    _logBackupIsRunning.store(false);
-    return false;
-  }
-
-  File f = SPIFFS.open(String("/") + _logFile, FILE_READ);
-  if (!f)
-  {
-    _logFallBack.store(true);
-    println(F("[ERROR] Failed to open log file for backup!"));
-    ftp.CloseConnection();
-    _logBackupIsRunning.store(false);
-    return false;
-  }
-
-  const size_t bufferSize = 512; // Blocksize 512 Byte
-  unsigned char buffer[bufferSize];
-
-  while (f.available())
-  {
-    int bytesRead = f.read(buffer, bufferSize);
-    if (bytesRead > 0)
+    if (!_preferences)
     {
-      ftp.WriteData(buffer, bytesRead);
+      println(F("[ERROR] Preferences not initialized!"));
+      _logBackupIsRunning.store(false);
+      _logFallBack.store(true);
+      return false;
     }
+
+    String ftpServer = _preferences->getString(preference_log_backup_ftp_server, "");
+    String ftpUser = _preferences->getString(preference_log_backup_ftp_user, "");
+    String ftpPass = _preferences->getString(preference_log_backup_ftp_pwd, "");
+    String ftpDir = "/" + _preferences->getString(preference_log_backup_ftp_dir, "");
+    int backupIndex = _preferences->getInt(preference_log_backup_file_index, 0) + 1;
+    if (backupIndex > 100)
+      backupIndex = 1;
+    _preferences->putInt(preference_log_backup_file_index, backupIndex);
+
+    if (ftpServer.isEmpty() || ftpUser.isEmpty() || ftpPass.isEmpty())
+    {
+      _serial->println(F("[WARNING] Backup disabled or no FTP Server set."));
+      clear();
+      return false;
+    }
+
+    println(F("[INFO] Backing up log file to FTP Server..."));
+
+    char ftpServerChar[ftpServer.length() + 1] = {0};
+    char ftpUserChar[ftpUser.length() + 1] = {0};
+    char ftpPassChar[ftpPass.length() + 1] = {0};
+
+    ftpServer.toCharArray(ftpServerChar, sizeof(ftpServerChar));
+    ftpUser.toCharArray(ftpUserChar, sizeof(ftpUserChar));
+    ftpPass.toCharArray(ftpPassChar, sizeof(ftpPassChar));
+
+    ESP32_FTPClient ftp(ftpServerChar, ftpUserChar, ftpPassChar);
+
+    ftp.OpenConnection();
+    if (!ftp.isConnected())
+    {
+      println(F("[ERROR] FTP connection failed!"));
+      _logBackupIsRunning.store(false);
+      _logFallBack.store(true);
+      return false;
+    }
+    ftp.InitFile("Type A");
+    ftp.ChangeWorkDir(ftpDir.c_str());
+
+    int dotPos = _logFile.indexOf('.');
+    String backupFilename;
+    if (dotPos != -1)
+    {
+      backupFilename = _logFile.substring(0, dotPos) + String(backupIndex) + "." + _logFile.substring(dotPos + 1);
+    }
+    else
+    {
+      backupFilename = _logFile + String(backupIndex) + ".log";
+    }
+    ftp.DeleteFile(backupFilename.c_str());
+    ftp.NewFile(backupFilename.c_str());
+
+    if (!SPIFFS.begin(true))
+    {
+      _logFallBack.store(true);
+      println(F("[ERROR] SPIFFS not initialized!"));
+      _logBackupIsRunning.store(false);
+      return false;
+    }
+
+    File f = SPIFFS.open(String("/") + _logFile, FILE_READ);
+    if (!f)
+    {
+      _logFallBack.store(true);
+      println(F("[ERROR] Failed to open log file for backup!"));
+      ftp.CloseConnection();
+      _logBackupIsRunning.store(false);
+      return false;
+    }
+
+    const size_t bufferSize = 512; // Blocksize 512 Byte
+    unsigned char buffer[bufferSize];
+
+    while (f.available())
+    {
+      int bytesRead = f.read(buffer, bufferSize);
+      if (bytesRead > 0)
+      {
+        ftp.WriteData(buffer, bytesRead);
+      }
+    }
+
+    f.close();
+    ftp.CloseFile();
+    ftp.CloseConnection();
+
+    println("[INFO] FTP Backup successful!");
+    _logBackupIsRunning.store(false);
+    return true;
   }
-
-  f.close();
-  ftp.CloseFile();
-  ftp.CloseConnection();
-
-  println("[INFO] FTP Backup successful!");
-  _logBackupIsRunning.store(false);
-  return true;
+  return false;
 }
 
 void Logger::toFile(String message)
 {
-  String msgType = logLevelToString(_currentLogLevel); // Default value
+  String msgType = levelToString(_currentLogLevel); // Default value
 
   // Trim message if it exceeds max length
   if (message.length() > _maxMsgLen)
@@ -631,7 +647,7 @@ void Logger::toFile(String message)
   }
 
   // Convert msgtype from string
-  msgtype level = stringToLogLevel(msgType);
+  msgtype level = stringToLevel(msgType);
 
   // Check whether this log level is within the set level
   if (_currentLogLevel > level && (_currentLogLevel != (int)MSG_DEBUG && level == -1))
@@ -644,13 +660,13 @@ void Logger::toFile(String message)
     Serial.println(message);
 
   // Check file size, clear if too big
-  if (isLogTooBig())
+  if (isFileTooBig())
   {
     println(F("[INFO] Log file too large, attempt to backup to ftp Server..."));
-    if (backupLogToFTPServer())
+    if (backupFileToFTPServer())
     {
       _serial->println(F("[INFO] Backup successful, clearing log file..."));
-      clearLog();
+      clear();
     }
     else
     {
