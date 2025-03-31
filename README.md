@@ -17,11 +17,18 @@
 - [Getting Started](#-getting-started)
   - [Installation](#installation)
   - [Initial Network Setup](#initial-network-setup)
-  - [Pairing with Nuki Lock](#pairing-with-a-nuki-lock-10–40)
+  - [Pairing with Nuki Lock](#pairing-with-a-nuki-lock-10-to-40)
 - [Configuration](#-configuration)
   - [Network Configuration](#network-configuration)
     - [General Settings](#general-settings)
     - [IP Address assignment](#ip-address-assignment)
+  - [REST API Configuration](#rest-api-configuration)
+  - [HAR Configuration](#har-configuration)
+    - [Connection Settings](#connection-settings)
+    - [Report Settings](#report-settings)
+      - [General](#general)
+      - [Key Turner State](#key-turner-state)
+      - [Battery Report](#battery-report)
 
 ---
 
@@ -85,7 +92,7 @@ Flash the firmware to your ESP32 board using the provided binaries or by compili
 
 ESP32 will then connect to the selected network.
 
-### Pairing with a Nuki Lock (1.0–4.0)
+### Pairing with a Nuki Lock (1.0 to 4.0)
 
 1. Enable *Bluetooth pairing* in the Nuki app:
    - Settings → Features & Configuration → Button and LED
@@ -110,9 +117,9 @@ You can configure:
 - RSSI send interval: Set to a positive integer to specify the number of seconds between sending the current Wi-Fi RSSI; set to -1 to disable, default value 60
 *(Requires Home Automation Reporting to be enabled)*
 - Restart on disconnect: Enable to restart the Nuki Rest Bridge when disconnected from the network.
-- Find WiFi AP with strongest signal: Uses the AP with the strongest signal for the connection via Wifi
+- Find Wi-Fi AP with strongest signal: Uses the AP with the strongest signal for the connection via Wi-Fi
 
-#### IP Address assignment
+#### IP Address Assignment
 
 - Enable DHCP: Enable to use DHCP for obtaining an IP address, disable to use the static IP settings below
 - Static IP address: When DHCP is disabled set to the preferred static IP address for the Nuki Bridge to use
@@ -129,3 +136,25 @@ You can configure:
 - Access Token: Set an access token to secure the REST API.
 
 ---
+
+### HAR Configuration
+
+#### Connection Settings
+
+- Enable Home Automation Report:
+- Address: Set to the IP address of the MQTT broker
+- Port: Set to the Port of the MQTT broker (usually 1883)
+- Mode: (UDP / REST)
+- User: If using authentication on the MQTT broker set to a username with read/write rights on the MQTT broker, set to # to clear
+- Password : If using authentication on the MQTT broker set to the password belonging to a username with read/write rights on the MQTT broker, set to # to clear
+- MQTT Nuki Hub Path: Set to the preferred MQTT root topic for Nuki Hub, defaults to "nukihub". Make sure this topic is unique when using multiple ESP32 Nuki Hub devices
+- Enable Home Assistant auto discovery: Enable Home Assistant MQTT auto discovery. Will automatically create entities in Home Assistant for Nuki Hub and connected Nuki Lock and/or Opener when enabled.
+
+#### Report Settings
+
+##### General
+- State Path: Home Automation API path that returns the status of the HAR in response to a GET request. Is used as an additional check to ping whether a home automation system can be reached. Empty field = there is no status query
+
+##### Key Turner State
+
+##### Battery Report
