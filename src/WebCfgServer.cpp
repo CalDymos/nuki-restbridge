@@ -820,7 +820,7 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
                   "var sizeauth = 300 * auth, sizeauthlog = 280 * authlog, sizekeypad = 350 * keypad, sizetimecontrol = 120 * timecontrol;"
                   "charbuf = Math.max(sizeauth, sizeauthlog, sizekeypad, sizetimecontrol, 4096);"
                   "charbuf = Math.min(charbuf, 65536);"
-                  "networktask = Math.max(6144 + charbuf, 8192);"
+                  "networktask = Math.max(4096 + charbuf, 8192);"
                   "networktask = Math.min(networktask, 65536);"
                   "document.getElementById(\"mincharbuffer\").innerHTML = charbuf;"
                   "document.getElementById(\"minnetworktask\").innerHTML = networktask;"
