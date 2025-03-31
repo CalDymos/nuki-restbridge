@@ -956,7 +956,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
     appendDropDownRow(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions());
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
-    appendInputFieldRow(response, "RSSI", "RSSI Publish interval (seconds; -1 to disable)", _preferences->getInt(preference_rssi_send_interval), 6, "");
+    appendInputFieldRow(response, "RSSI", "RSSI send interval (seconds; -1 to disable)", _preferences->getInt(preference_rssi_send_interval), 6, "");
 #endif
 
     appendCheckBoxRow(response, "RSTDISC", "Restart on disconnect", _preferences->getBool(preference_restart_on_disconnect), "", "");
@@ -1840,7 +1840,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
 
     if (devType == "WLAN")
     {
-        response += F("\nRSSI Publish interval (s): ");
+        response += F("\nRSSI send interval (s): ");
         if (_preferences->getInt(preference_rssi_send_interval, 60) < 0)
         {
             response += F("Disabled");
