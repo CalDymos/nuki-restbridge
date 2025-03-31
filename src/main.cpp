@@ -551,7 +551,7 @@ void setup()
 
   Serial.begin(115200);
   Log = new Logger(&Serial, preferences);
-  Log->setLogLevel((Logger::msgtype)preferences->getInt(preference_log_level, 0));
+  Log->setLevel((Logger::msgtype)preferences->getInt(preference_log_level, Logger::MSG_INFO));
 
   initializeRestartReason();
 
