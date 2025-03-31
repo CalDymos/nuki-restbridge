@@ -13,7 +13,8 @@
 
 - [Overview](#-overview)
 - [Supported Devices](#-supported-devices)
-- [Recommended ESP32 Boards](#-not-recommended)
+- [Recommended ESP32 Boards](#-recommended-esp32-boards)
+- [Not Recommended](#-not-recommended)
 - [Getting Started](#-getting-started)
   - [Installation](#installation)
   - [Initial Network Setup](#initial-network-setup)
@@ -66,13 +67,30 @@ The following boards with **built-in Ethernet** are supported:
 - [ESP32-poe-dev board](https://github.com/jorticus/esp32-poe-dev)
 - [wESP32](https://wesp32.com/)
 
-> 💡 If using PoE: A [PoE to USB/Ethernet splitter](https://www.berrybase.de/poe-splitter-rj45-48v-usb-type-c-stecker-5v-2-5a) can be used.
+> 💡 If using PoE: A [PoE to USB/Ethernet splitter](https://www.berrybase.de/poe-splitter-rj45-48v-usb-type-c-stecker-5v-2-5a) can also be used.
 
 ---
 
+## ✅ Recommended ESP32 Boards
+
+We recommend using dual-core ESP32 boards with stable BLE + Wi-Fi support and sufficient RAM:
+
+- ESP32-WROOM-32 (standard dual-core ESP32)
+- ESP32-WROVER (more RAM, ideal for PSRAM and SSL)
+- ESP32-DevKitC
+
+Avoid low-RAM models if using HAR or logging features extensively.
+
 ## 🚫 Not Recommended
 
-Avoid single-core ESP32 variants (e.g., ESP32-C3, C6, H2, Solo1). The bridge benefits from dual-core execution to handle BLE + REST effectively.
+Avoid single-core ESP32 variants such as:
+
+- ESP32-C3
+- ESP32-C6
+- ESP32-H2
+- ESP32-Solo1
+
+The bridge uses both CPU cores to handle BLE scanning, client connections, and webserver tasks. Single-core models may experience performance issues or instability.
 
 ---
 
