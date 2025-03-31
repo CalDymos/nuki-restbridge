@@ -50,6 +50,7 @@
 #define preference_network_custom_mdio (char *)"ntwMDIO"
 #define preference_network_custom_mdc (char *)"ntwMDC"
 #define preference_network_custom_clk (char *)"ntwCLK"
+#define preference_Maintenance_send_interval (char *)"maintpb"
 
 // BLE
 #define preference_ble_tx_power (char *)"bleTxPwr"
@@ -174,14 +175,12 @@
 #define preference_log_max_file_size (char *)"logMaxFileSize"
 #define preference_log_max_msg_len (char *)"logMaxMsgLen"
 #define preference_log_level (char *)"loglvl"
-#define preference_log_filename (char *)"logFile"
 #define preference_log_backup_enabled (char *)"logBckEna"
 #define preference_log_backup_ftp_server (char *)"logBckSrv"
 #define preference_log_backup_ftp_dir (char *)"logBckdir"
 #define preference_log_backup_ftp_user (char *)"logBckUsr"
 #define preference_log_backup_ftp_pwd (char *)"logBckPwd"
-#define preference_log_backup_file_index (char *)"logBckFileId"
-#define preference_Maintenance_send_interval (char *)"maintpb"
+#define preference_log_backup_file_index (char *)"logBckFileId" // not user-changeable
 
 inline bool initPreferences(Preferences *&preferences)
 {
