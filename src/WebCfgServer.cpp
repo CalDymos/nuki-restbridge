@@ -1267,41 +1267,42 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
     {
         const char *tab;
         const char *id;
+        const char *desc;
         const char *pathKey;
         const char *queryKey;
     } fields[] = {
         // --- General ---
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_STAT, preference_har_path_state, nullptr},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_UPTM, preference_har_path_uptime, preference_har_query_uptime},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTFW, preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTESP, preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBVER, preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBBUILD, preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_FREEHP, preference_har_path_freeheap, preference_har_query_freeheap},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_WFRSSI, preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLEADDR, preference_har_path_ble_address, preference_har_query_ble_address},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLERSSI, preference_har_path_ble_rssi, preference_har_query_ble_rssi},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_STAT, "HA state", preference_har_path_state, nullptr},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_UPTM, "Uptime", preference_har_path_uptime, preference_har_query_uptime},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTFW, "FW restart reason", preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTESP, "ESP restart reason", preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBVER, "Bridge version", preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBBUILD, "Bridge Build",preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_FREEHP, "Free heap", preference_har_path_freeheap, preference_har_query_freeheap},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_WFRSSI, "Wi-Fi rssi", preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLEADDR, "BLE address", preference_har_path_ble_address, preference_har_query_ble_address},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLERSSI, "BLE rssi", preference_har_path_ble_rssi, preference_har_query_ble_rssi},
 
         // --- KeyTurnerState ---
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKSTAT, preference_har_path_lock_state, preference_har_query_lock_state},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNGOSTAT, preference_har_path_lockngo_state, preference_har_query_lockngo_state},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKTRIG, preference_har_path_lock_trigger, preference_har_query_lock_trigger},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNMOD, preference_har_path_lock_night_mode, preference_har_query_lock_night_mode},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKCMPLSTAT, preference_har_path_lock_completionStatus, preference_har_query_lock_completionStatus},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCRIT, preference_har_path_lock_battery_critical, preference_har_query_lock_battery_critical},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATLVL, preference_har_path_lock_battery_level, preference_har_query_lock_battery_level},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCHRG, preference_har_path_lock_battery_charging, preference_har_query_lock_battery_charging},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSTAT, preference_har_path_doorsensor_state, preference_har_query_doorsensor_state},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSCRIT, preference_har_path_doorsensor_critical, preference_har_query_doorsensor_critical},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_KPCRIT, preference_har_path_keypad_critical, preference_har_query_keypad_critical},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_REMACCSTAT, preference_har_path_remote_access_state, preference_har_query_remote_access_state},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_BLESTR, preference_har_path_ble_strength, preference_har_query_ble_strength},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKSTAT, "Lock state", preference_har_path_lock_state, preference_har_query_lock_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNGOSTAT, " Lock 'N' Go state", preference_har_path_lockngo_state, preference_har_query_lockngo_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKTRIG, "trigger", preference_har_path_lock_trigger, preference_har_query_lock_trigger},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNMOD, "night mode", preference_har_path_lock_night_mode, preference_har_query_lock_night_mode},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKCMPLSTAT, "process status", preference_har_path_lock_completionStatus, preference_har_query_lock_completionStatus},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCRIT, "Lock battery critical", preference_har_path_lock_battery_critical, preference_har_query_lock_battery_critical},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATLVL, "Lock battery level", preference_har_path_lock_battery_level, preference_har_query_lock_battery_level},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCHRG, "Lock battery charging", preference_har_path_lock_battery_charging, preference_har_query_lock_battery_charging},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSTAT, "doorsensor state", preference_har_path_doorsensor_state, preference_har_query_doorsensor_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSCRIT, "doorsensor critical", preference_har_path_doorsensor_critical, preference_har_query_doorsensor_critical},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_KPCRIT, "keypad critical", preference_har_path_keypad_critical, preference_har_query_keypad_critical},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_REMACCSTAT, "remote access state", preference_har_path_remote_access_state, preference_har_query_remote_access_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_BLESTR, "BLE strength", preference_har_path_ble_strength, preference_har_query_ble_strength},
 
         // --- BatteryReport ---
-        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATVOLT, preference_har_path_battery_voltage, preference_har_query_battery_voltage},
-        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATDRAIN, preference_har_path_battery_drain, preference_har_query_battery_drain},
-        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATMAXTURNCUR, preference_har_path_battery_max_turn_current, preference_har_query_battery_max_turn_current},
-        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATLCKDIST, preference_har_path_battery_lock_distance, preference_har_query_battery_lock_distance},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATVOLT, "voltage", preference_har_path_battery_voltage, preference_har_query_battery_voltage},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATDRAIN, "drain", preference_har_path_battery_drain, preference_har_query_battery_drain},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATMAXTURNCUR, "max turn current", preference_har_path_battery_max_turn_current, preference_har_query_battery_max_turn_current},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATLCKDIST, "lock distance", preference_har_path_battery_lock_distance, preference_har_query_battery_lock_distance},
     };
 
     for (const char *cat : {HAR_CAT_GENERAL, HAR_CAT_KEY_TURN_STATE, HAR_CAT_BATTERY_REPORT})
@@ -1312,9 +1313,9 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
         {
             if (strcmp(f.tab, cat) == 0)
             {
-                appendInputFieldRow(response, ("PATH_" + String(f.id)).c_str(), ("Path: " + String(f.id)).c_str(), _preferences->getString(f.pathKey, "").c_str(), 64, "");
+                appendInputFieldRow(response, ("PATH_" + String(f.id)).c_str(), (String(f.desc) + " Path:").c_str(), _preferences->getString(f.pathKey, "").c_str(), 64, "");
                 if (f.queryKey)
-                    appendInputFieldRow(response, ("QUERY_" + String(f.id)).c_str(), ("Query: " + String(f.id)).c_str(), _preferences->getString(f.queryKey, "").c_str(), 64, "");
+                    appendInputFieldRow(response, ("QUERY_" + String(f.id)).c_str(), (String(f.desc) + " Query:").c_str(), _preferences->getString(f.queryKey, "").c_str(), 64, "");
             }
         }
         response += F("</table></div>");
