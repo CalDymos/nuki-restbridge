@@ -646,11 +646,6 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
 
     appendCheckBoxRow(response, "CONFNHCTRL", "Modify Nuki Bridge configuration over REST API", _preferences->getBool(preference_config_from_api, false));
 
-    if ((_nuki && _nuki->hasKeypad()))
-    {
-        appendCheckBoxRow(response, "KPENA", "Add, modify and delete keypad codes", _preferences->getBool(preference_keypad_control_enabled));
-    }
-
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
 
     if (_nuki)
@@ -1083,7 +1078,7 @@ void WebCfgServer::buildCredHtml(WebServer *server)
     buildHtmlHeader(response);
     response += F("<form id=\"credfrm\" class=\"adapt\" onsubmit=\"return testcreds();\" method=\"post\" action=\"post\">");
     response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
-    response += F("<h3>Credentials</h3><table>");
+    response += F("<h3>Web Configurator Credentials</h3><table>");
 
     appendInputFieldRow(response, "CREDUSER", "User (# to clear)", _preferences->getString(preference_cred_user).c_str(), 30, "id=\"inputuser\"", false, true);
     appendInputFieldRow(response, "CREDPASS", "Password", "*", 30, "id=\"inputpass\"", true, true);
@@ -1096,15 +1091,6 @@ void WebCfgServer::buildCredHtml(WebServer *server)
     appendDropDownRow(response, "CREDDIGEST", "HTTP Authentication type", String(_preferences->getInt(preference_http_auth_type, 0)), httpAuthOptions);
 
     appendInputFieldRow(response, "CREDTRUSTPROXY", "Bypass authentication for reverse proxy with IP", _preferences->getString(preference_bypass_proxy, "").c_str(), 255, "");
-    appendInputFieldRow(response, "CREDBYPASS", "One-time MFA Bypass", "*", 32, "", true, false);
-    response += F("<tr id=\"bypassgentr\"><td><input type=\"button\" id=\"bypassgen\" onclick=\"document.getElementsByName('CREDBYPASS')[0].type='text'; document.getElementsByName('CREDBYPASS')[0].value='");
-    response += randomstr2;
-    response += F("'; document.getElementById('bypassgentr').style.display='none';\" value=\"Generate new Bypass\"></td></tr>");
-
-    appendInputFieldRow(response, "CREDADMIN", "Admin key", "*", 32, "", true, false);
-    response += F("<tr id=\"admingentr\"><td><input type=\"button\" id=\"admingen\" onclick=\"document.getElementsByName('CREDADMIN')[0].type='text'; document.getElementsByName('CREDADMIN')[0].value='");
-    response += randomstr3;
-    response += F("'; document.getElementById('admingentr').style.display='none';\" value=\"Generate new Admin key\"></td></tr>");
 
     appendInputFieldRow(response, "CREDLFTM", "Session validity (in seconds)", _preferences->getInt(preference_cred_session_lifetime, 3600), 12, "");
     appendInputFieldRow(response, "CREDLFTMRMBR", "Session validity remember (in hours)", _preferences->getInt(preference_cred_session_lifetime_remember, 720), 12, "");
@@ -1320,37 +1306,37 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
         const char *queryKey;
     } fields[] = {
         // --- General ---
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_STAT, "HA state", preference_har_path_state, nullptr},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_STAT, "HA State", preference_har_path_state, nullptr},
         {HAR_CAT_GENERAL, TOKEN_SUFFIX_UPTM, "Uptime", preference_har_path_uptime, preference_har_query_uptime},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTFW, "FW restart reason", preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTESP, "ESP restart reason", preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBVER, "Bridge version", preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTFW, "FW Restart Reason", preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTESP, "ESP Restart Reason", preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBVER, "Bridge Version", preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
         {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBBUILD, "Bridge Build", preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_FREEHP, "Free heap", preference_har_path_freeheap, preference_har_query_freeheap},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_WFRSSI, "Wi-Fi rssi", preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLEADDR, "BLE address", preference_har_path_ble_address, preference_har_query_ble_address},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLERSSI, "BLE rssi", preference_har_path_ble_rssi, preference_har_query_ble_rssi},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_FREEHP, "Free Heap", preference_har_path_freeheap, preference_har_query_freeheap},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_WFRSSI, "Wi-Fi RSSI", preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLEADDR, "BLE Address", preference_har_path_ble_address, preference_har_query_ble_address},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLERSSI, "BLE RSSI", preference_har_path_ble_rssi, preference_har_query_ble_rssi},
 
         // --- KeyTurnerState ---
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKSTAT, "Lock state", preference_har_path_lock_state, preference_har_query_lock_state},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNGOSTAT, " Lock 'N' Go state", preference_har_path_lockngo_state, preference_har_query_lockngo_state},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKTRIG, "trigger", preference_har_path_lock_trigger, preference_har_query_lock_trigger},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNMOD, "night mode", preference_har_path_lock_night_mode, preference_har_query_lock_night_mode},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKCMPLSTAT, "process status", preference_har_path_lock_completionStatus, preference_har_query_lock_completionStatus},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCRIT, "Lock battery critical", preference_har_path_lock_battery_critical, preference_har_query_lock_battery_critical},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATLVL, "Lock battery level", preference_har_path_lock_battery_level, preference_har_query_lock_battery_level},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCHRG, "Lock battery charging", preference_har_path_lock_battery_charging, preference_har_query_lock_battery_charging},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSTAT, "doorsensor state", preference_har_path_doorsensor_state, preference_har_query_doorsensor_state},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSCRIT, "doorsensor critical", preference_har_path_doorsensor_critical, preference_har_query_doorsensor_critical},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_KPCRIT, "keypad critical", preference_har_path_keypad_critical, preference_har_query_keypad_critical},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_REMACCSTAT, "remote access state", preference_har_path_remote_access_state, preference_har_query_remote_access_state},
-        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_BLESTR, "BLE strength", preference_har_path_ble_strength, preference_har_query_ble_strength},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKSTAT, "Lock State", preference_har_path_lock_state, preference_har_query_lock_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNGOSTAT, "Lock 'N' Go State", preference_har_path_lockngo_state, preference_har_query_lockngo_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKTRIG, "Lock Trigger", preference_har_path_lock_trigger, preference_har_query_lock_trigger},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKNMOD, "Night Mode", preference_har_path_lock_night_mode, preference_har_query_lock_night_mode},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKCMPLSTAT, "Process Status", preference_har_path_lock_completionStatus, preference_har_query_lock_completionStatus},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCRIT, "Lock battery Critical", preference_har_path_lock_battery_critical, preference_har_query_lock_battery_critical},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATLVL, "Lock battery Level", preference_har_path_lock_battery_level, preference_har_query_lock_battery_level},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_LCKBATCHRG, "Lock battery Charging", preference_har_path_lock_battery_charging, preference_har_query_lock_battery_charging},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSTAT, "Doorsensor State", preference_har_path_doorsensor_state, preference_har_query_doorsensor_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_DOORSCRIT, "Doorsensor Critical", preference_har_path_doorsensor_critical, preference_har_query_doorsensor_critical},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_KPCRIT, "Keypad Critical", preference_har_path_keypad_critical, preference_har_query_keypad_critical},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_REMACCSTAT, "Remote Access State", preference_har_path_remote_access_state, preference_har_query_remote_access_state},
+        {HAR_CAT_KEY_TURN_STATE, TOKEN_SUFFIX_BLESTR, "BLE Strength", preference_har_path_ble_strength, preference_har_query_ble_strength},
 
         // --- BatteryReport ---
-        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATVOLT, "voltage", preference_har_path_battery_voltage, preference_har_query_battery_voltage},
-        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATDRAIN, "drain", preference_har_path_battery_drain, preference_har_query_battery_drain},
-        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATMAXTURNCUR, "max turn current", preference_har_path_battery_max_turn_current, preference_har_query_battery_max_turn_current},
-        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATLCKDIST, "lock distance", preference_har_path_battery_lock_distance, preference_har_query_battery_lock_distance},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATVOLT, "Voltage", preference_har_path_battery_voltage, preference_har_query_battery_voltage},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATDRAIN, "Drain", preference_har_path_battery_drain, preference_har_query_battery_drain},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATMAXTURNCUR, "Max Turn Current", preference_har_path_battery_max_turn_current, preference_har_query_battery_max_turn_current},
+        {HAR_CAT_BATTERY_REPORT, TOKEN_SUFFIX_BATLCKDIST, "Lock Distance", preference_har_path_battery_lock_distance, preference_har_query_battery_lock_distance},
     };
 
     for (const char *cat : {HAR_CAT_GENERAL, HAR_CAT_KEY_TURN_STATE, HAR_CAT_BATTERY_REPORT})
