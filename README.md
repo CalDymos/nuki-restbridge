@@ -30,6 +30,16 @@
       - [General](#general)
       - [Key Turner State](#key-turner-state)
       - [Battery Report](#battery-report)
+  - [Nuki Configuration](#nuki-configuration)
+    - [Basic Nuki Configuration](#basic-configuration)
+    - [Advanced Nuki Configuration](#advanced-nuki-configuration)
+  - [Access Level Configuration](#access-level-configuration)
+    - [Nuki General Access Control](#nuki-general-access-control)
+  - [Credentials](#credentials)
+    - [Web Configurator Credentials](#web-configurator-credentials)
+    - [Nuki Lock PIN](#nuki-lock-pin)
+    - [Unpair Nuki Lock](#unpair-nuki-lock)
+    - [Factory reset Nuki Bridge](#factory-reset-nuki-bridge)
 
 ---
 
@@ -130,28 +140,28 @@ You can configure:
 
 #### General Settings
 
-- *Host name*: Set the hostname for the Nuki Rest Bridge ESP
-- *Network hardware*: "Wi-Fi only" by default, set to ethernet if available
-- *RSSI send interval*: Set to a positive integer to specify the number of seconds between sending the current Wi-Fi RSSI; set to -1 to disable, default value 60
-**(Requires Home Automation Reporting to be enabled)**
-- *Restart on disconnect*: Enable to restart the Nuki Rest Bridge when disconnected from the network.
-- *Find Wi-Fi AP with strongest signal*: Uses the AP with the strongest signal for the connection via Wi-Fi
+- **Host name**: Set the hostname for the Nuki Rest Bridge ESP
+- **Network hardware**: "Wi-Fi only" by default, set to ethernet if available
+- **RSSI send interval**: Set to a positive integer to specify the number of seconds between sending the current Wi-Fi RSSI; set to -1 to disable, default value 60
+  > 📘: Requires Home Automation Reporting to be enabled
+- **Restart on disconnect**: Enable to restart the Nuki Rest Bridge when disconnected from the network.
+- **Find Wi-Fi AP with strongest signal**: Uses the AP with the strongest signal for the connection via Wi-Fi
 
 #### IP Address Assignment
 
-- *Enable DHCP*: Enable to use DHCP for obtaining an IP address, disable to use the static IP settings below
-- *Static IP address*: When DHCP is disabled set to the preferred static IP address for the Nuki Bridge to use
-- *Subnet*: When DHCP is disabled set to the preferred subnet for the Nuki Hub to use
-- *Default gateway*: When DHCP is disabled set to the preferred gateway IP address for the Nuki Bridge to use
-- *DNS Server*: When DHCP is disabled set to the preferred DNS server IP address for the Nuki Bridge to use
+- **Enable DHCP**: Enable to use DHCP for obtaining an IP address, disable to use the static IP settings below
+- **Static IP address**: When DHCP is disabled set to the preferred static IP address for the Nuki Bridge to use
+- **Subnet**: When DHCP is disabled set to the preferred subnet for the Nuki Bridge to use
+- **Default gateway**: When DHCP is disabled set to the preferred gateway IP address for the Nuki Bridge to use
+- **DNS Server**: When DHCP is disabled set to the preferred DNS server IP address for the Nuki Bridge to use
 
 ---
 
 ### REST API Configuration
 
-- *Enable REST API*: Activate the Rest Web Server to receive requests
-- *API Port*: Set the port number for the REST API (default: 80)
-- *Access Token*: Set an access token to secure the REST API.
+- **Enable REST API**: Activate the Rest Web Server to receive requests
+- **API Port**: Set the port number for the REST API (default: 80)
+- **Access Token**: Set an access token to secure the REST API.
 
 ---
 
@@ -159,54 +169,159 @@ You can configure:
 
 #### Connection Settings
 
-- *Enable Home Automation Report*: Enable to periodically send status updates (e.g. RSSI, lock state, battery) to a Home Automation system.
-- *Address*: Set to the IP address of Home Automation
-- *Port*: Set to the Port of Home Automation
-- *Mode*: (UDP / REST)
-- *User*: Optional username for authenticating with the Home Automation system. Use `#` to disable authentication.
-- *Password*: Password corresponding to the username. Use `#` to disable authentication.
+- **Enable Home Automation Report**: Enable to periodically send status updates (e.g. RSSI, lock state, battery) to a Home Automation system.
+- **Address**: Set to the IP address of Home Automation
+- **Port**: Set to the Port of Home Automation
+- **Mode**: (UDP / REST)
+- **User**: Optional username for authenticating with the Home Automation system. Use `#` to disable authentication.
+- **Password**: Password corresponding to the username. Use `#` to disable authentication.
 
 
 #### Report Settings
 
 ##### General
 
-- *State Path*: Home Automation API path that returns the status of the HAR in response to a GET request. Used as an additional check to verify if the Home Automation system is reachable. Leave empty to disable status check.
-- *Uptime Path*: URL path to report ESP system uptime to Home Automation (e.g. `/api/system/uptime`)
-- *Uptime Query*: Optional query string to append to the request (e.g. `?value=`)
+- **HA State Path**: Home Automation API path that returns the status of the HAR in response to a GET request. Used as an additional check to verify if the Home Automation system is reachable. Leave empty to disable status check.
+- **Uptime Path**: URL path to report ESP system uptime to Home Automation (e.g. `/api/system/uptime`)
+- **Uptime Query**: Optional query string to append to the request (e.g. `?value=`)
 
-- *Restart Reason FW Path*: URL path to report the firmware restart reason to Home Automation (e.g. `/api/system/fwrestart`)
-- *Restart Reason FW Query*: Optional query string to append to the request (e.g. `?value=`)
+- **FW Restart Reason Path**: URL path to report the firmware restart reason to Home Automation (e.g. `/api/system/fwrestart`)
+- **FW Restart Reason Query**: Optional query string to append to the request (e.g. `?value=`)
 
-- *Restart Reason ESP Path*: URL path to report the ESP restart reason to Home Automation (e.g. `/api/system/esprestart`)
-- *Restart Reason ESP Query*: Optional query string to append to the request (e.g. `?value=`)
+- **ESP Restart Reason Path**: URL path to report the ESP restart reason to Home Automation (e.g. `/api/system/esprestart`)
+- **ESP Restart Reason Query**: Optional query string to append to the request (e.g. `?value=`)
 
-- *Info Nuki Bridge Version Path*: URL path to report the Nuki Bridge firmware version (e.g. `/api/system/version`)
-- *Info Nuki Bridge Version Query*: Optional query string to append to the request (e.g. `?value=`)
+- **Bridge Version Path**: URL path to report the Nuki Bridge firmware version (e.g. `/api/system/version`)
+- **Bridge Version Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Bridge Build Path**: URL path to report the build number or date of the Nuki Bridge (e.g. `/api/system/build`)
+- **Bridge Build Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Free Heap Path**: URL path to report available free heap memory (e.g. `/api/system/freeheap`)
+- **Free Heap Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Wi-Fi RSSI Path**: URL path to report current Wi-Fi signal strength (RSSI) (e.g. `/api/system/wifi_rssi`)
+- **Wi-Fi RSSI Query**: Optional query string to append to the request (e.g. `?rssi=`)
+
+- **BLE Address Path**: URL path to report the BLE MAC address of the Nuki device (e.g. `/api/system/ble_address`)
+- **BLE Address Query**: Optional query string to append to the request (e.g. `?addr=`)
+
+- **BLE RSSI Path**: URL path to report the signal strength (RSSI) of the BLE connection (e.g. `/api/system/ble_rssi`)
+- **BLE RSSI Query**: Optional query string to append to the request (e.g. `?rssi=`)
 
 
 ##### Key Turner State
 
-- *Lock State Path*: URL path to report the current lock state (e.g. `/api/lock/state`)
-- *Lock State Query*: Optional query string to append to the request (e.g. `?value=`)
+- **Lock State Path**: URL path to report the current lock state (e.g. `/api/lock/state`)
+- **Lock State Query**: Optional query string to append to the request (e.g. `?value=`)
 
-- *Lock 'N' Go Path*: URL path to report if a Lock ’n’ Go action was triggered (e.g. `/api/lock/lockngo`)
-- *Lock 'N' Go Query*: Optional query string to append to the request (e.g. `?value=`)
+- **Lock 'N' Go State Path**: URL path to report if a Lock ’n’ Go action was triggered (e.g. `/api/lock/lockngo`)
+- **Lock 'N' Go State Query**: Optional query string to append to the request (e.g. `?value=`)
 
-- *Lock Trigger Path*: URL path to report the last trigger source (e.g. `/api/lock/trigger`)
-- *Lock Trigger Query*: Optional query string to append to the request (e.g. `?source=`)
+- **Lock Trigger Path**: URL path to report the last trigger source (e.g. `/api/lock/trigger`)
+- **Lock Trigger Query**: Optional query string to append to the request (e.g. `?source=`)
 
+- **Night Mode Path**: URL path to report whether night mode is active (e.g. `/api/lock/nightmode`)
+- **Night Mode Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Process Status Path**: URL path to report the lock completion status (e.g. `/api/lock/completionstatus`)
+- **Process Status Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Battery Critical Path**: URL path to report whether the lock battery is critical (e.g. `/api/lock/batterycritical`)
+- **Battery Critical Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Battery Level Path**: URL path to report the battery level percentage (e.g. `/api/lock/batterylevel`)
+- **Battery Level Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Battery Charging Path**: URL path to report if the battery is currently charging (e.g. `/api/lock/batterycharging`)
+- **Battery Charging Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Door Sensor State Path**: URL path to report the door sensor state (e.g. `/api/lock/doorsensorstate`)
+- **Door Sensor State Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Door Sensor Critical Path**: URL path to report door sensor error state (e.g. `/api/lock/doorsensorcritical`)
+- **Door Sensor Critical Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Keypad Critical Path**: URL path to report keypad error state (e.g. `/api/lock/keypadcritical`)
+- **Keypad Critical Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **Remote Access State Path**: URL path to report the current remote access state (e.g. `/api/lock/remoteaccess`)
+- **Remote Access State Query**: Optional query string to append to the request (e.g. `?value=`)
+
+- **BLE Strength Path**: URL path to report BLE signal strength (e.g. `/api/lock/blestrength`)
+- **BLE Strength Query**: Optional query string to append to the request (e.g. `?value=`)
 
 ##### Battery Report
 
-- *Battery Voltage Path*: URL path to report the current battery voltage (e.g. `/api/battery/voltage`)
-- *Battery Voltage Query*: Optional query string to append to the request (e.g. `?v=`)
+- **Voltage Path**: URL path to report the current battery voltage (e.g. `/api/battery/voltage`)
+- **Voltage Query**: Optional query string to append to the request (e.g. `?v=`)
 
-- *Battery Drain Path*: URL path to report battery drain rate (e.g. `/api/battery/drain`)
-- *Battery Drain Query*: Optional query string to append to the request (e.g. `?value=`)
+- **Drain Path**: URL path to report battery drain rate (e.g. `/api/battery/drain`)
+- **Drain Query**: Optional query string to append to the request (e.g. `?value=`)
 
-- *Battery Max Turn Current Path*: URL path to report the peak current while turning the motor (e.g. `/api/battery/maxcurrent`)
-- *Battery Max Turn Current Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Max Turn Current Path**: URL path to report the peak current while turning the motor (e.g. `/api/battery/maxcurrent`)
+- **Max Turn Current Query**: Optional query string to append to the request (e.g. `?value=`)
 
-- *Battery Lock Distance Path*: URL path to report motor lock distance (e.g. `/api/battery/lockdistance`)
-- *Battery Lock Distance Query*: Optional query string to append to the request (e.g. `?value=`)
+- **Lock Distance Path**: URL path to report motor lock distance (e.g. `/api/battery/lockdistance`)
+- **Lock Distance Query**: Optional query string to append to the request (e.g. `?value=`)
+
+---
+
+### Nuki Configuration
+
+#### Basic Nuki Configuration
+
+- **Nuki Smartlock enabled**: Enable if you want Nuki Bridge to connect to a Nuki Lock (1.0-4.0)
+- **New Nuki Bluetooth connection mode**: Enable to use the latest Nuki BLE connection mode (recommended). 
+    > 📘: Disable if you have issues communicating with the lock
+
+#### Advanced Nuki Configuration
+
+- **Query interval lock state**: Set to a positive integer to set the maximum amount of seconds between actively querying the Nuki device for the current lock state, default 1800.
+- **Query interval configuration**: Set to a positive integer to set the maximum amount of seconds between actively querying the Nuki device for the current configuration, default 3600.
+- **Query interval battery**: Set to a positive integer to set the maximum amount of seconds between actively querying the Nuki device for the current battery state, default 1800.
+- **Query interval keypad**: Set to a positive integer to set the maximum amount of seconds between actively querying the Nuki device for the current keypad state, default 1800.
+  >📘: Only available when a Keypad is detected
+- **Number of retries if command failed**: Set to a positive integer to define the amount of times the Nuki Bridge retries sending commands to the Nuki Lock when commands are not acknowledged by the device, default 3.
+- **Delay between retries**: Set to the amount of milliseconds the Nuki Bridge waits between resending not acknowledged commands, default 100.
+- **Restart if bluetooth beacons not received**: Set to a positive integer to restart the Nuki Bridge after the set amount of seconds has passed without receiving a bluetooth beacon from the Nuki device, set to -1 to disable, default 60. Because the bluetooth stack of the ESP32 can silently fail it is not recommended to disable this setting.
+- **BLE transmit power in dB**: Set to a integer between -12 and 9 (ESP32) or -12 and 20 (All newer ESP32 variants) to set the Bluetooth transmit power, default 9.
+- **Update Nuki Bridge and Lock time using NTP**: Enable to update the ESP32 time and Nuki Lock time every 12 hours using a NTP time server.
+  >📘: Updating the Nuki device time requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
+- **NTP server**: Set to the NTP server you want to use, defaults to "`pool.ntp.org`". If DHCP is used and NTP servers are provided using DHCP these will take precedence over the specified NTP server.
+
+### Access Level Configuration
+
+#### Nuki General Access Control
+- **Modify Nuki Bridge configuration over REST API**: Allow changing Nuki Bridge settings using REST API.
+  > 🚨: For security reasons, not all configurations can be changed via the REST API.
+
+#### Nuki Lock Access Control
+- **Enable or disable executing each available lock action for the Nuki Lock through REST API**
+
+#### Nuki Lock Config Control
+- **Enable or disable changing each available configuration setting for the Nuki Lock through REST API**
+  > 📘: Changing configuration settings requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
+
+### Credentials
+
+#### Web Configurator Credentials
+
+- **User**: Pick a username to enable HTTP authentication for the Web Configuration, Set to "#" to disable authentication.
+- **Password/Retype password**: Pick a password to enable HTTP authentication for the Web Configuration.
+- **HTTP Authentication type**: Select from Basic, Digest or Form based authentication. Digest authentication is more secure than Basic or Form based authentication, especially over unencrypted (HTTP) connections. Form based authentication works best with password managers. Note: Firefox seems to have issues with basic authentication.
+- **Bypass authentication for reverse proxy with IP**: IP for which authentication is bypassed. Use in conjunction with a reverse proxy server with separate authentication.
+- **Session validity (in seconds)**: Session validity to use with form authentication when the "Remember me" checkbox is disabled, default 3600 seconds.
+- **Session validity remember (in hours)**: Session validity to use with form authentication when the "Remember me" checkbox is enabled, default 720 hours.
+
+#### Nuki Lock PIN
+
+- **PIN Code**: Fill with the Nuki Security Code of the Nuki Lock. Required for functions that require the security code to be sent to the lock such as setting lock permissions/adding keypad codes, viewing the activity log or changing the Nuki device configuration. Set to "#" to remove the security code from the Nuki Bridge configuration.
+
+#### Unpair Nuki Lock
+
+- **Type [4 DIGIT CODE] to confirm unpair**: Set to the shown randomly generated code to unpair the Nuki Lock from the Nuki Bridge.
+
+#### Factory reset Nuki Bridge
+
+- **Type [4 DIGIT CODE] to confirm factory reset**: Set to the shown randomly generated code to reset all Nuki Bridge settings to default and unpair Nuki Lock. Optionally also reset Wi-Fi settings to default (and reopen the Wi-Fi configurator) by enabling the checkbox.
