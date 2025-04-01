@@ -303,7 +303,15 @@ void WebCfgServer::initialize()
             }
             else if (value == "coredump")
             {
-                return buildCoredumpHtml(this->_webServer);
+                return buildGetCoredumpFileHtml(this->_webServer);
+            }
+            else if (value == "logfile")
+            {
+                return buildGetLogFileHtml(this->_webServer);
+            }
+            else if (value == "clearlog")
+            {
+                return Log->clear();
             }
             else if (value == "reboot")
             {
@@ -908,32 +916,54 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
     server->send(200, F("text/html"), response);
 }
 
-void WebCfgServer::buildCoredumpHtml(WebServer *server)
+void WebCfgServer::buildGetLogFileHtml(WebServer *server)
 {
     if (!SPIFFS.begin(true))
     {
         Log->println(F("SPIFFS Mount Failed"));
+        server->send(500, F("text/plain"), F("SPIFFS mount failed."));
+        return;
+    }
+
+    File file = SPIFFS.open("/" + String(LOGGER_FILENAME), "r");
+
+    if (!file || file.isDirectory())
+    {
+        Log->printf(F("%s not found\n"), LOGGER_FILENAME);
+        server->send(404, F("text/plain"), F("Log file not found."));
+        return;
+    }
+
+    server->sendHeader(F("Content-Disposition"), F("attachment; filename=\"Log.txt\""));
+    server->streamFile(file, F("application/octet-stream"));
+    file.close();
+    return;
+}
+
+void WebCfgServer::buildGetCoredumpFileHtml(WebServer *server)
+{
+    if (!SPIFFS.begin(true))
+    {
+        Log->println(F("SPIFFS Mount Failed"));
+        server->send(500, F("text/plain"), F("SPIFFS mount failed."));
+        return;
+    }
+
+    File file = SPIFFS.open(F("/coredump.hex"), "r");
+
+    if (!file || file.isDirectory())
+    {
+        Log->println(F("coredump.hex not found"));
+        server->send(404, F("text/plain"), F("coredump.hex file not found."));
+        return;
     }
     else
     {
-        File file = SPIFFS.open(F("/coredump.hex"), "r");
-
-        if (!file || file.isDirectory())
-        {
-            Log->println(F("coredump.hex not found"));
-        }
-        else
-        {
-            server->sendHeader(F("Content-Disposition"), F("attachment; filename=\"coredump.txt\""));
-            server->streamFile(file, F("application/octet-stream"));
-            file.close();
-            return;
-        }
+        server->sendHeader(F("Content-Disposition"), F("attachment; filename=\"coredump.txt\""));
+        server->streamFile(file, F("application/octet-stream"));
+        file.close();
+        return;
     }
-
-    server->sendHeader(F("Cache-Control"), F("no-cache"));
-    server->sendHeader(F("Location"), F("/"));
-    server->send(302, F("text/plain"), "");
 }
 
 void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
@@ -1135,7 +1165,7 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
                         6,   // Dropdown options
                         0,   // Textareas
                         0,   // Parameter rows
-                        0,   // Buttons
+                        2,   // Buttons
                         0,   // menus
                         1024 // extra bytes
     );
@@ -1169,7 +1199,25 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
 
     response += F("</table><br>");
     response += F("<br><input type=\"submit\" name=\"submit\" value=\"Save\">");
-    response += F("</form></body></html>");
+    response += F("</form>");
+
+    response += F("<div style=\"margin-top: 20px;\">");
+    response += F("<input type=\"submit\" name=\"submit\" value=\"Save\" style=\"margin-right: 15px;\" />");
+    
+    response += F("<button type=\"button\" title=\"Download current log file\" ");
+    response += F("onclick=\"window.open('/get?page=logfile'); return false;\" ");
+    response += F("style=\"margin-right: 10px;\">Download Log</button>");
+    
+    response += F("<button type=\"button\" title=\"Clear log file\" ");
+    response += F("onclick=\"if(confirm('Really clear log file?')) window.open('/get?page=clearlog'); return false;\" ");
+    response += F("style=\"margin-right: 10px;\">Clear Log</button>");
+    
+    response += F("<button type=\"button\" title=\"Download current Coredump\" ");
+    response += F("onclick=\"window.open('/get?page=coredump'); return false;\">Download Coredump</button>");
+    
+    response += F("</div>");
+    response += F("</form>");
+    response += F("</body></html>");
 
     server->send(200, F("text/html"), response);
 }
@@ -1277,7 +1325,7 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
         {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTFW, "FW restart reason", preference_har_path_restart_reason_fw, preference_har_query_restart_reason_fw},
         {HAR_CAT_GENERAL, TOKEN_SUFFIX_RSTESP, "ESP restart reason", preference_har_path_restart_reason_esp, preference_har_query_restart_reason_esp},
         {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBVER, "Bridge version", preference_har_path_info_nuki_bridge_version, preference_har_query_info_nuki_bridge_version},
-        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBBUILD, "Bridge Build",preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
+        {HAR_CAT_GENERAL, TOKEN_SUFFIX_NBBUILD, "Bridge Build", preference_har_path_info_nuki_bridge_build, preference_har_query_info_nuki_bridge_build},
         {HAR_CAT_GENERAL, TOKEN_SUFFIX_FREEHP, "Free heap", preference_har_path_freeheap, preference_har_query_freeheap},
         {HAR_CAT_GENERAL, TOKEN_SUFFIX_WFRSSI, "Wi-Fi rssi", preference_har_path_wifi_rssi, preference_har_query_wifi_rssi},
         {HAR_CAT_GENERAL, TOKEN_SUFFIX_BLEADDR, "BLE address", preference_har_path_ble_address, preference_har_query_ble_address},
@@ -2926,7 +2974,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 _preferences->putInt(preference_log_max_msg_len, value.toInt());
                 Log->print("Setting changed: ");
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
         else if (key == "LOGMAXSIZE")
@@ -2936,7 +2984,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 _preferences->putInt(preference_log_max_file_size, value.toInt());
                 Log->print("Setting changed: ");
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
         HANDLE_STRING_PREF_ARG("LOGBCKSRV", preference_log_backup_ftp_server, true)

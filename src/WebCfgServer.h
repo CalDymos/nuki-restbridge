@@ -127,10 +127,22 @@ private:
     void buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect = false, String redirectTo = "/");
 
     /**
-     * @brief Builds the HTML page showing core dump or crash info.
+     * @brief Handles HTTP request to download the current log file.
+     *
+     * This method attempts to mount the SPIFFS filesystem and open the current log file
+     * defined by LOGGER_FILENAME. If the file is found, it is streamed to the client
+     * with appropriate headers to trigger a download. If the file does not exist or
+     * cannot be opened, a corresponding HTTP error response is sent.
+     *
+     * @param server Pointer to the WebServer handling the current HTTP request.
+     */
+    void buildGetLogFileHtml(WebServer *server);
+
+    /**
+     * @brief Builds the HTML page to download current core dump file.
      * @param server Pointer to the active WebServer instance.
      */
-    void buildCoredumpHtml(WebServer *server);
+    void buildGetCoredumpFileHtml(WebServer *server);
 
     /**
      * @brief Builds the device info page (version, MAC, uptime, etc.).
@@ -228,15 +240,6 @@ private:
      * @return         true for success, false for error.
      */
     bool processArgs(WebServer *server, String &message);
-
-    /**
-     * Processes the transmitted Path & Query settings of the buildHARConfigHtml page
-     *
-     * @param server   Pointer to the WebServer object with the request data.
-     * @param message  [out] Message with the status of processing (e.g. error message).
-     * @return         true for success, false for error.
-     */
-    bool processHARArgs(WebServer *server, String &message);
 
     /**
      * @brief Processes the current bypass request from the web UI.

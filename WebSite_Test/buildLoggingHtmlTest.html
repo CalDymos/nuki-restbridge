@@ -1,0 +1,40 @@
+<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><link rel='stylesheet' href='style.css'><title>Nuki Bridge</title></head><body><form class="adapt" method="post" action="post"><input type="hidden" name="page" value="savelog"><h3>Logging Configuration</h3><table>
+<tr><td>Filename</td><td><input type="text" readonly value="Log.txt" name="LOGFILE" size="25" maxlength="64"/></td></tr>
+<tr><td>Max. message length (min 1, max 1024)</td><td><input type="text" min='1' max='1024' value="128" name="LOGMSGLEN" size="25" maxlength="6"/></td></tr>
+<tr><td>Max. log file size (min 256KB, max 1024KB)</td><td><input type="text" min='256' max='1024' value="256" name="LOGMAXSIZE" size="25" maxlength="6"/></td></tr>
+<tr><td>Log level for Nuki Bridge</td><td><select name="LOGLEVEL">
+<option value="0" selected>TRACE</option>
+<option value="1">DEBUG</option>
+<option value="2">INFO</option>
+<option value="3">WARNING</option>
+<option value="4">ERROR</option>
+<option value="5">CRITICAL</option>
+</select></td></tr>
+<tr><td>Enable FTP log backup</td><td><input type="checkbox" name="LOGBCKENA"/></td></tr>
+<tr><td>FTP Server</td><td><input type="text" value="" name="LOGBCKSRV" size="25" maxlength="64"/></td></tr>
+<tr><td>FTP Directory</td><td><input type="text" value="" name="LOGBCKDIR" size="25" maxlength="64"/></td></tr>
+<tr><td>FTP Username</td><td><input type="text" value="" name="LOGBCKUSR" size="25" maxlength="32"/></td></tr>
+<tr><td>FTP Password (Max. 32 characters)</td><td><input type="password" value="" name="LOGBCKPWD" size="25" maxlength="32"/></td></tr>
+</table>
+  <div style="margin-top: 20px;">
+    <input type="submit" name="submit" value="Save" style="margin-right: 15px;" />
+
+    <button type="button" title="Download current log file"
+            onclick="window.open('/get?page=logfile'); return false;"
+            style="margin-right: 10px;">
+      Download Log
+    </button>
+
+    <button type="button" title="Clear log file"
+            onclick="if(confirm('Really clear log file?')) window.open('/get?page=clearlog'); return false;"
+            style="margin-right: 10px;">
+      Clear Log
+    </button>
+
+    <button type="button" title="Download current Coredump"
+            onclick="window.open('/get?page=coredump'); return false;">
+      Download Coredump
+    </button>
+  </div>
+</form>
+</body></html>
