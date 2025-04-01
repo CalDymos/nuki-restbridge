@@ -1,0 +1,87 @@
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+  <title>Nuki Bridge</title>
+  <script>
+    let intervalId;
+    window.onload = function() {
+      updateInfo();
+      intervalId = setInterval(updateInfo, 3000);
+    };
+    function updateInfo() {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/get?page=status', true);
+      request.onload = () => {
+        const obj = JSON.parse(request.responseText);
+        if (obj.stop == 1) {
+          clearInterval(intervalId);
+        }
+        for (var key of Object.keys(obj)) {
+          if (key == 'ota' && document.getElementById(key) !== null) {
+            document.getElementById(key).innerText = "<a href='/ota'>" + obj[key] + "</a>";
+          } else if (document.getElementById(key) !== null) {
+            document.getElementById(key).innerText = obj[key];
+          }
+        }
+      };
+      request.send();
+    }
+  </script>
+</head>
+<body>
+
+<!-- Reboot-Warnung -->
+<table>
+  <tbody>
+    <tr>
+      <td colspan="2" style="border: 0; color: red; font-size: 32px; font-weight: bold; text-align: center;">
+        REBOOT REQUIRED TO APPLY SETTINGS
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- Debug-Warnung -->
+<table>
+  <tbody>
+    <tr>
+      <td colspan="2" style="border: 0; color: red; font-size: 32px; font-weight: bold; text-align: center;">
+        RUNNING DEBUG BUILD, SWITCH TO RELEASE BUILD ASAP
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- Status-Tabelle -->
+<h3>Info</h3><br>
+<table>
+  <tr><td>Hostname</td><td id="hostname"></td></tr>
+  <tr><td>REST API active</td><td id="APIState"></td></tr>
+  <tr><td>HAR active</td><td id="HARState"></td></tr>
+  <tr><td>Nuki Lock paired</td><td id="lockPaired"></td></tr>
+  <tr><td>Nuki Lock state</td><td id="lockState"></td></tr>
+  <tr><td>Nuki Lock PIN status</td><td id="lockPin"></td></tr>
+  <tr><td>Firmware</td><td id="firmware"><a href='/get?page=info'>NUKI_REST_BRIDGE_VERSION</a></td></tr>
+</table>
+<br>
+
+<!-- Navigationsmenü -->
+<ul id="tblnav">
+  <li><a href="/get?page=ntwconfig">Network Configuration</a></li>
+  <li><a href="/get?page=apiconfig">REST API Configuration</a></li>
+  <li><a href="/get?page=harconfig">HAR Configuration</a></li>
+  <li><a href="/get?page=nukicfg">Nuki Configuration</a></li>
+  <li><a href="/get?page=acclvl">Access Level Configuration</a></li>
+  <li><a href="/get?page=cred">Credentials</a></li>
+  <li><a href="/get?page=logging">Log Configuration</a></li>
+  <li><a href="/get?page=custntw">Custom Ethernet Configuration</a></li>
+  <li><a href="/get?page=advanced">Advanced Configuration</a></li>
+  <li><a href="/get?page=wifi">Configure Wi-Fi</a></li>
+  <li><a href="/get?page=info">Info page</a></li>
+  <li><a href="/get?page=reboot&CONFIRMTOKEN=...">Reboot Nuki Bridge</a></li>
+  <li><a href="/get?page=logout">Logout</a></li>
+</ul>
+
+</body>
+</html>
