@@ -1714,7 +1714,7 @@ bool NukiNetwork::connect()
 
         WiFi.begin(_WiFissid, _WiFipass);
 
-        Log->print("[DEBUG] WiFi connecting");
+        Log->print(F("[DEBUG] WiFi connecting"));
         int loop = 0;
         while (!isConnected() && loop < 150)
         {
