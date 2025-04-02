@@ -98,7 +98,7 @@ void NukiNetwork::initialize()
         _homeAutomationEnabled = _preferences->getBool(preference_har_enabled, false);
         _homeAutomationAdress = _preferences->getString(preference_har_address, "");
         _homeAutomationPort = _preferences->getInt(preference_har_port, 0);
-        _homeAutomationMode = _preferences->getInt(preference_har_mode, 0); // 0=UDP, 1=REST
+        _homeAutomationMode = _preferences->getInt(preference_har_mode, 0);          // 0=UDP, 1=REST
         _homeAutomationRestMode = _preferences->getInt(preference_har_rest_mode, 0); // 0=GET, 1=POST
 
         _hostname = _preferences->getString(preference_hostname, "");
@@ -264,7 +264,7 @@ bool NukiNetwork::update()
             String key = _preferences->getString(preference_har_key_wifi_rssi);
             String param = _preferences->getString(preference_har_param_wifi_rssi);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 sendToHAInt(key.c_str(), param.c_str(), signalStrength());
             _lastRssi = rssi;
         }
@@ -278,7 +278,7 @@ bool NukiNetwork::update()
             String key = _preferences->getString(preference_har_key_uptime);
             String param = _preferences->getString(preference_har_param_uptime);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 sendToHAULong(key.c_str(), param.c_str(), curUptime);
             _publishedUpTime = curUptime;
         }
@@ -288,25 +288,25 @@ bool NukiNetwork::update()
             String key = _preferences->getString(preference_har_key_restart_reason_fw);
             String param = _preferences->getString(preference_har_param_restart_reason_fw);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 sendToHAString(key.c_str(), param.c_str(), getRestartReason().c_str());
 
             key = _preferences->getString(preference_har_key_restart_reason_esp);
             param = _preferences->getString(preference_har_param_restart_reason_esp);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 sendToHAString(key.c_str(), param.c_str(), getEspRestartReason().c_str());
 
             key = _preferences->getString(preference_har_key_info_nuki_bridge_version);
             param = _preferences->getString(preference_har_param_info_nuki_bridge_version);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 sendToHAString(key.c_str(), param.c_str(), NUKI_REST_BRIDGE_VERSION);
 
             key = _preferences->getString(preference_har_key_info_nuki_bridge_build);
             param = _preferences->getString(preference_har_param_info_nuki_bridge_build);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 sendToHAString(key.c_str(), param.c_str(), NUKI_REST_BRIDGE_BUILD);
         }
         if (_sendDebugInfo)
@@ -314,7 +314,7 @@ bool NukiNetwork::update()
             String key = _preferences->getString(preference_har_key_freeheap);
             String param = _preferences->getString(preference_har_param_freeheap);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 sendToHAUInt(key.c_str(), param.c_str(), esp_get_free_heap_size());
         }
         _lastMaintenanceTs = ts;
@@ -523,7 +523,7 @@ void NukiNetwork::sendToHALockBleAddress(const std::string &address)
         String key = _preferences->getString(preference_har_key_ble_address);
         String param = _preferences->getString(preference_har_param_ble_address);
 
-        if (key && param)
+        if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
             sendDataToHA(key.c_str(), param.c_str(), address.c_str());
     }
 }
@@ -539,25 +539,25 @@ void NukiNetwork::sendToHABatteryReport(const NukiLock::BatteryReport &batteryRe
 
         key = _preferences->getString(preference_har_key_battery_voltage);
         param = _preferences->getString(preference_har_param_battery_voltage);
-        if (key && param)
+        if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
         {
             sendToHAFloat(key.c_str(), param.c_str(), (float)batteryReport.batteryVoltage / 1000.0, true);
         }
         key = _preferences->getString(preference_har_key_battery_drain);
         param = _preferences->getString(preference_har_param_battery_drain);
-        if (key && param)
+        if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
         {
             sendToHAFloat(key.c_str(), param.c_str(), batteryReport.batteryDrain, true); // milliwatt seconds
         }
         key = _preferences->getString(preference_har_key_battery_max_turn_current);
         param = _preferences->getString(preference_har_param_battery_max_turn_current);
-        if (key && param)
+        if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
         {
             sendToHAFloat(key.c_str(), param.c_str(), (float)batteryReport.maxTurnCurrent / 1000.0, true);
         }
         key = _preferences->getString(preference_har_key_battery_lock_distance);
         param = _preferences->getString(preference_har_param_battery_lock_distance);
-        if (key && param)
+        if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
         {
             sendToHAFloat(key.c_str(), param.c_str(), batteryReport.lockDistance, true); // degrees
         }
@@ -571,7 +571,7 @@ void NukiNetwork::sendToHABleRssi(const int &rssi)
         String key = _preferences->getString(preference_har_key_ble_rssi);
         String param = _preferences->getString(preference_har_param_ble_rssi);
 
-        if (key && param)
+        if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
             sendToHAInt(key.c_str(), param.c_str(), rssi);
     }
 }
@@ -595,7 +595,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
             key = _preferences->getString(preference_har_key_lock_state);
             param = _preferences->getString(preference_har_param_lock_state);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
             {
                 sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.lockState);
             }
@@ -603,7 +603,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
             key = _preferences->getString(preference_har_key_lockngo_state);
             param = _preferences->getString(preference_har_param_lockngo_state);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
             {
                 sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.lockNgoTimer);
             }
@@ -617,7 +617,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 key = _preferences->getString(preference_har_key_lock_trigger);
                 param = _preferences->getString(preference_har_param_lock_trigger);
 
-                if (key && param)
+                if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 {
                     sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.trigger);
                 }
@@ -626,7 +626,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
             key = _preferences->getString(preference_har_key_lock_night_mode);
             param = _preferences->getString(preference_har_param_lock_night_mode);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
             {
                 sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.nightModeActive);
             }
@@ -639,7 +639,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 key = _preferences->getString(preference_har_key_lock_completionStatus);
                 param = _preferences->getString(preference_har_param_lock_completionStatus);
 
-                if (key && param)
+                if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 {
                     sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.lastLockActionCompletionStatus);
                 }
@@ -654,7 +654,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 key = _preferences->getString(preference_har_key_doorsensor_state);
                 param = _preferences->getString(preference_har_param_doorsensor_state);
 
-                if (key && param)
+                if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 {
                     sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.doorSensorState);
                 }
@@ -670,7 +670,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 key = _preferences->getString(preference_har_key_lock_battery_critical);
                 param = _preferences->getString(preference_har_param_lock_battery_critical);
 
-                if (key && param)
+                if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 {
                     sendToHAInt(key.c_str(), param.c_str(), (int)critical);
                 }
@@ -678,7 +678,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 key = _preferences->getString(preference_har_key_lock_battery_level);
                 param = _preferences->getString(preference_har_param_lock_battery_level);
 
-                if (key && param)
+                if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 {
                     sendToHAInt(key.c_str(), param.c_str(), (int)level);
                 }
@@ -686,7 +686,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 key = _preferences->getString(preference_har_key_lock_battery_charging);
                 param = _preferences->getString(preference_har_param_lock_battery_charging);
 
-                if (key && param)
+                if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 {
                     sendToHAInt(key.c_str(), param.c_str(), (int)charging);
                 }
@@ -697,7 +697,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 key = _preferences->getString(preference_har_key_keypad_critical);
                 param = _preferences->getString(preference_har_param_keypad_critical);
 
-                if (key && param)
+                if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 {
                     sendToHAInt(key.c_str(), param.c_str(), (int)keypadCritical);
                 }
@@ -710,7 +710,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 key = _preferences->getString(preference_har_key_doorsensor_critical);
                 param = _preferences->getString(preference_har_param_doorsensor_critical);
 
-                if (key && param)
+                if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 {
                     sendToHAInt(key.c_str(), param.c_str(), (int)doorSensorCritical);
                 }
@@ -719,7 +719,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
             key = _preferences->getString(preference_har_key_remote_access_state);
             param = _preferences->getString(preference_har_param_remote_access_state);
 
-            if (key && param)
+            if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
             {
                 sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.remoteAccessStatus);
             }
@@ -729,7 +729,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
                 key = _preferences->getString(preference_har_key_ble_strength);
                 param = _preferences->getString(preference_har_param_ble_strength);
 
-                if (key && param)
+                if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
                 {
                     sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.bleConnectionStrength);
                 }
@@ -745,8 +745,10 @@ void NukiNetwork::sendDataToHA(const char *key, const char *param, const char *v
     // --- UDP Mode ---
     if (_homeAutomationMode == 0) // UDP
     {
+        if (!param || !*param)
+            return;
         char message[384];
-        snprintf(message, sizeof(message), "%s=%s", param ? param : "v", value ? value : "");
+        snprintf(message, sizeof(message), "%s=%s", param, value ? value : "");
 
         _udpClient->beginPacket(_homeAutomationAdress.c_str(), _homeAutomationPort);
         _udpClient->write(reinterpret_cast<const uint8_t *>(message), strlen(message));
@@ -756,6 +758,9 @@ void NukiNetwork::sendDataToHA(const char *key, const char *param, const char *v
 
     if (_homeAutomationMode == 1) // REST
     {
+        if (!key || !*key)
+            return;
+
         const size_t BUFFER_SIZE = 256;
         char url[BUFFER_SIZE];
         char postData[BUFFER_SIZE];
@@ -781,19 +786,11 @@ void NukiNetwork::sendDataToHA(const char *key, const char *param, const char *v
             strncat(url, portStr, BUFFER_SIZE - strlen(url) - 1);
         }
 
-        // Add Path, Query & Value (if available)
-        if (key && *key)
-        {
-            strncat(url, "/", BUFFER_SIZE - strlen(url) - 1);
-            strncat(url, key, BUFFER_SIZE - strlen(url) - 1);
-        }
-
-        // Send HTTP request
-        _httpClient->begin(url);
+        // Add Path
+        strncat(url, "/", BUFFER_SIZE - strlen(url) - 1);
+        strncat(url, key, BUFFER_SIZE - strlen(url) - 1);
 
         int httpCode = -1;
-
-        _httpClient->addHeader("Content-Type", "application/x-www-form-urlencoded");
 
         if (_homeAutomationRestMode == 0) // GET
         {
@@ -807,6 +804,10 @@ void NukiNetwork::sendDataToHA(const char *key, const char *param, const char *v
             {
                 strncat(url, value, BUFFER_SIZE - strlen(url) - 1);
             }
+
+            // Send HTTP request
+            _httpClient->begin(url);
+            _httpClient->addHeader("Content-Type", "application/x-www-form-urlencoded");
             httpCode = _httpClient->GET();
         }
         else // POST
@@ -819,6 +820,10 @@ void NukiNetwork::sendDataToHA(const char *key, const char *param, const char *v
             {
                 strncat(postData, value, BUFFER_SIZE - strlen(postData) - 1);
             }
+
+            // Send HTTP request
+            _httpClient->begin(url);
+            _httpClient->addHeader("Content-Type", "application/x-www-form-urlencoded");
             httpCode = _httpClient->POST(postData);
         }
 
