@@ -7,6 +7,7 @@
 #include <ETH.h>
 #include <WebServer.h>
 #include <HTTPClient.h>
+#include <NetworkUdp.h>
 #include <WiFiClient.h>
 #include "ESP32Ping.h"
 #include <ArduinoJson.h>
@@ -17,7 +18,7 @@
 #include "IPConfiguration.h"
 #include "NetworkDeviceType.h"
 #include "BridgeApiToken.h"
-#include "NetworkServiceStates.h"
+#include "NetworkServiceState.h"
 #include "QueryCommand.h"
 #include "LockActionResult.h"
 
@@ -80,7 +81,7 @@ public:
      * @param query Query string.
      * @param value Float value to send.
      */
-    void sendToHAFloat(const char *path, const char *query, const float value, const uint8_t precision = 2);
+    void sendToHAFloat(const char *key, const char *param, const float value, const uint8_t precision = 2);
 
     /**
      * @brief Sends an integer value to the Home Automation system.
@@ -88,7 +89,7 @@ public:
      * @param query Query string.
      * @param value Integer value to send.
      */
-    void sendToHAInt(const char *path, const char *query, const int value);
+    void sendToHAInt(const char *key, const char *param, const int value);
 
     /**
      * @brief Sends an unsigned integer value to the Home Automation system.
@@ -96,7 +97,7 @@ public:
      * @param query Query string.
      * @param value Unsigned integer value to send.
      */
-    void sendToHAUInt(const char *path, const char *query, const unsigned int value);
+    void sendToHAUInt(const char *key, const char *param, const unsigned int value);
 
     /**
      * @brief Sends an unsigned long value to the Home Automation system.
@@ -104,7 +105,7 @@ public:
      * @param query Query string.
      * @param value Unsigned long value to send.
      */
-    void sendToHAULong(const char *path, const char *query, const unsigned long value);
+    void sendToHAULong(const char *key, const char *param, const unsigned long value);
 
     /**
      * @brief Sends a 64-bit integer value to the Home Automation system.
@@ -112,7 +113,7 @@ public:
      * @param query Query string.
      * @param value 64-bit integer value to send.
      */
-    void sendToHALongLong(const char *path, const char *query, int64_t value);
+    void sendToHALongLong(const char *key, const char *param, int64_t value);
 
     /**
      * @brief Sends a boolean value to the Home Automation system.
@@ -120,7 +121,7 @@ public:
      * @param query Query string.
      * @param value Boolean value to send.
      */
-    void sendToHABool(const char *path, const char *query, const bool value);
+    void sendToHABool(const char *key, const char *param, const bool value);
 
     /**
      * @brief Sends a string value to the Home Automation system.
@@ -128,7 +129,7 @@ public:
      * @param query Query string.
      * @param value String value to send.
      */
-    void sendToHAString(const char *path, const char *query, const char *value);
+    void sendToHAString(const char *key, const char *param, const char *value);
 
     /**
      * @brief Sends the BLE address of the lock to the Home Automation system.
@@ -222,7 +223,7 @@ public:
     /**
      * @brief Getter for network service status (API WebServer and HAR HTTPClient).
      */
-    NetworkServiceStates networkServicesState();
+    NetworkServiceState networkServicesState();
 
     /**
      * @brief Returns the bitmask of active query commands received via REST API.
@@ -233,7 +234,7 @@ public:
     /**
      * @brief Sends arbitrary requests to Home Automation (e.g. to provide status values).
      */
-    void sendRequestToHA(const char *path, const char *query, const char *value);
+    void sendDataToHA(const char *key, const char *param, const char *value);
 
     /**
      * @brief Sende HTTP-Response as JSON-string to Client (on request of home automation).
@@ -317,12 +318,12 @@ private:
     /**
      * @brief Runs tests for WebServer (API) and HTTPClient (HAR) (e.g., ping).
      */
-    NetworkServiceStates testNetworkServices();
+    NetworkServiceState testNetworkServices();
 
     /**
      * @brief Stops or restarts WebServer(API)/HTTPClient(HAR) in case of failure.
      */
-    void restartNetworkServices(NetworkServiceStates status);
+    void restartNetworkServices(NetworkServiceState status);
 
     /**
      * @brief Handles network-related events (WiFi/Ethernet callback).
@@ -395,7 +396,7 @@ private:
     bool _restartOnDisconnect = false;                                            // Whether the device should reboot on disconnect
     bool _disableNetworkIfNotConnected = false;                                   // Forces network shutdown if no connection is active
     bool _firstTunerStateSent = true;                                             // Ensures the first lock state is always sent
-    NetworkServiceStates _networkServicesState = NetworkServiceStates::UNDEFINED; // Current state of network services
+    NetworkServiceState _networkServicesState = NetworkServiceState::UNKNOWN;     // Current state of network services
                                                                                   //
     String _keypadCommandName = "";                                               // Temporary buffer for keypad command name
     String _keypadCommandCode = "";                                               // Temporary buffer for keypad command code
@@ -411,7 +412,8 @@ private:
     int64_t _lastRssiTs = 0;                                                      // Last time RSSI was transmitted
                                                                                   //
     WebServer *_server = nullptr;                                                 // REST API web server instance
-    HTTPClient *_httpClient = nullptr;                                            // HTTP client for outgoing requests
+    HTTPClient *_httpClient = nullptr;                                            // HTTP client for sending Data to HA
+    NetworkUDP *_udpClient = nullptr;                                                   // UDP client for sending Data to HA
     int _foundNetworks = 0;                                                       // Number of WiFi networks found during last scan
     int _networkTimeout = 0;                                                      // Timeout in ms for network operations
     int _rssiSendInterval = 0;                                                    // Interval for RSSI reporting
@@ -425,6 +427,8 @@ private:
     String _homeAutomationAdress;                                                 // Target IP or hostname of HA server
     String _homeAutomationUser;                                                   // Optional HA user name
     String _homeAutomationPassword;                                               // Optional HA password
+    int _homeAutomationMode;                                                      // current Mode for data reporting to Ha (0=UDP/1=REST)
+    int _homeAutomationRestMode;                                                  // Rest Mode (0=GET/1=POST)
     int _homeAutomationPort;                                                      // Port for HA
                                                                                   //
     char *_buffer;                                                                // Shared buffer for response generation

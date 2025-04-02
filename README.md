@@ -172,98 +172,111 @@ You can configure:
 - **Enable Home Automation Report**: Enable to periodically send status updates (e.g. RSSI, lock state, battery) to a Home Automation system.
 - **Address**: Set to the IP address of Home Automation
 - **Port**: Set to the Port of Home Automation
-- **Mode**: (UDP / REST)
+- **Mode**: Select either UDP or REST.
+  >📘 In UDP mode, the fields marked as Path are ignored. Only the Param values are used. In REST mode, both Path and Query fields are required.
+- **REST Request Method**: Select Methode for Rest Request GET/POST.
+  >📘 only available if REST Mode is selected
 - **User**: Optional username for authenticating with the Home Automation system. Use `#` to disable authentication.
+  >📘 only available if REST Mode is selected
 - **Password**: Password corresponding to the username. Use `#` to disable authentication.
+  >📘 only available if REST Mode is selected
 
 
 #### Report Settings
+
+>⚠️ In REST Mode the Query field can optionally contain full query strings like ?action=set&ext=Extension1&io=Q1&value=.
+The actual value is appended to the end of this string during transmission.
+This allows compatibility with systems like Loxone and Comexio without special handling.
+In UDP Mode the Path field is not available.
+In UDP Mode the Param field is required.
+In REST mode, an empty key field means that the corresponding report is not sent.
+In UDP mode, an empty param field means that the corresponding report is not sent.
 
 ##### General
 
 - **HA State Path**: Home Automation API path that returns the status of the HAR in response to a GET request. Used as an additional check to verify if the Home Automation system is reachable. Leave empty to disable status check.
 - **Uptime Path**: URL path to report ESP system uptime to Home Automation (e.g. `/api/system/uptime`)
-- **Uptime Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Uptime (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **FW Restart Reason Path**: URL path to report the firmware restart reason to Home Automation (e.g. `/api/system/fwrestart`)
-- **FW Restart Reason Query**: Optional query string to append to the request (e.g. `?value=`)
+- **FW Restart Reason (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **ESP Restart Reason Path**: URL path to report the ESP restart reason to Home Automation (e.g. `/api/system/esprestart`)
-- **ESP Restart Reason Query**: Optional query string to append to the request (e.g. `?value=`)
+- **ESP Restart Reason (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Bridge Version Path**: URL path to report the Nuki Bridge firmware version (e.g. `/api/system/version`)
-- **Bridge Version Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Bridge Version (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Bridge Build Path**: URL path to report the build number or date of the Nuki Bridge (e.g. `/api/system/build`)
-- **Bridge Build Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Bridge Build (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Free Heap Path**: URL path to report available free heap memory (e.g. `/api/system/freeheap`)
-- **Free Heap Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Free Heap (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Wi-Fi RSSI Path**: URL path to report current Wi-Fi signal strength (RSSI) (e.g. `/api/system/wifi_rssi`)
-- **Wi-Fi RSSI Query**: Optional query string to append to the request (e.g. `?rssi=`)
+- **Wi-Fi RSSI (Query/Param)**: Query to report the value (e.g. `?rssi=`)
 
 - **BLE Address Path**: URL path to report the BLE MAC address of the Nuki device (e.g. `/api/system/ble_address`)
-- **BLE Address Query**: Optional query string to append to the request (e.g. `?addr=`)
+- **BLE Address (Query/Param)**: Query to report the value (e.g. `?addr=`)
 
 - **BLE RSSI Path**: URL path to report the signal strength (RSSI) of the BLE connection (e.g. `/api/system/ble_rssi`)
-- **BLE RSSI Query**: Optional query string to append to the request (e.g. `?rssi=`)
+- **BLE RSSI (Query/Param)**: Query to report the value (e.g. `?rssi=`)
 
 
 ##### Key Turner State
 
 - **Lock State Path**: URL path to report the current lock state (e.g. `/api/lock/state`)
-- **Lock State Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Lock State (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Lock 'N' Go State Path**: URL path to report if a Lock ’n’ Go action was triggered (e.g. `/api/lock/lockngo`)
-- **Lock 'N' Go State Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Lock 'N' Go State (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Lock Trigger Path**: URL path to report the last trigger source (e.g. `/api/lock/trigger`)
-- **Lock Trigger Query**: Optional query string to append to the request (e.g. `?source=`)
+- **Lock Trigger (Query/Param)**: Query to report the value (e.g. `?source=`)
 
 - **Night Mode Path**: URL path to report whether night mode is active (e.g. `/api/lock/nightmode`)
-- **Night Mode Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Night Mode (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Process Status Path**: URL path to report the lock completion status (e.g. `/api/lock/completionstatus`)
-- **Process Status Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Process Status (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Battery Critical Path**: URL path to report whether the lock battery is critical (e.g. `/api/lock/batterycritical`)
-- **Battery Critical Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Battery Critical (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Battery Level Path**: URL path to report the battery level percentage (e.g. `/api/lock/batterylevel`)
-- **Battery Level Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Battery Level (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Battery Charging Path**: URL path to report if the battery is currently charging (e.g. `/api/lock/batterycharging`)
-- **Battery Charging Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Battery Charging (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Door Sensor State Path**: URL path to report the door sensor state (e.g. `/api/lock/doorsensorstate`)
-- **Door Sensor State Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Door Sensor State (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Door Sensor Critical Path**: URL path to report door sensor error state (e.g. `/api/lock/doorsensorcritical`)
-- **Door Sensor Critical Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Door Sensor Critical (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Keypad Critical Path**: URL path to report keypad error state (e.g. `/api/lock/keypadcritical`)
-- **Keypad Critical Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Keypad Critical (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Remote Access State Path**: URL path to report the current remote access state (e.g. `/api/lock/remoteaccess`)
-- **Remote Access State Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Remote Access State (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **BLE Strength Path**: URL path to report BLE signal strength (e.g. `/api/lock/blestrength`)
-- **BLE Strength Query**: Optional query string to append to the request (e.g. `?value=`)
+- **BLE Strength (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 ##### Battery Report
 
 - **Voltage Path**: URL path to report the current battery voltage (e.g. `/api/battery/voltage`)
-- **Voltage Query**: Optional query string to append to the request (e.g. `?v=`)
+- **Voltage (Query/Param)**: Query to report the value (e.g. `?v=`)
 
 - **Drain Path**: URL path to report battery drain rate (e.g. `/api/battery/drain`)
-- **Drain Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Drain (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Max Turn Current Path**: URL path to report the peak current while turning the motor (e.g. `/api/battery/maxcurrent`)
-- **Max Turn Current Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Max Turn Current (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 - **Lock Distance Path**: URL path to report motor lock distance (e.g. `/api/battery/lockdistance`)
-- **Lock Distance Query**: Optional query string to append to the request (e.g. `?value=`)
+- **Lock Distance (Query/Param)**: Query to report the value (e.g. `?value=`)
 
 ---
 
@@ -311,6 +324,7 @@ You can configure:
 - **Password/Retype password**: Pick a password to enable HTTP authentication for the Web Configuration.
 - **HTTP Authentication type**: Select from Basic, Digest or Form based authentication. Digest authentication is more secure than Basic or Form based authentication, especially over unencrypted (HTTP) connections. Form based authentication works best with password managers. Note: Firefox seems to have issues with basic authentication.
 - **Bypass authentication for reverse proxy with IP**: IP for which authentication is bypassed. Use in conjunction with a reverse proxy server with separate authentication.
+- **Admin key**: Set a 32 character long alphanumeric string that can be used for some settings without needing to log in (for use with automated systems).
 - **Session validity (in seconds)**: Session validity to use with form authentication when the "Remember me" checkbox is disabled, default 3600 seconds.
 - **Session validity remember (in hours)**: Session validity to use with form authentication when the "Remember me" checkbox is enabled, default 720 hours.
 

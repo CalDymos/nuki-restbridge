@@ -503,5 +503,4 @@ private:
     char _credPassword[31] = {0};        // Stored password for the web interface login.
                                          //
     bool _allowRestartToPortal = false;  // Allows restarting into access point (config portal) mode.
-    bool _newBypass = false;             // True if bypass feature was activated or changed.
 };

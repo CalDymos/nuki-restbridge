@@ -41,6 +41,12 @@ NukiNetwork::~NukiNetwork()
         _httpClient->end();
         delete _httpClient;
     }
+
+    if (_udpClient)
+    {
+        delete _udpClient;
+        _udpClient = nullptr;
+    }
 }
 
 void NukiNetwork::setupDevice()
@@ -91,6 +97,9 @@ void NukiNetwork::initialize()
 
         _homeAutomationEnabled = _preferences->getBool(preference_har_enabled, false);
         _homeAutomationAdress = _preferences->getString(preference_har_address, "");
+        _homeAutomationPort = _preferences->getInt(preference_har_port, 0);
+        _homeAutomationMode = _preferences->getInt(preference_har_mode, 0); // 0=UDP, 1=REST
+        _homeAutomationRestMode = _preferences->getInt(preference_har_rest_mode, 0); // 0=GET, 1=POST
 
         _hostname = _preferences->getString(preference_hostname, "");
 
@@ -188,12 +197,23 @@ bool NukiNetwork::update()
         { // test all 30 seconds
             _lastNetworkServiceTs = ts;
             _networkServicesState = testNetworkServices();
-            if (_networkServicesState != NetworkServiceStates::OK)
+
+            bool svcBothDown = _homeAutomationEnabled && _apiEnabled && _networkServicesState != NetworkServiceState::OK;
+            bool svcHADown = !_apiEnabled && _networkServicesState != NetworkServiceState::ERROR_REST_API_SERVER;
+            bool svcAPIDown = !_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT;
+
+            if (svcBothDown || svcHADown || svcAPIDown)
             { // error in network Services
                 restartNetworkServices(_networkServicesState);
                 delay(1000);
                 _networkServicesState = testNetworkServices(); // test network services again
-                if (_networkServicesState != NetworkServiceStates::OK)
+
+                bool expectedStateOk =
+                    (_homeAutomationEnabled && _apiEnabled && _networkServicesState == NetworkServiceState::OK) ||
+                    (_homeAutomationEnabled && !_apiEnabled && _networkServicesState == NetworkServiceState::ERROR_REST_API_SERVER) ||
+                    (!_homeAutomationEnabled && _apiEnabled && _networkServicesState == NetworkServiceState::ERROR_HAR_CLIENT);
+
+                if (!expectedStateOk)
                 {
                     _networkServicesConnectCounter++;
                     return false;
@@ -215,7 +235,7 @@ bool NukiNetwork::update()
         delay(2000);
     }
 
-    if (_networkServicesState != NetworkServiceStates::OK || !isConnected())
+    if (_networkServicesState != NetworkServiceState::OK || !isConnected())
     {
         if (_networkTimeout > 0 && (ts - _lastConnectedTs > _networkTimeout * 1000) && ts > 60000)
         {
@@ -241,11 +261,11 @@ bool NukiNetwork::update()
 
         if (rssi != _lastRssi)
         {
-            String path = _preferences->getString(preference_har_path_wifi_rssi);
-            String query = _preferences->getString(preference_har_query_wifi_rssi);
+            String key = _preferences->getString(preference_har_key_wifi_rssi);
+            String param = _preferences->getString(preference_har_param_wifi_rssi);
 
-            if (path && query)
-                sendToHAInt(path.c_str(), query.c_str(), signalStrength());
+            if (key && param)
+                sendToHAInt(key.c_str(), param.c_str(), signalStrength());
             _lastRssi = rssi;
         }
     }
@@ -255,47 +275,47 @@ bool NukiNetwork::update()
         int64_t curUptime = ts / 1000 / 60;
         if (curUptime > _publishedUpTime)
         {
-            String path = _preferences->getString(preference_har_path_uptime);
-            String query = _preferences->getString(preference_har_query_uptime);
+            String key = _preferences->getString(preference_har_key_uptime);
+            String param = _preferences->getString(preference_har_param_uptime);
 
-            if (path && query)
-                sendToHAULong(path.c_str(), query.c_str(), curUptime);
+            if (key && param)
+                sendToHAULong(key.c_str(), param.c_str(), curUptime);
             _publishedUpTime = curUptime;
         }
 
         if (_lastMaintenanceTs == 0)
         {
-            String path = _preferences->getString(preference_har_path_restart_reason_fw);
-            String query = _preferences->getString(preference_har_query_restart_reason_fw);
+            String key = _preferences->getString(preference_har_key_restart_reason_fw);
+            String param = _preferences->getString(preference_har_param_restart_reason_fw);
 
-            if (path && query)
-                sendToHAString(path.c_str(), query.c_str(), getRestartReason().c_str());
+            if (key && param)
+                sendToHAString(key.c_str(), param.c_str(), getRestartReason().c_str());
 
-            path = _preferences->getString(preference_har_path_restart_reason_esp);
-            query = _preferences->getString(preference_har_query_restart_reason_esp);
+            key = _preferences->getString(preference_har_key_restart_reason_esp);
+            param = _preferences->getString(preference_har_param_restart_reason_esp);
 
-            if (path && query)
-                sendToHAString(path.c_str(), query.c_str(), getEspRestartReason().c_str());
+            if (key && param)
+                sendToHAString(key.c_str(), param.c_str(), getEspRestartReason().c_str());
 
-            path = _preferences->getString(preference_har_path_info_nuki_bridge_version);
-            query = _preferences->getString(preference_har_query_info_nuki_bridge_version);
+            key = _preferences->getString(preference_har_key_info_nuki_bridge_version);
+            param = _preferences->getString(preference_har_param_info_nuki_bridge_version);
 
-            if (path && query)
-                sendToHAString(path.c_str(), query.c_str(), NUKI_REST_BRIDGE_VERSION);
+            if (key && param)
+                sendToHAString(key.c_str(), param.c_str(), NUKI_REST_BRIDGE_VERSION);
 
-            path = _preferences->getString(preference_har_path_info_nuki_bridge_build);
-            query = _preferences->getString(preference_har_query_info_nuki_bridge_build);
+            key = _preferences->getString(preference_har_key_info_nuki_bridge_build);
+            param = _preferences->getString(preference_har_param_info_nuki_bridge_build);
 
-            if (path && query)
-                sendToHAString(path.c_str(), query.c_str(), NUKI_REST_BRIDGE_BUILD);
+            if (key && param)
+                sendToHAString(key.c_str(), param.c_str(), NUKI_REST_BRIDGE_BUILD);
         }
         if (_sendDebugInfo)
         {
-            String path = _preferences->getString(preference_har_path_freeheap);
-            String query = _preferences->getString(preference_har_query_freeheap);
+            String key = _preferences->getString(preference_har_key_freeheap);
+            String param = _preferences->getString(preference_har_param_freeheap);
 
-            if (path && query)
-                sendToHAUInt(path.c_str(), query.c_str(), esp_get_free_heap_size());
+            if (key && param)
+                sendToHAUInt(key.c_str(), param.c_str(), esp_get_free_heap_size());
         }
         _lastMaintenanceTs = ts;
     }
@@ -415,7 +435,7 @@ void NukiNetwork::disableHAR()
     _homeAutomationEnabled = false;
 }
 
-NetworkServiceStates NukiNetwork::networkServicesState()
+NetworkServiceState NukiNetwork::networkServicesState()
 {
     return _networkServicesState;
 }
@@ -427,165 +447,165 @@ uint8_t NukiNetwork::queryCommands()
     return qc;
 }
 
-void NukiNetwork::sendToHAFloat(const char *path, const char *query, const float value, uint8_t precision)
+void NukiNetwork::sendToHAFloat(const char *path, const char *param, const float value, uint8_t precision)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
         char buffer[30];
         dtostrf(value, 0, precision, buffer);
-        sendRequestToHA(path, query, buffer);
+        sendDataToHA(path, param, buffer);
     }
 }
 
-void NukiNetwork::sendToHAInt(const char *path, const char *query, const int value)
+void NukiNetwork::sendToHAInt(const char *path, const char *param, const int value)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
         char buffer[30];
         itoa(value, buffer, 10);
-        sendRequestToHA(path, query, buffer);
+        sendDataToHA(path, param, buffer);
     }
 }
 
-void NukiNetwork::sendToHAUInt(const char *path, const char *query, const unsigned int value)
+void NukiNetwork::sendToHAUInt(const char *path, const char *param, const unsigned int value)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
         char buffer[30];
         utoa(value, buffer, 10);
-        sendRequestToHA(path, query, buffer);
+        sendDataToHA(path, param, buffer);
     }
 }
 
-void NukiNetwork::sendToHAULong(const char *path, const char *query, const unsigned long value)
+void NukiNetwork::sendToHAULong(const char *path, const char *param, const unsigned long value)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
         char buffer[30];
         ultoa(value, buffer, 10);
-        sendRequestToHA(path, query, buffer);
+        sendDataToHA(path, param, buffer);
     }
 }
 
-void NukiNetwork::sendToHALongLong(const char *path, const char *query, const int64_t value)
+void NukiNetwork::sendToHALongLong(const char *path, const char *param, const int64_t value)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
         char buffer[30];
         lltoa(value, buffer, 10);
-        sendRequestToHA(path, query, buffer);
+        sendDataToHA(path, param, buffer);
     }
 }
 
-void NukiNetwork::sendToHABool(const char *path, const char *query, const bool value)
+void NukiNetwork::sendToHABool(const char *path, const char *param, const bool value)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
         char buffer[2] = {0};
         buffer[0] = value ? '1' : '0';
-        sendRequestToHA(path, query, buffer);
+        sendDataToHA(path, param, buffer);
     }
 }
 
-void NukiNetwork::sendToHAString(const char *path, const char *query, const char *value)
+void NukiNetwork::sendToHAString(const char *path, const char *param, const char *value)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
-        sendRequestToHA(path, query, value);
+        sendDataToHA(path, param, value);
     }
 }
 
 void NukiNetwork::sendToHALockBleAddress(const std::string &address)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
 
-        String path = _preferences->getString(preference_har_path_ble_address);
-        String query = _preferences->getString(preference_har_query_ble_address);
+        String key = _preferences->getString(preference_har_key_ble_address);
+        String param = _preferences->getString(preference_har_param_ble_address);
 
-        if (path && query)
-            sendRequestToHA(path.c_str(), query.c_str(), address.c_str());
+        if (key && param)
+            sendDataToHA(key.c_str(), param.c_str(), address.c_str());
     }
 }
 
 void NukiNetwork::sendToHABatteryReport(const NukiLock::BatteryReport &batteryReport)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
-        String path;
-        path.reserve(384);
-        String query;
-        query.reserve(128);
+        String key;
+        key.reserve(384);
+        String param;
+        param.reserve(128);
 
-        path = _preferences->getString(preference_har_path_battery_voltage);
-        query = _preferences->getString(preference_har_query_battery_voltage);
-        if (path && query)
+        key = _preferences->getString(preference_har_key_battery_voltage);
+        param = _preferences->getString(preference_har_param_battery_voltage);
+        if (key && param)
         {
-            sendToHAFloat(path.c_str(), query.c_str(), (float)batteryReport.batteryVoltage / 1000.0, true);
+            sendToHAFloat(key.c_str(), param.c_str(), (float)batteryReport.batteryVoltage / 1000.0, true);
         }
-        path = _preferences->getString(preference_har_path_battery_drain);
-        query = _preferences->getString(preference_har_query_battery_drain);
-        if (path && query)
+        key = _preferences->getString(preference_har_key_battery_drain);
+        param = _preferences->getString(preference_har_param_battery_drain);
+        if (key && param)
         {
-            sendToHAFloat(path.c_str(), query.c_str(), batteryReport.batteryDrain, true); // milliwatt seconds
+            sendToHAFloat(key.c_str(), param.c_str(), batteryReport.batteryDrain, true); // milliwatt seconds
         }
-        path = _preferences->getString(preference_har_path_battery_max_turn_current);
-        query = _preferences->getString(preference_har_query_battery_max_turn_current);
-        if (path && query)
+        key = _preferences->getString(preference_har_key_battery_max_turn_current);
+        param = _preferences->getString(preference_har_param_battery_max_turn_current);
+        if (key && param)
         {
-            sendToHAFloat(path.c_str(), query.c_str(), (float)batteryReport.maxTurnCurrent / 1000.0, true);
+            sendToHAFloat(key.c_str(), param.c_str(), (float)batteryReport.maxTurnCurrent / 1000.0, true);
         }
-        path = _preferences->getString(preference_har_path_battery_lock_distance);
-        query = _preferences->getString(preference_har_query_battery_lock_distance);
-        if (path && query)
+        key = _preferences->getString(preference_har_key_battery_lock_distance);
+        param = _preferences->getString(preference_har_param_battery_lock_distance);
+        if (key && param)
         {
-            sendToHAFloat(path.c_str(), query.c_str(), batteryReport.lockDistance, true); // degrees
+            sendToHAFloat(key.c_str(), param.c_str(), batteryReport.lockDistance, true); // degrees
         }
     }
 }
 
 void NukiNetwork::sendToHABleRssi(const int &rssi)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
-        String path = _preferences->getString(preference_har_path_ble_rssi);
-        String query = _preferences->getString(preference_har_query_ble_rssi);
+        String key = _preferences->getString(preference_har_key_ble_rssi);
+        String param = _preferences->getString(preference_har_param_ble_rssi);
 
-        if (path && query)
-            sendToHAInt(path.c_str(), query.c_str(), rssi);
+        if (key && param)
+            sendToHAInt(key.c_str(), param.c_str(), rssi);
     }
 }
 
 void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurnerState, const NukiLock::KeyTurnerState &lastKeyTurnerState)
 {
-    if (_homeAutomationEnabled)
+    if (_homeAutomationEnabled && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT)
     {
         char str[50];
         memset(&str, 0, sizeof(str));
 
-        String path;
-        path.reserve(384);
-        String query;
-        query.reserve(128);
+        String key;
+        key.reserve(384);
+        String param;
+        param.reserve(128);
 
         if (_homeAutomationEnabled)
         {
             lockstateToString(keyTurnerState.lockState, str);
 
-            path = _preferences->getString(preference_har_path_lock_state);
-            query = _preferences->getString(preference_har_query_lock_state);
+            key = _preferences->getString(preference_har_key_lock_state);
+            param = _preferences->getString(preference_har_param_lock_state);
 
-            if (path && query)
+            if (key && param)
             {
-                sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.lockState);
+                sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.lockState);
             }
 
-            path = _preferences->getString(preference_har_path_lockngo_state);
-            query = _preferences->getString(preference_har_query_lockngo_state);
+            key = _preferences->getString(preference_har_key_lockngo_state);
+            param = _preferences->getString(preference_har_param_lockngo_state);
 
-            if (path && query)
+            if (key && param)
             {
-                sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.lockNgoTimer);
+                sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.lockNgoTimer);
             }
 
             memset(&str, 0, sizeof(str));
@@ -594,21 +614,21 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if (_firstTunerStateSent || keyTurnerState.trigger != lastKeyTurnerState.trigger)
             {
-                path = _preferences->getString(preference_har_path_lock_trigger);
-                query = _preferences->getString(preference_har_query_lock_trigger);
+                key = _preferences->getString(preference_har_key_lock_trigger);
+                param = _preferences->getString(preference_har_param_lock_trigger);
 
-                if (path && query)
+                if (key && param)
                 {
-                    sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.trigger);
+                    sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.trigger);
                 }
             }
 
-            path = _preferences->getString(preference_har_path_lock_night_mode);
-            query = _preferences->getString(preference_har_query_lock_night_mode);
+            key = _preferences->getString(preference_har_key_lock_night_mode);
+            param = _preferences->getString(preference_har_param_lock_night_mode);
 
-            if (path && query)
+            if (key && param)
             {
-                sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.nightModeActive);
+                sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.nightModeActive);
             }
 
             memset(&str, 0, sizeof(str));
@@ -616,12 +636,12 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if (_firstTunerStateSent || keyTurnerState.lastLockActionCompletionStatus != lastKeyTurnerState.lastLockActionCompletionStatus)
             {
-                path = _preferences->getString(preference_har_path_lock_completionStatus);
-                query = _preferences->getString(preference_har_query_lock_completionStatus);
+                key = _preferences->getString(preference_har_key_lock_completionStatus);
+                param = _preferences->getString(preference_har_param_lock_completionStatus);
 
-                if (path && query)
+                if (key && param)
                 {
-                    sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.lastLockActionCompletionStatus);
+                    sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.lastLockActionCompletionStatus);
                 }
             }
 
@@ -631,12 +651,12 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if (_firstTunerStateSent || keyTurnerState.doorSensorState != lastKeyTurnerState.doorSensorState)
             {
-                path = _preferences->getString(preference_har_path_doorsensor_state);
-                query = _preferences->getString(preference_har_query_doorsensor_state);
+                key = _preferences->getString(preference_har_key_doorsensor_state);
+                param = _preferences->getString(preference_har_param_doorsensor_state);
 
-                if (path && query)
+                if (key && param)
                 {
-                    sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.doorSensorState);
+                    sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.doorSensorState);
                 }
             }
 
@@ -647,39 +667,39 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if ((_firstTunerStateSent || keyTurnerState.criticalBatteryState != lastKeyTurnerState.criticalBatteryState))
             {
-                path = _preferences->getString(preference_har_path_lock_battery_critical);
-                query = _preferences->getString(preference_har_query_lock_battery_critical);
+                key = _preferences->getString(preference_har_key_lock_battery_critical);
+                param = _preferences->getString(preference_har_param_lock_battery_critical);
 
-                if (path && query)
+                if (key && param)
                 {
-                    sendToHAInt(path.c_str(), query.c_str(), (int)critical);
+                    sendToHAInt(key.c_str(), param.c_str(), (int)critical);
                 }
 
-                path = _preferences->getString(preference_har_path_lock_battery_level);
-                query = _preferences->getString(preference_har_query_lock_battery_level);
+                key = _preferences->getString(preference_har_key_lock_battery_level);
+                param = _preferences->getString(preference_har_param_lock_battery_level);
 
-                if (path && query)
+                if (key && param)
                 {
-                    sendToHAInt(path.c_str(), query.c_str(), (int)level);
+                    sendToHAInt(key.c_str(), param.c_str(), (int)level);
                 }
 
-                path = _preferences->getString(preference_har_path_lock_battery_charging);
-                query = _preferences->getString(preference_har_query_lock_battery_charging);
+                key = _preferences->getString(preference_har_key_lock_battery_charging);
+                param = _preferences->getString(preference_har_param_lock_battery_charging);
 
-                if (path && query)
+                if (key && param)
                 {
-                    sendToHAInt(path.c_str(), query.c_str(), (int)charging);
+                    sendToHAInt(key.c_str(), param.c_str(), (int)charging);
                 }
             }
 
             if ((_firstTunerStateSent || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
             {
-                path = _preferences->getString(preference_har_path_keypad_critical);
-                query = _preferences->getString(preference_har_query_keypad_critical);
+                key = _preferences->getString(preference_har_key_keypad_critical);
+                param = _preferences->getString(preference_har_param_keypad_critical);
 
-                if (path && query)
+                if (key && param)
                 {
-                    sendToHAInt(path.c_str(), query.c_str(), (int)keypadCritical);
+                    sendToHAInt(key.c_str(), param.c_str(), (int)keypadCritical);
                 }
             }
 
@@ -687,31 +707,31 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if ((_firstTunerStateSent || keyTurnerState.accessoryBatteryState != lastKeyTurnerState.accessoryBatteryState))
             {
-                path = _preferences->getString(preference_har_path_doorsensor_critical);
-                query = _preferences->getString(preference_har_query_doorsensor_critical);
+                key = _preferences->getString(preference_har_key_doorsensor_critical);
+                param = _preferences->getString(preference_har_param_doorsensor_critical);
 
-                if (path && query)
+                if (key && param)
                 {
-                    sendToHAInt(path.c_str(), query.c_str(), (int)doorSensorCritical);
+                    sendToHAInt(key.c_str(), param.c_str(), (int)doorSensorCritical);
                 }
             }
 
-            path = _preferences->getString(preference_har_path_remote_access_state);
-            query = _preferences->getString(preference_har_query_remote_access_state);
+            key = _preferences->getString(preference_har_key_remote_access_state);
+            param = _preferences->getString(preference_har_param_remote_access_state);
 
-            if (path && query)
+            if (key && param)
             {
-                sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.remoteAccessStatus);
+                sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.remoteAccessStatus);
             }
 
             if (keyTurnerState.bleConnectionStrength != 1)
             {
-                path = _preferences->getString(preference_har_path_ble_strength);
-                query = _preferences->getString(preference_har_query_ble_strength);
+                key = _preferences->getString(preference_har_key_ble_strength);
+                param = _preferences->getString(preference_har_param_ble_strength);
 
-                if (path && query)
+                if (key && param)
                 {
-                    sendToHAInt(path.c_str(), query.c_str(), (int)keyTurnerState.bleConnectionStrength);
+                    sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.bleConnectionStrength);
                 }
             }
 
@@ -720,62 +740,99 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
     }
 }
 
-void NukiNetwork::sendRequestToHA(const char *path, const char *query, const char *value)
+void NukiNetwork::sendDataToHA(const char *key, const char *param, const char *value)
 {
-    const size_t BUFFER_SIZE = 385;
-    char url[BUFFER_SIZE];
-
-    // Build base URL
-    snprintf(url, BUFFER_SIZE, "http://");
-
-    // If user name and password are available, add authentication
-    if (_homeAutomationUser && _homeAutomationPassword)
+    // --- UDP Mode ---
+    if (_homeAutomationMode == 0) // UDP
     {
-        strncat(url, _homeAutomationUser.c_str(), BUFFER_SIZE - strlen(url) - 1);
-        strncat(url, ":", BUFFER_SIZE - strlen(url) - 1);
-        strncat(url, _homeAutomationPassword.c_str(), BUFFER_SIZE - strlen(url) - 1);
-        strncat(url, "@", BUFFER_SIZE - strlen(url) - 1);
+        char message[384];
+        snprintf(message, sizeof(message), "%s=%s", param ? param : "v", value ? value : "");
+
+        _udpClient->beginPacket(_homeAutomationAdress.c_str(), _homeAutomationPort);
+        _udpClient->write(reinterpret_cast<const uint8_t *>(message), strlen(message));
+        _udpClient->endPacket();
+        return;
     }
 
-    // Add host + port
-    strncat(url, _homeAutomationAdress.c_str(), BUFFER_SIZE - strlen(url) - 1);
-    if (_homeAutomationPort)
+    if (_homeAutomationMode == 1) // REST
     {
-        char portStr[6]; // Max. 5 digits + zero termination
-        snprintf(portStr, sizeof(portStr), ":%d", _homeAutomationPort);
-        strncat(url, portStr, BUFFER_SIZE - strlen(url) - 1);
-    }
+        const size_t BUFFER_SIZE = 256;
+        char url[BUFFER_SIZE];
+        char postData[BUFFER_SIZE];
 
-    // Add Path, Query & Value (if available)
-    if (path && *path)
-    {
-        strncat(url, "/", BUFFER_SIZE - strlen(url) - 1);
-        strncat(url, path, BUFFER_SIZE - strlen(url) - 1);
-    }
-    if (query && *query)
-    {
-        strncat(url, "/", BUFFER_SIZE - strlen(url) - 1);
-        strncat(url, query, BUFFER_SIZE - strlen(url) - 1);
-    }
-    if (value && *value)
-    {
-        strncat(url, value, BUFFER_SIZE - strlen(url) - 1);
-    }
+        // Build base URL
+        snprintf(url, BUFFER_SIZE, "http://");
 
-    // Send HTTP request
-    _httpClient->begin(url);
-    int httpCode = _httpClient->GET();
+        // If user name and password are available, add authentication
+        if (_homeAutomationUser && _homeAutomationPassword)
+        {
+            strncat(url, _homeAutomationUser.c_str(), BUFFER_SIZE - strlen(url) - 1);
+            strncat(url, ":", BUFFER_SIZE - strlen(url) - 1);
+            strncat(url, _homeAutomationPassword.c_str(), BUFFER_SIZE - strlen(url) - 1);
+            strncat(url, "@", BUFFER_SIZE - strlen(url) - 1);
+        }
 
-    if (httpCode > 0)
-    {
-        Log->println(_httpClient->getString());
-    }
-    else
-    {
-        Log->printf(F("[ERROR] HTTP request failed: %s\n"), _httpClient->errorToString(httpCode).c_str());
-    }
+        // Add host + port
+        strncat(url, _homeAutomationAdress.c_str(), BUFFER_SIZE - strlen(url) - 1);
+        if (_homeAutomationPort)
+        {
+            char portStr[6]; // Max. 5 digits + zero termination
+            snprintf(portStr, sizeof(portStr), ":%d", _homeAutomationPort);
+            strncat(url, portStr, BUFFER_SIZE - strlen(url) - 1);
+        }
 
-    _httpClient->end();
+        // Add Path, Query & Value (if available)
+        if (key && *key)
+        {
+            strncat(url, "/", BUFFER_SIZE - strlen(url) - 1);
+            strncat(url, key, BUFFER_SIZE - strlen(url) - 1);
+        }
+
+        // Send HTTP request
+        _httpClient->begin(url);
+
+        int httpCode = -1;
+
+        _httpClient->addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+        if (_homeAutomationRestMode == 0) // GET
+        {
+
+            if (param && *param)
+            {
+                strncat(url, "/", BUFFER_SIZE - strlen(url) - 1);
+                strncat(url, param, BUFFER_SIZE - strlen(url) - 1);
+            }
+            if (value && *value)
+            {
+                strncat(url, value, BUFFER_SIZE - strlen(url) - 1);
+            }
+            httpCode = _httpClient->GET();
+        }
+        else // POST
+        {
+            if (param && *param)
+            {
+                strncat(postData, param, BUFFER_SIZE - strlen(postData) - 1);
+            }
+            if (value && *value)
+            {
+                strncat(postData, value, BUFFER_SIZE - strlen(postData) - 1);
+            }
+            httpCode = _httpClient->POST(postData);
+        }
+
+        if (httpCode > 0)
+        {
+            Log->println(_httpClient->getString());
+        }
+        else
+        {
+            Log->printf(F("[ERROR] HTTP request failed: %s\n"), _httpClient->errorToString(httpCode).c_str());
+        }
+
+        _httpClient->end();
+    }
 }
 
 void NukiNetwork::sendResponse(JsonDocument &jsonResult, bool success, int httpCode)
@@ -913,8 +970,15 @@ void NukiNetwork::initializeEthernet()
 void NukiNetwork::startNetworkServices()
 {
     if (_homeAutomationEnabled)
+    {
         Log->println(F("[INFO] start Home Automation Report Service"));
-    _httpClient = new HTTPClient();
+
+        if (_homeAutomationMode == 1 && _httpClient == nullptr) // REST
+            _httpClient = new HTTPClient();
+        else if (_homeAutomationMode == 0 && _udpClient == nullptr) // UDP
+            _udpClient = new NetworkUDP();
+    }
+
     if (_apiEnabled)
     {
         Log->println(F("[INFO] start REST API Server"));
@@ -936,7 +1000,7 @@ void NukiNetwork::onRestDataReceivedCallback(const char *path, WebServer &server
         if (!_inst->_apiEnabled)
             return;
 
-        if ((_inst->_networkServicesState == NetworkServiceStates::WEBSERVER_NOT_REACHABLE) || (_inst->_networkServicesState == NetworkServiceStates::BOTH_NOT_REACHABLE))
+        if ((_inst->_networkServicesState == NetworkServiceState::ERROR_REST_API_SERVER) || (_inst->_networkServicesState == NetworkServiceState::ERROR_BOTH))
         {
             return;
         }
@@ -1219,54 +1283,78 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
     }
 }
 
-NetworkServiceStates NukiNetwork::testNetworkServices()
+NetworkServiceState NukiNetwork::testNetworkServices()
 {
-    bool httpClientOk = true;
-    bool webServerOk = true;
+    bool haClientOk = true;
+    bool apiServerOk = true;
 
     // 1. check whether _httpClient exists
     if (_homeAutomationEnabled)
     {
-        if (_httpClient == nullptr)
+        if (_homeAutomationMode == 1) // REST
         {
-            Log->println(F("[ERROR] _httpClient is NULL!"));
-            httpClientOk = false;
+            if (_httpClient == nullptr)
+            {
+                Log->println(F("[ERROR] _httpClient is NULL!"));
+                haClientOk = false;
+            }
+
+            // 2. ping test for _homeAutomationAdress
+            if (!_homeAutomationAdress.isEmpty() && haClientOk)
+            {
+                if (!Ping.ping(_homeAutomationAdress.c_str()))
+                {
+                    Log->println(F("[ERROR] Ping to Home Automation Server failed!"));
+                    haClientOk = false;
+                }
+                else
+                {
+                    Log->println(F("[DEBUG] Ping to Home Automation Server successful."));
+                }
+            }
+
+            // 3. if Home Automation state API path exists, execute GET request
+            String strPath = _preferences->getString(preference_har_key_state, "");
+            if (!strPath.isEmpty() && haClientOk)
+            {
+                String url = "http://" + _homeAutomationAdress + ":" + String(_homeAutomationPort) + "/" + strPath;
+                Log->println("[DEBUG] Performing GET request to: " + url);
+
+                HTTPClient http;
+                http.begin(url);
+                int httpCode = http.GET();
+                http.end();
+
+                if (httpCode > 0)
+                {
+                    Log->println("[DEBUG] HTTP GET successful, response code: " + String(httpCode));
+                }
+                else
+                {
+                    Log->println(F("[ERROR] HTTP GET failed!"));
+                    haClientOk = false;
+                }
+            }
         }
-
-        // 2. ping test for _homeAutomationAdress
-        if (!_homeAutomationAdress.isEmpty() && httpClientOk)
+        else if (_homeAutomationMode == 0) // UDP
         {
-            if (!Ping.ping(_homeAutomationAdress.c_str()))
+            if (_udpClient == nullptr)
             {
-                Log->println(F("[ERROR] Ping to Home Automation Server failed!"));
-                httpClientOk = false;
+                Log->println(F("[ERROR] _udpClient is NULL!"));
+                haClientOk = false;
             }
-            else
-            {
-                Log->println(F("[DEBUG] Ping to Home Automation Server successful."));
-            }
-        }
 
-        // 3. if Home Automation API path exists, execute GET request
-        String strPath = _preferences->getString(preference_har_path_state, "");
-        if (!strPath.isEmpty() && httpClientOk)
-        {
-            String url = "http://" + _homeAutomationAdress + ":" + String(_homeAutomationPort) + "/" + strPath;
-            Log->println("[DEBUG] Performing GET request to: " + url);
-
-            HTTPClient http;
-            http.begin(url);
-            int httpCode = http.GET();
-            http.end();
-
-            if (httpCode > 0)
+            if (!_homeAutomationAdress.isEmpty())
             {
-                Log->println("[DEBUG] HTTP GET successful, response code: " + String(httpCode));
-            }
-            else
-            {
-                Log->println(F("[ERROR] HTTP GET failed!"));
-                httpClientOk = false;
+                if (!Ping.ping(_homeAutomationAdress.c_str()))
+                {
+                    Log->println(F("[ERROR] Ping to UDP Home Automation Server failed!"));
+                    haClientOk = false;
+                }
+                else
+                {
+                    Log->println(F("[DEBUG] Ping to UDP Home Automation Server successful."));
+                }
             }
         }
     }
@@ -1277,7 +1365,7 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
         if (_server == nullptr)
         {
             Log->println(F("[ERROR] _server is NULL!"));
-            webServerOk = false;
+            apiServerOk = false;
         }
 
         // 5. test whether the local REST web server can be reached on the port
@@ -1285,7 +1373,7 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
         if (!client.connect(WiFi.localIP(), _apiPort))
         {
             Log->println(F("[ERROR] WebServer is not responding!"));
-            webServerOk = false;
+            apiServerOk = false;
         }
         else
         {
@@ -1294,26 +1382,26 @@ NetworkServiceStates NukiNetwork::testNetworkServices()
         }
     }
     // 6. return error code
-    if (webServerOk && httpClientOk)
-        return NetworkServiceStates::OK; // all OK
-    if (!webServerOk && httpClientOk)
-        return NetworkServiceStates::WEBSERVER_NOT_REACHABLE; // _server not reachable
-    if (webServerOk && !httpClientOk)
-        return NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE; // _httpClient / Home Automation not reachable
-    return NetworkServiceStates::BOTH_NOT_REACHABLE;           // Both _server and _httpClient not reachable
+    if (apiServerOk && haClientOk)
+        return NetworkServiceState::OK; // all OK
+    if (!apiServerOk && haClientOk)
+        return NetworkServiceState::ERROR_REST_API_SERVER; // _server not reachable
+    if (apiServerOk && !haClientOk)
+        return NetworkServiceState::ERROR_HAR_CLIENT; // _httpClient / Home Automation not reachable
+    return NetworkServiceState::ERROR_BOTH;           // Both _server and _httpClient not reachable
 }
 
-void NukiNetwork::restartNetworkServices(NetworkServiceStates status)
+void NukiNetwork::restartNetworkServices(NetworkServiceState status)
 {
     if (!_homeAutomationEnabled && !_apiEnabled)
         return;
 
-    if (status == NetworkServiceStates::UNDEFINED)
+    if (status == NetworkServiceState::UNKNOWN)
     {
         status = testNetworkServices();
     }
 
-    if (status == NetworkServiceStates::OK)
+    if (status == NetworkServiceState::OK)
     {
         Log->println(F("[DEBUG] Network services are running."));
         return; // No restart required
@@ -1322,29 +1410,45 @@ void NukiNetwork::restartNetworkServices(NetworkServiceStates status)
     // If _httpClient is not reachable (-2 or -3), reinitialize
     if (_homeAutomationEnabled)
     {
-        if (status == NetworkServiceStates::HTTPCLIENT_NOT_REACHABLE || status == NetworkServiceStates::BOTH_NOT_REACHABLE)
+        if (status == NetworkServiceState::ERROR_HAR_CLIENT || status == NetworkServiceState::ERROR_BOTH)
         {
             Log->println(F("[INFO] Reinitialization of HTTP client..."));
-            if (_httpClient)
+            // Clean up depending on the mode
+            if (_homeAutomationMode == 1 && _httpClient)
             {
                 delete _httpClient;
                 _httpClient = nullptr;
+                Log->println(F("[INFO] Deleted old HTTP client."));
             }
-            _httpClient = new HTTPClient();
-            if (_httpClient)
+            else if (_homeAutomationMode == 0 && _udpClient)
             {
-                Log->println(F("[INFO] HTTP client successfully reinitialized."));
+                delete _udpClient;
+                _udpClient = nullptr;
+                Log->println(F("[INFO] Deleted old UDP client."));
             }
-            else
+            // Reinitialize
+            if (_homeAutomationMode == 1)
             {
-                Log->println(F("[ERROR] HTTP client cannot be initialized."));
+                _httpClient = new HTTPClient();
+                if (_httpClient)
+                    Log->println(F("[INFO] HTTP client successfully reinitialized."));
+                else
+                    Log->println(F("[ERROR] Failed to reinitialize HTTP client."));
+            }
+            else if (_homeAutomationMode == 0)
+            {
+                _udpClient = new NetworkUDP();
+                if (_udpClient)
+                    Log->println(F("[INFO] UDP client successfully reinitialized."));
+                else
+                    Log->println(F("[ERROR] Failed to reinitialize UDP client."));
             }
         }
     }
     // If the REST web server cannot be reached (-1 or -3), restart it
     if (_apiEnabled)
     {
-        if (status == NetworkServiceStates::WEBSERVER_NOT_REACHABLE || status == NetworkServiceStates::BOTH_NOT_REACHABLE)
+        if (status == NetworkServiceState::ERROR_REST_API_SERVER || status == NetworkServiceState::ERROR_BOTH)
         {
             Log->println(F("[INFO] Restarting the REST WebServer..."));
             if (_server)
