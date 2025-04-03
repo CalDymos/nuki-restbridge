@@ -1,7 +1,7 @@
 # Nuki Rest Bridge – Control Nuki Smart Locks via REST and ESP32
 
 ![Beta Status](https://img.shields.io/badge/status-beta-yellow)
-[![Project Maintenance](https://img.shields.io/maintenance/yes/2024.svg)](https://github.com/CalDymos/nuki-restbridge 'GitHub Repository')
+[![Project Maintenance](https://img.shields.io/maintenance/yes/2025.svg)](https://github.com/CalDymos/nuki-restbridge 'GitHub Repository')
 [![License](https://img.shields.io/github/license/CalDymos/nuki-restbridge.svg)](https://github.com/CalDymos/nuki-restbridge/blob/main/LICENSE 'License')
 
 
