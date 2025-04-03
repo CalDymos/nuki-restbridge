@@ -129,7 +129,7 @@ private:
     /**
      * @brief Handles HTTP request to download the current log file.
      *
-     * This method attempts to mount the SPIFFS filesystem and open the current log file
+     * This method attempts to mount the LittleFS filesystem and open the current log file
      * defined by LOGGER_FILENAME. If the file is found, it is streamed to the client
      * with appropriate headers to trigger a download. If the file does not exist or
      * cannot be opened, a corresponding HTTP error response is sent.

@@ -30,7 +30,7 @@ enum class RestartReason
 };
 
 /// @brief Magic value to indicate a valid restart reason
-#define RESTART_REASON_VALID_DETECT 0xa00ab00bc00bd00d;
+#define RESTART_REASON_VALID_DETECT 0xa00ab00bc00bd00d
 
 /// @brief Stores the current restart reason as int
 extern int restartReason;
@@ -53,7 +53,7 @@ inline static void safeShutdownESP(RestartReason reason)
 {
     restartReason = (int)reason;
     restartReasonValidDetect = RESTART_REASON_VALID_DETECT;
-    SPIFFS.end();
+    LittleFS.end();
     delay(10);                        // to ensure that all pending write operations are completed
     esp_sleep_enable_timer_wakeup(0); // No automatic wake-up
     esp_deep_sleep_start();           // ESP goes to sleep
@@ -68,7 +68,7 @@ inline static void restartEsp(RestartReason reason)
 {
     restartReason = (int)reason;
     restartReasonValidDetect = RESTART_REASON_VALID_DETECT;
-    SPIFFS.end();
+    LittleFS.end();
     delay(10); // to ensure that all pending write operations are completed
     ESP.restart();
 }

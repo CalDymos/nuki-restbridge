@@ -10,7 +10,7 @@
 #include "esp_netif_sntp.h"
 #include "esp_core_dump.h"
 #include "FS.h"
-#include "SPIFFS.h"
+#include <LittleFS.h>
 #ifdef CONFIG_SOC_SPIRAM_SUPPORTED
 #include "esp_psram.h"
 #endif
@@ -70,9 +70,10 @@ void cbSyncTime(struct timeval *tv)
   timeSynced = true;
 }
 
+#ifdef DEBUG_NUKIBRIDGE
 /**
  * @brief Recursively lists files in a directory and optionally deletes large files.
- * @param fs Reference to filesystem instance (e.g. SPIFFS).
+ * @param fs Reference to filesystem instance (e.g. LittleFS).
  * @param dirname Directory to list.
  * @param levels Recursion depth for subdirectories.
  */
@@ -106,17 +107,18 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
     }
     else
     {
-      Log->printf(F("[DEBUG]  FILE: %s\tSIZE: %lu\n"), file.name(), file.name());
+      Log->printf(F("[DEBUG]  FILE: %s\tSIZE: %lu\n"), file.name(), file.size());
     }
 
-    if (file.size() > (int)(SPIFFS.totalBytes() * 0.4))
+    if (file.size() > (int)(LittleFS.totalBytes() * 0.4))
     {
-      SPIFFS.remove((String) "/" + file.name());
+      LittleFS.remove((String) "/" + file.name());
     }
 
     file = root.openNextFile();
   }
 }
+#endif
 
 void bootloopDetection()
 {
@@ -456,7 +458,7 @@ void logCoreDump()
 {
   coredumpPrinted = false;
   delay(500);
-  Log->println(F("[INFO] Printing coredump and saving to coredump.hex on SPIFFS"));
+  Log->println(F("[INFO] Printing coredump and saving to coredump.hex on LittleFS"));
   size_t size = 0;
   size_t address = 0;
   if (esp_core_dump_image_get(&address, &size) == ESP_OK)
@@ -471,13 +473,13 @@ void logCoreDump()
       char str_dst[640];
       int16_t toRead;
 
-      if (!SPIFFS.begin(true))
+      if (!LittleFS.begin(true))
       {
-        Log->println(F("[ERROR] SPIFFS Mount Failed"));
+        Log->println(F("[ERROR] LittleFS Mount Failed"));
       }
       else
       {
-        file = SPIFFS.open("/coredump.hex", FILE_WRITE);
+        file = LittleFS.open("/coredump.hex", FILE_WRITE);
         if (!file)
         {
           Log->println(F("[ERROR] Failed to open /coredump.hex for writing"));
@@ -565,10 +567,10 @@ void setup()
     logCoreDump();
   }
 
-  if (SPIFFS.begin(true))
+  if (LittleFS.begin(true))
   {
 #ifdef DEBUG_NUKIBRIDGE
-    listDir(SPIFFS, "/", 1);
+    listDir(LittleFS, "/", 1);
 #endif
   }
 
