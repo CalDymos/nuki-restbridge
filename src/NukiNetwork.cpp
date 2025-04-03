@@ -1316,9 +1316,8 @@ void NukiNetwork::onShutdownReceived(const char *path, WebServer &server)
     delay(10);
     disableHAR();
     disableAPI();
-    SPIFFS.end();
     _preferences->end();
-    safeShutdowESP(RestartReason::SafeShutdownRequestViaApi);
+    safeShutdownESP(RestartReason::SafeShutdownRequestViaApi);
 }
 
 NetworkServiceState NukiNetwork::testNetworkServices()

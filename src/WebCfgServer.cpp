@@ -329,6 +329,16 @@ void WebCfgServer::initialize()
                 restartEsp(RestartReason::RequestedViaWebCfgServer);
                 return;
             }
+            else if (value == "shutdown")
+            {
+                buildConfirmHtml(this->_webServer, "Shutting down...", 2, true);
+                Log->disableFileLog();
+                _network->disableHAR();
+                _network->disableAPI();
+                _preferences->end();
+                waitAndProcess(true, 1000);
+                return safeShutdownESP(RestartReason::SafeShutdownRequestViaWebCfgServer);   
+            }
             else if (value == "info")
             {
                 return buildInfoHtml(this->_webServer);
@@ -1423,7 +1433,7 @@ void WebCfgServer::buildHtml(WebServer *server)
                         0,              // Textareas
                         7,              // Parameter rows
                         0,              // Buttons
-                        11,             // Naviagtion menus
+                        14,             // Naviagtion menus
                         header.length() // extra bytes ()
     );
 
@@ -1518,6 +1528,8 @@ void WebCfgServer::buildHtml(WebServer *server)
     appendNavigationMenuEntry(response, "Info page", "/get?page=info");
     String rebooturl = "/get?page=reboot&CONFIRMTOKEN=" + _confirmCode;
     appendNavigationMenuEntry(response, "Reboot Nuki Bridge", rebooturl.c_str());
+    appendNavigationMenuEntry(response, "Shutdown", "/get?page=shutdown", "return confirm('Really Shutdown Nuki Bridge?');");
+
 
     if (_preferences->getInt(preference_http_auth_type, 0) == 2)
     {

@@ -25,6 +25,7 @@ enum class RestartReason
     ReconfigureWebCfgServer,
     DisableNetworkIfNotConnected,
     SafeShutdownRequestViaApi,
+    SafeShutdownRequestViaWebCfgServer,
     NotApplicable
 };
 
@@ -45,22 +46,22 @@ extern bool restartReason_isValid;
 
 /**
  * @brief Safely shuts down the ESP32 and enters deep sleep.
- * 
+ *
  * @param reason The reason for shutting down.
  */
-inline static void safeShutdowESP(RestartReason reason)
+inline static void safeShutdownESP(RestartReason reason)
 {
     restartReason = (int)reason;
     restartReasonValidDetect = RESTART_REASON_VALID_DETECT;
     SPIFFS.end();
-    delay(10); // to ensure that all pending write operations are completed
+    delay(10);                        // to ensure that all pending write operations are completed
     esp_sleep_enable_timer_wakeup(0); // No automatic wake-up
     esp_deep_sleep_start();           // ESP goes to sleep
 }
 
 /**
  * @brief Restarts the ESP32 with a specified reason.
- * 
+ *
  * @param reason The reason for restarting.
  */
 inline static void restartEsp(RestartReason reason)
@@ -92,7 +93,7 @@ inline static void initializeRestartReason()
 
 /**
  * @brief Returns the restart reason as a human-readable string.
- * 
+ *
  * @return String representation of the restart reason.
  */
 inline static String getRestartReason()
@@ -139,6 +140,8 @@ inline static String getRestartReason()
         return "NetworkDisabledOnNotConnected";
     case RestartReason::SafeShutdownRequestViaApi:
         return "SafeShutdownRequestViaApi";
+    case RestartReason::SafeShutdownRequestViaWebCfgServer:
+        return "SafeShutdownRequestViaWebCfgServer";
     case RestartReason::NotApplicable:
         return "NotApplicable";
     default:
@@ -148,7 +151,7 @@ inline static String getRestartReason()
 
 /**
  * @brief Returns the ESP32 reset reason from hardware as a human-readable string.
- * 
+ *
  * @return String description of the hardware reset reason.
  */
 inline static String getEspRestartReason()
