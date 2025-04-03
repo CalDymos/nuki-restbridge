@@ -24,6 +24,9 @@
 #include "RestartReason.h"
 #include "EspMillis.h"
 
+#define FS_PARTITION_LABEL "littlefs"
+#define FS_BASE_PATH "/littlefs"
+
 Preferences *preferences = nullptr;        // Pointer to non-volatile key-value storage (nvs).
 NukiNetwork *network = nullptr;            // Main network interface (WiFi/Ethernet, REST API).
 BleScanner::Scanner *bleScanner = nullptr; // BLE scanner to discover/connect Nuki devices.
@@ -473,7 +476,7 @@ void logCoreDump()
       char str_dst[640];
       int16_t toRead;
 
-      if (!LittleFS.begin(true))
+      if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
       {
         Log->println(F("[ERROR] LittleFS Mount Failed"));
       }
@@ -567,13 +570,13 @@ void setup()
     logCoreDump();
   }
 
-  if (LittleFS.begin(true))
+  #ifdef DEBUG_NUKIBRIDGE
+  if (LittleFS.begin(true, "/littlefs", 10, "littlefs"))
   {
-#ifdef DEBUG_NUKIBRIDGE
     listDir(LittleFS, "/", 1);
-#endif
   }
-
+  #endif
+  
   // default disableNetwork RTC_ATTR to false on power-on
   if (espRunning != 1)
   {

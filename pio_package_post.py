@@ -53,7 +53,7 @@ def get_partition_offsets(env):
                 offsets["otadata"] = offset
             elif type_.strip() == "app" and subtype.strip() == "factory":
                 offsets["firmware"] = offset
-            elif name.strip().lower() == "littlefs":
+            elif type_.strip().lower() == "littlefs":
                 offsets["littlefs"] = offset
             elif name.strip().lower() == "coredump":
                 offsets["coredump"] = offset
@@ -105,7 +105,7 @@ def get_partition_sizes(env):
                 sizes["otadata"] = size
             elif type_.strip() == "app" and subtype.strip() == "factory":
                 sizes["firmware"] = size
-            elif name.strip().lower() == "littlefs":
+            elif type_.strip().lower() == "littlefs":
                 sizes["littlefs"] = size
             elif name.strip().lower() == "coredump":
                 sizes["coredump"] = size
@@ -369,6 +369,7 @@ def generate_littlefs(source, target, env):
     board = get_board_name(env)
     littlefs_path = os.path.join(env["BUILD_DIR"], "littlefs.bin")
     data_path = os.path.join(env["PROJECT_DIR"], "data")
+    dummy_file = os.path.join(data_path, ".keep")
 
     # Ensure that the data/ directory exists
     if not os.path.exists(data_path):
@@ -377,17 +378,26 @@ def generate_littlefs(source, target, env):
     
     # Check whether at least one file is included
     data_files = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))]
+    create_dummy = False
+
     if not data_files:
-        print(f"[INFO] No files found in {data_path}. LittleFS image will not be built.")
-        return
-    
-    print(f"[INFO] Building LittleFS image with {len(data_files)} file(s) from /data...")
+        print("[INFO] No files found in /data. Creating dummy file for buildfs...")
+        with open(dummy_file, "w") as f:
+            f.write(" ")
+
+        create_dummy = True
+
+    print("[INFO] Running buildfs via PlatformIO...")
     result = subprocess.run(["pio", "run", "--target", "buildfs"], cwd=env["PROJECT_DIR"])
-    
+
+    if create_dummy and os.path.exists(dummy_file):
+        os.remove(dummy_file)
+        print("[INFO] Removed temporary dummy file.")
+
     if result.returncode != 0:
         print("[ERROR] Failed to build LittleFS image using PlatformIO.")
-        
-    print(f"[INFO] LittleFS image successfully built: {littlefs_path}")
+    else:
+        print("[INFO] LittleFS image successfully built.")
     
 # Post-Build Actions
 env.AddPostAction("$BUILD_DIR/firmware.bin", copy_files) # type: ignore

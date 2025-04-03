@@ -902,7 +902,7 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
 
 void WebCfgServer::buildGetLogFileHtml(WebServer *server)
 {
-    if (!LittleFS.begin(true))
+    if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
     {
         Log->println(F("LittleFS Mount Failed"));
         server->send(500, F("text/plain"), F("LittleFS mount failed."));
@@ -926,7 +926,7 @@ void WebCfgServer::buildGetLogFileHtml(WebServer *server)
 
 void WebCfgServer::buildGetCoredumpFileHtml(WebServer *server)
 {
-    if (!LittleFS.begin(true))
+    if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
     {
         Log->println(F("LittleFS Mount Failed"));
         server->send(500, F("text/plain"), F("LittleFS mount failed."));
@@ -1751,7 +1751,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += F("\nMax backup file index before rollover: 100");
 
     response += F("\n\n------------ LittleFS ------------");
-    if (!LittleFS.begin(true))
+    if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
     {
         response += F("\nLittleFS mount failed");
     }
@@ -4148,7 +4148,7 @@ void WebCfgServer::saveSessions()
 {
     if (_preferences->getBool(preference_update_time, false))
     {
-        if (!LittleFS.begin(true))
+        if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
         {
             Log->println(F("[ERROR]LittleFS Mount Failed"));
         }
@@ -4168,7 +4168,7 @@ void WebCfgServer::loadSessions()
 {
     if (_preferences->getBool(preference_update_time, false))
     {
-        if (!LittleFS.begin(true))
+        if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
         {
             Log->println(F("[ERROR] LittleFS Mount Failed"));
         }
@@ -4194,7 +4194,7 @@ void WebCfgServer::loadSessions()
 
 void WebCfgServer::clearSessions()
 {
-    if (!LittleFS.begin(true))
+    if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
     {
         Log->println(F("[ERROR] LittleFS Mount Failed"));
     }

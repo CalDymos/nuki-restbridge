@@ -21,6 +21,7 @@ def reset_esp(port, baudrate, mode):
         with serial.Serial(port, baudrate, timeout=1) as ser:
             ser.dtr = False
             ser.rts = True
+        print("Info: ESP Reset succesful")
     except Exception as e:
         print(f"Error: {e}")
         return

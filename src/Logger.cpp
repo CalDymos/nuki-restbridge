@@ -387,7 +387,7 @@ size_t Logger::println(void)
 
 void Logger::clear()
 {
-  if (!LittleFS.begin(true))
+  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
   {
     _logFallBack.store(true);
     println(F("[ERROR] LittleFS not initialized!"));
@@ -499,7 +499,7 @@ bool Logger::isFileTooBig()
 
 size_t Logger::getFileSize()
 {
-  if (!LittleFS.begin(true))
+  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
   {
     _logFallBack.store(true);
     println(F("[ERROR] LittleFS not initialized!"));
@@ -587,7 +587,7 @@ bool Logger::backupFileToFTPServer()
     ftp.DeleteFile(backupFilename.c_str());
     ftp.NewFile(backupFilename.c_str());
 
-    if (!LittleFS.begin(true))
+    if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
     {
       _logFallBack.store(true);
       println(F("[ERROR] LittleFS not initialized!"));
@@ -693,7 +693,7 @@ void Logger::toFile(String message)
   String line;
   serializeJson(doc, line);
 
-  if (!LittleFS.begin(true))
+  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
   {
     _logFallBack.store(true);
     println(F("[ERROR] LittleFS not initialized!"));
