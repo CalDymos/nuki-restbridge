@@ -10,6 +10,7 @@
 #include <NetworkUdp.h>
 #include <WiFiClient.h>
 #include "ESP32Ping.h"
+#include <esp_mac.h>
 #include <ArduinoJson.h>
 
 #include "NukiConstants.h"

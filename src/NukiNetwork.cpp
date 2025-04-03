@@ -104,9 +104,15 @@ void NukiNetwork::initialize()
 
         _hostname = _preferences->getString(preference_hostname, "");
 
-        if (_hostname == "")
+        if(_hostname == "" || _hostname == "nukirestbridge")
         {
-            _hostname = "nukirestbridge";
+            uint8_t mac[6];
+            esp_efuse_mac_get_default(mac);
+            
+            char deviceId[13];
+            sprintf(deviceId, "%02X%02X%02X%02X%02X%02X",
+                    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+            _hostname = "NRB" + String(deviceId);
             _preferences->putString(preference_hostname, _hostname);
         }
 
