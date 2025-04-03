@@ -25,8 +25,8 @@ def get_partition_offsets(env):
 
     # Set default values if `partitions.csv` does not exist
     offsets = {
-        "bootloader": "0x1000",  # Standard Offset für den Bootloader
-        "partition": "0x8000",   # Standard Offset für die Partitionstabelle
+        "bootloader": "0x1000",  # Standard offset for the bootloader
+        "partition": "0x8000",   # Standard offset for the partition table
         "nvs": "0x9000",
         "otadata": None,
         "firmware": "0x10000",  # Default for firmware (if not found)
@@ -137,10 +137,10 @@ def kill_serial_monitor(port):
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
 
-    # 1. Beende blockierende Prozesse
+    # 1. End blocking processes
     kill_processes()
 
-    # 2. Versuche die serielle Verbindung zu schließen
+    # 2. Try to close the serial connection
     try:
         with serial.Serial(port, baudrate=115200, timeout=1) as ser:
             ser.close()
@@ -148,7 +148,7 @@ def kill_serial_monitor(port):
     except serial.SerialException as e:
         print(f"[WARNING] Could not close {port}: {e}")
 
-    # 3. Warte, um sicherzustellen, dass der Port wirklich frei ist
+    # 3. Wait to make sure that the port is really free
     time.sleep(2)
         
 def get_board_name(env):
@@ -163,7 +163,7 @@ def get_board_name(env):
     }
 
     board = env.get('BOARD')
-    return board_mapping.get(board, board)  # Falls nicht in der Liste, Standardnamen zurückgeben
+    return board_mapping.get(board, board)  # If not in the list, return default name
 
 
 def create_target_dir(env):
@@ -198,7 +198,7 @@ def merge_bin(source, target, env):
         partOffsets["firmware"], target[0].get_abspath(),
     ]
 
-    # LittleFS prüfen und ggf. hinzufügen
+    # Check LittleFS and add if necessary
     littlefs_path = os.path.join(env["BUILD_DIR"], "littlefs.bin")
     if os.path.exists(littlefs_path):
         flash_args += [partOffsets["littlefs"], littlefs_path]
@@ -375,7 +375,7 @@ def generate_littlefs(source, target, env):
         print(f"[INFO] LittleFS data folder {data_path} does not exist, will be create!")
         os.mkdir(data_path)
     
-    # Prüfe, ob mindestens eine Datei enthalten ist
+    # Check whether at least one file is included
     data_files = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))]
     if not data_files:
         print(f"[INFO] No files found in {data_path}. LittleFS image will not be built.")

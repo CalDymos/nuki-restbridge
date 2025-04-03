@@ -53,7 +53,7 @@ void Logger::disableFileLog(){
   _serial->println(F("writiing to Log file disabled!"));
 }
 
-#else // LittleFS basiertes Logging
+#else // LittleFS based logging
 
 Logger::Logger(Print *serial, Preferences *prefs)
     : _serial(serial), _preferences(prefs)
