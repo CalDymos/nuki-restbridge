@@ -169,7 +169,7 @@ public:
 
     /**
      * @brief Checks whether (at least) the WiFi module is connected.
-     *        
+     *
      */
     bool isWifiConnected();
 
@@ -316,6 +316,13 @@ private:
     void onRestDataReceived(const char *path, WebServer &server);
 
     /**
+     * @brief Handles logic for shutdown REST request.
+     * @param path Full request URI path.
+     * @param server Reference to the WebServer instance.
+     */
+    void onShutdownReceived(const char *path, WebServer &server);
+
+    /**
      * @brief Runs tests for WebServer (API) and HTTPClient (HAR) (e.g., ping).
      */
     NetworkServiceState testNetworkServices();
@@ -375,67 +382,67 @@ private:
     // Singleton instance
     static NukiNetwork *_inst;
 
-    Preferences *_preferences;                                                    // Preferences handler for NVS access
-    IPConfiguration *_ipConfiguration = nullptr;                                  // IP configuration helper (DHCP/static)
-    String _hostname;                                                             // Hostname used on the network (WiFi or Ethernet)
-    String _WiFissid;                                                             // Stored WiFi SSID
-    String _WiFipass;                                                             // Stored WiFi password
-                                                                                  //
-    BridgeApiToken *_apitoken = nullptr;                                          // Token used for REST API authentication
-    bool _firstBootAfterDeviceChange = false;                                     // True after switching from WiFi to Ethernet or vice versa
-    bool _webCfgEnabled = true;                                                   // Whether the Web Config interface is enabled
-    bool _apiEnabled = false;                                                     // Whether REST API is enabled
-    bool _openAP = false;                                                         // Whether Access Point mode is active
-    bool _APisReady = false;                                                      // True if AP is initialized and ready
-    bool _startAP = true;                                                         // True if AP should be started due to no WiFi
-    bool _connected = false;                                                      // Network connection state
-    bool _ethConnected = false;                                                   // Flag to temporarily store (ARDUINO_EVENT_ETH_CONNECTED)  
-    bool _lockEnabled = false;                                                    // Whether lock control via API is enabled
-    bool _hardwareInitialized = false;                                            // Flag indicating that network hardware is initialized
-    bool _sendDebugInfo = false;                                                  // Whether extended debug info should be published
-    bool _restartOnDisconnect = false;                                            // Whether the device should reboot on disconnect
-    bool _disableNetworkIfNotConnected = false;                                   // Forces network shutdown if no connection is active
-    bool _firstTunerStateSent = true;                                             // Ensures the first lock state is always sent
-    NetworkServiceState _networkServicesState = NetworkServiceState::UNKNOWN;     // Current state of network services
-                                                                                  //
-    String _keypadCommandName = "";                                               // Temporary buffer for keypad command name
-    String _keypadCommandCode = "";                                               // Temporary buffer for keypad command code
-    uint _keypadCommandId = 0;                                                    // Temporary buffer for keypad command ID
-    int _keypadCommandEnabled = 1;                                                // Temporary buffer for keypad enabled state
-    uint8_t _queryCommands = 0;                                                   // Bitmask of active QUERY_COMMAND_* values
-                                                                                  //
-    int64_t _checkIpTs = -1;                                                      // Last time IP was validated
-    int64_t _lastConnectedTs = 0;                                                 // Last time a successful connection occurred
-    int64_t _lastMaintenanceTs = 0;                                               // Last time maintenance was performed
-    int64_t _lastNetworkServiceTs = 0;                                            // Last time services were checked
-    int64_t _publishedUpTime = 0;                                                 // Last time uptime was sent
-    int64_t _lastRssiTs = 0;                                                      // Last time RSSI was transmitted
-                                                                                  //
-    WebServer *_server = nullptr;                                                 // REST API web server instance
-    HTTPClient *_httpClient = nullptr;                                            // HTTP client for sending Data to HA
-    NetworkUDP *_udpClient = nullptr;                                                   // UDP client for sending Data to HA
-    int _foundNetworks = 0;                                                       // Number of WiFi networks found during last scan
-    int _networkTimeout = 0;                                                      // Timeout in ms for network operations
-    int _rssiSendInterval = 0;                                                    // Interval for RSSI reporting
-    int _MaintenanceSendIntervall = 0;                                            // Interval for periodic maintenance
-    int _networkServicesConnectCounter = 0;                                       // Counter for tracking connection attempts
-                                                                                  //
-    NetworkDeviceType _networkDeviceType = NetworkDeviceType::UNDEFINED;          // WiFi or Ethernet
-    int8_t _lastRssi = 127;                                                       // Last known RSSI value
-                                                                                  //
-    bool _homeAutomationEnabled = false;                                          // Whether HA communication is enabled
-    String _homeAutomationAdress;                                                 // Target IP or hostname of HA server
-    String _homeAutomationUser;                                                   // Optional HA user name
-    String _homeAutomationPassword;                                               // Optional HA password
-    int _homeAutomationMode;                                                      // current Mode for data reporting to Ha (0=UDP/1=REST)
-    int _homeAutomationRestMode;                                                  // Rest Mode (0=GET/1=POST)
-    int _homeAutomationPort;                                                      // Port for HA
-                                                                                  //
-    char *_buffer;                                                                // Shared buffer for response generation
-    const size_t _bufferSize;                                                     // Size of the shared buffer
-    char _apiBridgePath[129] = {0};                                               // API base path (e.g. "/bridge")
-    char _apiLockPath[129] = {0};                                                 // API path for lock-related commands
-    int _apiPort;                                                                 // REST API server port
+    Preferences *_preferences;                                                // Preferences handler for NVS access
+    IPConfiguration *_ipConfiguration = nullptr;                              // IP configuration helper (DHCP/static)
+    String _hostname;                                                         // Hostname used on the network (WiFi or Ethernet)
+    String _WiFissid;                                                         // Stored WiFi SSID
+    String _WiFipass;                                                         // Stored WiFi password
+                                                                              //
+    BridgeApiToken *_apitoken = nullptr;                                      // Token used for REST API authentication
+    bool _firstBootAfterDeviceChange = false;                                 // True after switching from WiFi to Ethernet or vice versa
+    bool _webCfgEnabled = true;                                               // Whether the Web Config interface is enabled
+    bool _apiEnabled = false;                                                 // Whether REST API is enabled
+    bool _openAP = false;                                                     // Whether Access Point mode is active
+    bool _APisReady = false;                                                  // True if AP is initialized and ready
+    bool _startAP = true;                                                     // True if AP should be started due to no WiFi
+    bool _connected = false;                                                  // Network connection state
+    bool _ethConnected = false;                                               // Flag to temporarily store (ARDUINO_EVENT_ETH_CONNECTED)
+    bool _lockEnabled = false;                                                // Whether lock control via API is enabled
+    bool _hardwareInitialized = false;                                        // Flag indicating that network hardware is initialized
+    bool _sendDebugInfo = false;                                              // Whether extended debug info should be published
+    bool _restartOnDisconnect = false;                                        // Whether the device should reboot on disconnect
+    bool _disableNetworkIfNotConnected = false;                               // Forces network shutdown if no connection is active
+    bool _firstTunerStateSent = true;                                         // Ensures the first lock state is always sent
+    NetworkServiceState _networkServicesState = NetworkServiceState::UNKNOWN; // Current state of network services
+                                                                              //
+    String _keypadCommandName = "";                                           // Temporary buffer for keypad command name
+    String _keypadCommandCode = "";                                           // Temporary buffer for keypad command code
+    uint _keypadCommandId = 0;                                                // Temporary buffer for keypad command ID
+    int _keypadCommandEnabled = 1;                                            // Temporary buffer for keypad enabled state
+    uint8_t _queryCommands = 0;                                               // Bitmask of active QUERY_COMMAND_* values
+                                                                              //
+    int64_t _checkIpTs = -1;                                                  // Last time IP was validated
+    int64_t _lastConnectedTs = 0;                                             // Last time a successful connection occurred
+    int64_t _lastMaintenanceTs = 0;                                           // Last time maintenance was performed
+    int64_t _lastNetworkServiceTs = 0;                                        // Last time services were checked
+    int64_t _publishedUpTime = 0;                                             // Last time uptime was sent
+    int64_t _lastRssiTs = 0;                                                  // Last time RSSI was transmitted
+                                                                              //
+    WebServer *_server = nullptr;                                             // REST API web server instance
+    HTTPClient *_httpClient = nullptr;                                        // HTTP client for sending Data to HA
+    NetworkUDP *_udpClient = nullptr;                                         // UDP client for sending Data to HA
+    int _foundNetworks = 0;                                                   // Number of WiFi networks found during last scan
+    int _networkTimeout = 0;                                                  // Timeout in ms for network operations
+    int _rssiSendInterval = 0;                                                // Interval for RSSI reporting
+    int _MaintenanceSendIntervall = 0;                                        // Interval for periodic maintenance
+    int _networkServicesConnectCounter = 0;                                   // Counter for tracking connection attempts
+                                                                              //
+    NetworkDeviceType _networkDeviceType = NetworkDeviceType::UNDEFINED;      // WiFi or Ethernet
+    int8_t _lastRssi = 127;                                                   // Last known RSSI value
+                                                                              //
+    bool _homeAutomationEnabled = false;                                      // Whether HA communication is enabled
+    String _homeAutomationAdress;                                             // Target IP or hostname of HA server
+    String _homeAutomationUser;                                               // Optional HA user name
+    String _homeAutomationPassword;                                           // Optional HA password
+    int _homeAutomationMode;                                                  // current Mode for data reporting to Ha (0=UDP/1=REST)
+    int _homeAutomationRestMode;                                              // Rest Mode (0=GET/1=POST)
+    int _homeAutomationPort;                                                  // Port for HA
+                                                                              //
+    char *_buffer;                                                            // Shared buffer for response generation
+    const size_t _bufferSize;                                                 // Size of the shared buffer
+    char _apiBridgePath[129] = {0};                                           // API base path (e.g. "/bridge")
+    char _apiLockPath[129] = {0};                                             // API path for lock-related commands
+    int _apiPort;                                                             // REST API server port
 
     // Callback handlers
     LockActionResult (*_lockActionReceivedCallback)(const char *value) = nullptr;                                                                              // Lock command handler

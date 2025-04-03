@@ -49,6 +49,10 @@ void Logger::toFile(const String &deviceType, String message)
   _serial->println(message);
 }
 
+void Logger::disableFileLog(){
+  _serial->println(F("writiing to Log file disabled!"));
+}
+
 #else // SPIFFS basiertes Logging
 
 Logger::Logger(Print *serial, Preferences *prefs)
@@ -72,7 +76,7 @@ Logger::Logger(Print *serial, Preferences *prefs)
     _maxLogFileSize = _preferences->getInt(preference_log_max_file_size, 256); // in kb
     _currentLogLevel = (msgtype)_preferences->getInt(preference_log_level, 2);
   }
-
+  _fileWriteEnabled = true;
   _buffer.reserve(_maxMsgLen + 2); // Reserves memory for up to _maxMsgLen characters
 }
 
@@ -80,7 +84,7 @@ Logger::~Logger() {}
 
 size_t Logger::write(uint8_t c)
 {
-  if (_logBackupIsRunning.load() || _logFallBack.load())
+  if (!_fileWriteEnabled || _logBackupIsRunning.load() || _logFallBack.load())
     return _serial->write(c);
 
   _buffer += (char)c;
@@ -96,7 +100,7 @@ size_t Logger::write(uint8_t c)
 
 size_t Logger::write(const uint8_t *buffer, size_t size)
 {
-  if (_logBackupIsRunning.load() || _logFallBack.load())
+  if (!_fileWriteEnabled || _logBackupIsRunning.load() || _logFallBack.load())
     return _serial->write(buffer, size);
 
   if (size == 2 && buffer[0] == '\r' && buffer[1] == '\n')
@@ -622,6 +626,10 @@ bool Logger::backupFileToFTPServer()
     return true;
   }
   return false;
+}
+
+void Logger::disableFileLog(){
+  _fileWriteEnabled = false;
 }
 
 void Logger::toFile(String message)

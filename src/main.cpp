@@ -261,6 +261,8 @@ void networkTask(void *parameter)
 
     if (espMillis() > restartTs)
     {
+      Log->disableFileLog();
+      delay(10);
       restartEsp(RestartReason::RestartTimer);
     }
 

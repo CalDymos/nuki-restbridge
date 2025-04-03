@@ -231,6 +231,7 @@ void NukiWrapper::update(bool reboot)
         Log->print(F("[INFO] No BLE beacon received from the lock for "));
         Log->print((ts - lastReceivedBeaconTs) / 1000);
         Log->println(F(" seconds, restarting device."));
+        Log->disableFileLog();
         delay(200);
         restartEsp(RestartReason::BLEBeaconWatchdog);
     }

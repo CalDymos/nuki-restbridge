@@ -63,6 +63,7 @@ void NukiNetwork::setupDevice()
         {
             Log->println(F("[ERROR] Failed to connect to network. Wi-Fi fallback is disabled, rebooting."));
             wifiFallback = false;
+            Log->disableFileLog();
             sleep(5);
             restartEsp(RestartReason::NetworkDeviceCriticalFailureNoWifiFallback);
         }
@@ -182,11 +183,15 @@ bool NukiNetwork::update()
 
         if (_restartOnDisconnect && espMillis() > 60000)
         {
+            Log->disableFileLog();
+            delay(10);
             restartEsp(RestartReason::RestartOnDisconnectWatchdog);
         }
         else if (_disableNetworkIfNotConnected && espMillis() > 60000)
         {
             disableNetwork = true;
+            Log->disableFileLog();
+            delay(10);
             restartEsp(RestartReason::DisableNetworkIfNotConnected);
         }
     }
@@ -225,6 +230,7 @@ bool NukiNetwork::update()
         if (forceEnableWebCfgServer && !_webCfgEnabled)
         {
             forceEnableWebCfgServer = false;
+            Log->disableFileLog();
             delay(200);
             restartEsp(RestartReason::ReconfigureWebCfgServer);
         }
@@ -244,6 +250,7 @@ bool NukiNetwork::update()
                 forceEnableWebCfgServer = true;
             }
             Log->println(F("[WARNING] Network timeout has been reached, restarting ..."));
+            Log->disableFileLog();
             delay(200);
             restartEsp(RestartReason::NetworkTimeoutWatchdog);
         }
@@ -330,10 +337,12 @@ void NukiNetwork::reconfigure()
     case NetworkDeviceType::WiFi:
         _preferences->putString(preference_wifi_ssid, "");
         _preferences->putString(preference_wifi_pass, "");
+        Log->disableFileLog();
         delay(200);
         restartEsp(RestartReason::ReconfigureWifi);
         break;
     case NetworkDeviceType::ETH:
+        Log->disableFileLog();
         delay(200);
         restartEsp(RestartReason::ReconfigureETH);
         break;
@@ -937,6 +946,7 @@ void NukiNetwork::initializeEthernet()
         Log->println(F("[ERROR] Failed to initialize ethernet hardware"));
         Log->println(F("[ERROR] Network device has a critical failure, enable fallback to Wi-Fi and reboot."));
         wifiFallback = true;
+        Log->disableFileLog();
         delay(200);
         restartEsp(RestartReason::NetworkDeviceCriticalFailure);
         return;
@@ -966,6 +976,7 @@ void NukiNetwork::initializeEthernet()
         Log->println(F("[ERROR] Failed to initialize ethernet hardware"));
         Log->println(F("[ERROR] Network device has a critical failure, enable fallback to Wi-Fi and reboot."));
         wifiFallback = true;
+        Log->disableFileLog();
         delay(200);
         restartEsp(RestartReason::NetworkDeviceCriticalFailure);
         return;
@@ -1010,6 +1021,8 @@ void NukiNetwork::onRestDataReceivedCallback(const char *path, WebServer &server
             return;
         }
 
+        if (server.hasArg("shutdown"))
+            _inst->onShutdownReceived(path, server);
         if (!server.hasArg("token") || server.arg("token") != _inst->_apitoken->get())
         {
             server.send(401, F("text/html"), "");
@@ -1069,12 +1082,12 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 
         if (atoi(data) == 0)
         {
-            Log->println(F("[INFO] Disable REST API"));
+            Log->println(F("[INFO] (REST API) Disable REST API"));
             _apiEnabled = false;
         }
         else
         {
-            Log->println(F("[INFO] ]Enable REST API"));
+            Log->println(F("[INFO] (REST API) Enable REST API"));
             _apiEnabled = true;
         }
         _preferences->putBool(preference_api_enabled, _apiEnabled);
@@ -1082,9 +1095,10 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
     }
     else if (comparePrefixedPath(path, api_path_bridge_reboot))
     {
-        Log->println(F("[INFO] Reboot requested via REST API"));
+        Log->println(F("[INFO] (REST API) Reboot requested"));
         delay(200);
         sendResponse(json);
+        Log->disableFileLog();
         delay(500);
         restartEsp(RestartReason::RequestedViaApi);
     }
@@ -1103,7 +1117,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             {
                 return;
             }
-            Log->println(F("[INFO] Disable Config Web Server, restarting"));
+            Log->println(F("[INFO] (REST API) Disable Config Web Server, restarting"));
             _preferences->putBool(preference_webcfgserver_enabled, false);
         }
         else
@@ -1112,12 +1126,13 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             {
                 return;
             }
-            Log->println(F("[INFO] Enable Config Web Server, restarting"));
+            Log->println(F("[INFO] (REST API) Enable Config Web Server, restarting"));
             _preferences->putBool(preference_webcfgserver_enabled, true);
         }
         sendResponse(json);
 
         clearWifiFallback();
+        Log->disableFileLog();
         delay(200);
         restartEsp(RestartReason::ReconfigureWebCfgServer);
 
@@ -1135,7 +1150,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             }
             return;
 
-            Log->println(F("[INFO] Lock action received: "));
+            Log->println(F("[INFO] (REST API) Lock action received: "));
             Log->printf(F("[INFO] %s\n"), data);
 
             LockActionResult lockActionResult = LockActionResult::Failed;
@@ -1286,6 +1301,18 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             return;
         }
     }
+}
+
+void NukiNetwork::onShutdownReceived(const char *path, WebServer &server)
+{
+    Log->println("[INFO] (REST API) Shutdown request received");
+    Log->disableFileLog();
+    delay(10);
+    disableHAR();
+    disableAPI();
+    SPIFFS.end();
+    _preferences->end();
+    safeShutdowESP(RestartReason::SafeShutdownRequestViaApi);
 }
 
 NetworkServiceState NukiNetwork::testNetworkServices()
@@ -1731,6 +1758,7 @@ bool NukiNetwork::connect()
             if (_preferences->getBool(preference_restart_on_disconnect, false) && (espMillis() > 60000))
             {
                 Log->println(F("[INFO] Restart on disconnect watchdog triggered, rebooting"));
+                Log->disableFileLog();
                 delay(100);
                 restartEsp(RestartReason::RestartOnDisconnectWatchdog);
             }
@@ -1780,6 +1808,8 @@ void NukiNetwork::onDisconnected()
     case NetworkDeviceType::ETH:
         if (_preferences->getBool(preference_restart_on_disconnect, false) && (espMillis() > 60000))
         {
+            Log->disableFileLog();
+            delay(10);
             restartEsp(RestartReason::RestartOnDisconnectWatchdog);
         }
         break;

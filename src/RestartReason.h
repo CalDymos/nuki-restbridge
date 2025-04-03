@@ -21,6 +21,7 @@ enum class RestartReason
     FactoryReset,
     ReconfigureWebCfgServer,
     DisableNetworkIfNotConnected,
+    SafeShutdownRequestViaApi,
     NotApplicable
 };
 
@@ -33,10 +34,21 @@ extern RestartReason currentRestartReason;
 
 extern bool restartReason_isValid;
 
+inline static void safeShutdowESP(RestartReason reason)
+{
+    restartReason = (int)reason;
+    restartReasonValidDetect = RESTART_REASON_VALID_DETECT;
+    SPIFFS.end();
+    delay(10); // to ensure that all pending write operations are completed
+    esp_sleep_enable_timer_wakeup(0); // No automatic wake-up
+    esp_deep_sleep_start();           // ESP goes to sleep
+}
 inline static void restartEsp(RestartReason reason)
 {
     restartReason = (int)reason;
     restartReasonValidDetect = RESTART_REASON_VALID_DETECT;
+    SPIFFS.end();
+    delay(10); // to ensure that all pending write operations are completed
     ESP.restart();
 }
 
@@ -97,6 +109,8 @@ inline static String getRestartReason()
         return "NukiBridgeFactoryReset";
     case RestartReason::DisableNetworkIfNotConnected:
         return "NetworkDisabledOnNotConnected";
+    case RestartReason::SafeShutdownRequestViaApi:
+        return "SafeShutdownRequestViaApi";
     case RestartReason::NotApplicable:
         return "NotApplicable";
     default:

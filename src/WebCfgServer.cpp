@@ -172,6 +172,7 @@ void WebCfgServer::initialize()
                        
                                    if(connected)
                                    {
+                                       Log->disableFileLog();
                                        waitAndProcess(true, 3000);
                                        if (nwMode > 1)
                                         restartEsp(RestartReason::ReconfigureETH);
@@ -226,6 +227,7 @@ void WebCfgServer::initialize()
                                     return this->redirect(this->_webServer, "/", 302);
                                    }
                                    buildConfirmHtml(this->_webServer, "Rebooting...", 2, true);
+                                   Log->disableFileLog();
                                    waitAndProcess(true, 1000);
                                    restartEsp(RestartReason::RequestedViaWebCfgServer);
                                    return; });
@@ -322,6 +324,7 @@ void WebCfgServer::initialize()
                     return this->redirect(this->_webServer, "/", 302);
                 }
                 buildConfirmHtml(this->_webServer, "Rebooting...", 2, true);
+                Log->disableFileLog();
                 waitAndProcess(true, 1000);
                 restartEsp(RestartReason::RequestedViaWebCfgServer);
                 return;
@@ -4015,6 +4018,7 @@ bool WebCfgServer::processFactoryReset(WebServer *server)
     }
 #endif
 
+    Log->disableFileLog();
     waitAndProcess(false, 3000);
     restartEsp(RestartReason::NukiBridgeReset);
     return res;
@@ -4040,6 +4044,7 @@ bool WebCfgServer::processUnpair(WebServer *server)
     }
 
     _network->disableHAR();
+    Log->disableFileLog();
     waitAndProcess(false, 1000);
     restartEsp(RestartReason::DeviceUnpaired);
     return res;

@@ -65,6 +65,11 @@ public:
     void resetFallBack();
 
     /**
+     * @brief disables writing to the log file
+     */
+    void disableFileLog();
+
+    /**
      * @brief Set the current log level.
      *
      * @param level Desired log level.
@@ -146,6 +151,7 @@ private:
     int _maxMsgLen;                               // Maximum message length
     int _maxLogFileSize;                          // Max log file size (KB)
     bool _backupEnabled;                          // Flag to enable backup of log file
+    bool _fileWriteEnabled;                       // Flag to enable writing to Log file
     std::atomic<bool> _logFallBack{false};        // SPIFFS failure fallback flag
     std::atomic<bool> _logBackupIsRunning{false}; // FTP backup activity flag
     msgtype _currentLogLevel;                     // Active log level
