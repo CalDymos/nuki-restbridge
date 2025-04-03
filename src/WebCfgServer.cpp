@@ -205,9 +205,9 @@ void WebCfgServer::initialize()
                                    }
                        
                                    String value = "";
-                                   if (this->_webServer->hasArg("CONFIRMTOKEN")) // WebServer ersetzt PsychicRequest
+                                   if (this->_webServer->hasArg("CONFIRMTOKEN")) 
                                    {
-                                       value = this->_webServer->arg("CONFIRMTOKEN"); // Abrufen des Wertes aus dem GET/POST-Parameter
+                                       value = this->_webServer->arg("CONFIRMTOKEN"); 
                                
                                        if (value == "")
                                        {
@@ -956,7 +956,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
     response += F("<h3>Network Configuration</h3>");
     response += F("<table>");
 
-    appendInputFieldRow(response, "HOSTNAME", "Host name", _preferences->getString(preference_hostname).c_str(), 100, "");
+    appendInputFieldRow(response, "HOSTNAME", "Hostname (needs to be unique, \"nukirestbridge\" is not allowed)", _preferences->getString(preference_hostname).c_str(), 100, "");
     appendDropDownRow(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions());
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
@@ -2229,7 +2229,7 @@ void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title
     response += F("\"><li>");
     response += title;
 
-    if (*warningMessage) // Statt strcmp(warningMessage, "") != 0
+    if (*warningMessage) 
     {
         response += F("<span>");
         response += warningMessage;
@@ -2972,7 +2972,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         }
         else if (key == "HOSTNAME")
         {
-            if (_preferences->getString(preference_hostname, "") != value)
+            if (_preferences->getString(preference_hostname, "") != value && value != "nukirestbridge")
             {
                 _preferences->putString(preference_hostname, value);
                 Log->print(F("[DEBUG] Setting changed: "));
@@ -4093,7 +4093,7 @@ void WebCfgServer::logoutSession(WebServer *server)
 {
     Log->println(F("[DEBUG] Logging out from Web configurator"));
 
-    // Setzen der Cookies auf leer und Ablaufzeit auf 0, um sie zu löschen
+    // Set the cookies to empty and expiry time to 0 to delete them
     server->sendHeader("Set-Cookie", "sessionId=; path=/; HttpOnly");
 
     String cookieHeader = server->header("Cookie");
