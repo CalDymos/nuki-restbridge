@@ -1,5 +1,8 @@
 #pragma once
 
+/**
+ * @brief Represents the reason why the ESP32 was restarted or shut down.
+ */
 enum class RestartReason
 {
     RequestedViaApi,
@@ -25,15 +28,26 @@ enum class RestartReason
     NotApplicable
 };
 
+/// @brief Magic value to indicate a valid restart reason
 #define RESTART_REASON_VALID_DETECT 0xa00ab00bc00bd00d;
 
+/// @brief Stores the current restart reason as int
 extern int restartReason;
+
+/// @brief Used to verify whether the stored restart reason is valid
 extern uint64_t restartReasonValidDetect;
 
+/// @brief Stores the parsed restart reason as enum valu
 extern RestartReason currentRestartReason;
 
+/// @brief Indicates whether the restart reason is valid
 extern bool restartReason_isValid;
 
+/**
+ * @brief Safely shuts down the ESP32 and enters deep sleep.
+ * 
+ * @param reason The reason for shutting down.
+ */
 inline static void safeShutdowESP(RestartReason reason)
 {
     restartReason = (int)reason;
@@ -43,6 +57,12 @@ inline static void safeShutdowESP(RestartReason reason)
     esp_sleep_enable_timer_wakeup(0); // No automatic wake-up
     esp_deep_sleep_start();           // ESP goes to sleep
 }
+
+/**
+ * @brief Restarts the ESP32 with a specified reason.
+ * 
+ * @param reason The reason for restarting.
+ */
 inline static void restartEsp(RestartReason reason)
 {
     restartReason = (int)reason;
@@ -52,6 +72,9 @@ inline static void restartEsp(RestartReason reason)
     ESP.restart();
 }
 
+/**
+ * @brief Initializes the restart reason after boot by checking the magic number.
+ */
 inline static void initializeRestartReason()
 {
     uint64_t cmp = RESTART_REASON_VALID_DETECT;
@@ -67,6 +90,11 @@ inline static void initializeRestartReason()
     }
 }
 
+/**
+ * @brief Returns the restart reason as a human-readable string.
+ * 
+ * @return String representation of the restart reason.
+ */
 inline static String getRestartReason()
 {
     switch (currentRestartReason)
@@ -118,6 +146,11 @@ inline static String getRestartReason()
     }
 }
 
+/**
+ * @brief Returns the ESP32 reset reason from hardware as a human-readable string.
+ * 
+ * @return String description of the hardware reset reason.
+ */
 inline static String getEspRestartReason()
 {
     esp_reset_reason_t reason = esp_reset_reason();
