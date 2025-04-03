@@ -30,3 +30,4 @@ sdkconfig
 node_modules
 pnpm-lock.yaml
 Todo.md
+*-history.ps1
