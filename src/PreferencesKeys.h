@@ -29,7 +29,6 @@
 #define preference_ip_gateway (char *)"ipgtw"
 #define preference_ip_dns_server (char *)"dnssrv"
 #define preference_hostname (char *)"hostname"
-#define preference_disable_network_not_connected (char *)"disNtwNoCon"
 #define preference_network_timeout (char *)"nettmout"
 #define preference_ntw_reconfigure (char *)"ntwRECONF" // not user-changeable
 #define preference_wifi_ssid (char *)"wifiSSID"

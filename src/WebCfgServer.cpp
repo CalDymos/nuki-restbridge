@@ -753,7 +753,6 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
     response += _preferences->getBool(preference_enable_bootloop_reset, false) ? F("Enabled") : F("Disabled");
     response += F("</td></tr>");
 
-    appendCheckBoxRow(response, "DISNTWNOCON", "Disable Network if not connected within 60s", _preferences->getBool(preference_disable_network_not_connected, false));
     appendCheckBoxRow(response, "BTLPRST", "Enable Bootloop prevention (Try to reset these settings to default on bootloop)", true);
 
     appendInputFieldRow(response, "BUFFSIZE", "Char buffer size (min 4096, max 65536)", _preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE), 6, "");
@@ -1871,8 +1870,6 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     }
     response += F("\nRestart ESP32 on network disconnect enabled: ");
     response += _preferences->getBool(preference_restart_on_disconnect, false) ? F("Yes") : F("No");
-    response += F("\nDisable Network if not connected within 60s: ");
-    response += _preferences->getBool(preference_disable_network_not_connected, false) ? F("Yes") : F("No");
     response += F("\nHA & API Timeout until restart (s): ");
     if (_preferences->getInt(preference_network_timeout, 60) < 0)
     {
@@ -3258,16 +3255,6 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 // configChanged = true;
-            }
-        }
-        else if (key == "DISNTWNOCON")
-        {
-            if (_preferences->getBool(preference_disable_network_not_connected, false) != (value == "1"))
-            {
-                _preferences->putBool(preference_disable_network_not_connected, (value == "1"));
-                Log->print(F("[DEBUG] Setting changed: "));
-                Log->println(key);
-                configChanged = true;
             }
         }
         else if (key == "SHOWSECRETS")

@@ -33,9 +33,10 @@ BleScanner::Scanner *bleScanner = nullptr; // BLE scanner to discover/connect Nu
 NukiWrapper *nuki = nullptr;               // Core smart lock wrapper.
 NukiDeviceId *deviceIdLock = nullptr;      // Unique device ID handler.
 WebCfgServer *webCfgServer = nullptr;      // Web-based configuration interface.
-Logger *Log = nullptr;                   // Global logger instance.
+Logger *Log = nullptr;                     // Global logger instance.
 
 bool lockEnabled = false; // Whether lock operations are currently permitted.
+bool networkReady = false; // Ob das Netzwerk angeschlossen/verbunden und bereit ist.
 bool rebootLock = false;  // Whether to reboot lock logic after failure.
 
 int64_t restartTs = (pow(2, 63) - (5 * 1000 * 60000)) / 1000; // Time stamp for restarting the ESP to prevent the ESPtimer from overflowing
@@ -125,39 +126,39 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 
 void bootloopDetection()
 {
-    uint64_t cmp = IS_VALID_DETECT;
-    bool bootloopIsValid = (bootloopValidDetect == cmp);
-    Log->printf(F("[DEBUG] %d\n"), bootloopIsValid);
+  uint64_t cmp = IS_VALID_DETECT;
+  bool bootloopIsValid = (bootloopValidDetect == cmp);
+  Log->printf(F("[DEBUG] %d\n"), bootloopIsValid);
 
-    if(!bootloopIsValid)
+  if (!bootloopIsValid)
+  {
+    bootloopCounter = (int8_t)0;
+    bootloopValidDetect = IS_VALID_DETECT;
+    return;
+  }
+
+  if (esp_reset_reason() == esp_reset_reason_t::ESP_RST_PANIC ||
+      esp_reset_reason() == esp_reset_reason_t::ESP_RST_INT_WDT ||
+      esp_reset_reason() == esp_reset_reason_t::ESP_RST_TASK_WDT ||
+      esp_reset_reason() == esp_reset_reason_t::ESP_RST_WDT)
+  {
+    bootloopCounter++;
+    Log->printf(F("[DEBUG] Bootloop counter incremented: %d\n"), bootloopCounter);
+
+    if (bootloopCounter == 10)
     {
-        bootloopCounter = (int8_t)0;
-        bootloopValidDetect = IS_VALID_DETECT;
-        return;
+      Log->print("Bootloop detected.");
+
+      preferences->putInt(preference_buffer_size, CHAR_BUFFER_SIZE);
+      preferences->putInt(preference_task_size_network, NETWORK_TASK_SIZE);
+      preferences->putInt(preference_task_size_nuki, NUKI_TASK_SIZE);
+      preferences->putInt(preference_authlog_max_entries, MAX_AUTHLOG);
+      preferences->putInt(preference_keypad_max_entries, MAX_KEYPAD);
+      preferences->putInt(preference_timecontrol_max_entries, MAX_TIMECONTROL);
+      preferences->putInt(preference_auth_max_entries, MAX_AUTH);
+      bootloopCounter = 0;
     }
-
-    if(esp_reset_reason() == esp_reset_reason_t::ESP_RST_PANIC ||
-            esp_reset_reason() == esp_reset_reason_t::ESP_RST_INT_WDT ||
-            esp_reset_reason() == esp_reset_reason_t::ESP_RST_TASK_WDT ||
-            esp_reset_reason() == esp_reset_reason_t::ESP_RST_WDT)
-    {
-        bootloopCounter++;
-        Log->printf(F("[DEBUG] Bootloop counter incremented: %d\n"), bootloopCounter);
-
-        if(bootloopCounter == 10)
-        {
-            Log->print("Bootloop detected.");
-
-            preferences->putInt(preference_buffer_size, CHAR_BUFFER_SIZE);
-            preferences->putInt(preference_task_size_network, NETWORK_TASK_SIZE);
-            preferences->putInt(preference_task_size_nuki, NUKI_TASK_SIZE);
-            preferences->putInt(preference_authlog_max_entries, MAX_AUTHLOG);
-            preferences->putInt(preference_keypad_max_entries, MAX_KEYPAD);
-            preferences->putInt(preference_timecontrol_max_entries, MAX_TIMECONTROL);
-            preferences->putInt(preference_auth_max_entries, MAX_AUTH);
-            bootloopCounter = 0;
-        }
-    }
+  }
 }
 
 /**
@@ -174,30 +175,32 @@ void nukiTask(void *parameter)
   while (true)
   {
 
-    bleScanner->update();
-    delay(20);
-
-    bool needsPairing = (lockEnabled && !nuki->isPaired());
-
-    if (needsPairing)
+    if (disableNetwork || networkReady)
     {
-      delay(2500);
-    }
-    else if (!whiteListed)
-    {
-      whiteListed = true;
+      bleScanner->update();
+      delay(20);
+
+      bool needsPairing = (lockEnabled && !nuki->isPaired());
+
+      if (needsPairing)
+      {
+        delay(2500);
+      }
+      else if (!whiteListed)
+      {
+        whiteListed = true;
+        if (lockEnabled)
+        {
+          bleScanner->whitelist(nuki->getBleAddress());
+        }
+      }
+
       if (lockEnabled)
       {
-        bleScanner->whitelist(nuki->getBleAddress());
+        nuki->update(rebootLock);
+        rebootLock = false;
       }
     }
-
-    if (lockEnabled)
-    {
-      nuki->update(rebootLock);
-      rebootLock = false;
-    }
-
     if (espMillis() - nukiLoopTs > 120000)
     {
       Log->println(F("[DEBUG] nukiTask is running"));
@@ -232,19 +235,19 @@ void networkTask(void *parameter)
   {
 
     int64_t ts = espMillis();
-    if(ts > 120000 && ts < 125000)
+    if (ts > 120000 && ts < 125000)
     {
-        if(bootloopCounter > 0)
-        {
-            bootloopCounter = (int8_t)0;
-            Log->println("Bootloop counter reset");
-        }
+      if (bootloopCounter > 0)
+      {
+        bootloopCounter = (int8_t)0;
+        Log->println("Bootloop counter reset");
+      }
     }
 
     network->update();
-    bool connected = network->isConnected();
+    networkReady = network->isConnected();
 
-    if (connected && updateTime)
+    if (networkReady && updateTime)
     {
       if (preferences->getBool(preference_update_time, false))
       {
@@ -253,7 +256,7 @@ void networkTask(void *parameter)
       updateTime = false;
     }
 
-    if (connected && lockEnabled)
+    if (networkReady && lockEnabled)
     {
       rebootLock = network->update();
     }
@@ -570,13 +573,13 @@ void setup()
     logCoreDump();
   }
 
-  #ifdef DEBUG_NUKIBRIDGE
+#ifdef DEBUG_NUKIBRIDGE
   if (LittleFS.begin(true, "/littlefs", 10, "littlefs"))
   {
     listDir(LittleFS, "/", 1);
   }
-  #endif
-  
+#endif
+
   // default disableNetwork RTC_ATTR to false on power-on
   if (espRunning != 1)
   {
@@ -587,11 +590,11 @@ void setup()
     ethCriticalFailure = false;
   }
 
-  if(preferences->getBool(preference_enable_bootloop_reset, false))
+  if (preferences->getBool(preference_enable_bootloop_reset, false))
   {
-      bootloopDetection();
+    bootloopDetection();
   }
-  
+
   Log->print("[DEBUG] Nuki Bridge version: ");
   Log->println(NUKI_REST_BRIDGE_VERSION);
   Log->print("[DEBUG] Nuki Bridge build date: ");
