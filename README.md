@@ -41,6 +41,7 @@
     - [Nuki Lock PIN](#nuki-lock-pin)
     - [Unpair Nuki Lock](#unpair-nuki-lock)
     - [Factory reset Nuki Bridge](#factory-reset-nuki-bridge)
+- [Recommended LAN Setup](#recommended-lan-setup)
 
 ---
 
@@ -340,3 +341,29 @@ In UDP mode, an empty param field means that the corresponding report is not sen
 #### Factory reset Nuki Bridge
 
 - **Type [4 DIGIT CODE] to confirm factory reset**: Set to the shown randomly generated code to reset all Nuki Bridge settings to default and unpair Nuki Lock. Optionally also reset Wi-Fi settings to default (and reopen the Wi-Fi configurator) by enabling the checkbox.
+
+---
+
+## Recommended LAN Setup
+
+> 🔐 Among other things, the Nuki REST Bridge uses HTTP for communication. This means that data is transmitted in plain text within the local network, unlike HTTPS. However, the security risk can be considered minimal if the recommended precautions are followed and should not pose a problem for private users in a secured home network.
+
+
+These settings are intended for environments where secure HTTPS is not available and devices communicate via plain HTTP (e.g., with legacy home automation systems or embedded APIs).
+
+| Setting                                | Device / Layer                | Recommended Action                                                                 |
+|----------------------------------------|-------------------------------|------------------------------------------------------------------------------------|
+| **Prefer wired connections (LAN)**     | Network design                | Use Ethernet wherever possible for improved stability and security                |
+|**Enable secure WiFi (WPA2/WPA3) if WLAN is used**      | Router / Access Point         | Use WPA3 if supported, otherwise WPA2 with a strong password (no open WiFi)       |
+| **Use static IP addresses**            | Router / DHCP Server          | Assign fixed IPs for ESP32 devices and the Home Automation server                 |
+| **Restrict internet access for ESP32** | Router / Firewall             | Block outbound internet for ESP32 devices (via IP/MAC filtering or ACLs)          |
+| **Isolate ESP32 in its own VLAN**      | Managed Switch / Router       | Place ESP32 devices and the HA server in a dedicated VLAN                         |
+| **Restrict inter-VLAN traffic**        | Router / Layer 3 Switch       | Only allow ESP32 ↔ HA server communication, block access to other devices         |
+| **Assign dedicated VLAN ports**        | Managed Switch                | Use port-based VLANs if tagging is unsupported or complex                         |
+| **Limit API permissions**              | Home Automation System        | Create a separate user with minimal privileges for each ESP32 device              |
+| **Avoid hardcoding credentials in URL**| ESP32 firmware                | Use POST requests where possible; avoid GET with sensitive data in query strings  |
+| **Use VPN for remote access**          | Router / Gateway              | Avoid exposing devices to the internet – connect remotely via VPN only            |
+| **Set up a separate Guest LAN**        | Router / Access Point         | Create an isolated guest WiFi/LAN for visitors to prevent access to internal devices |
+| **Monitor network traffic**            | Firewall / Network Monitor    | Log or alert on unusual traffic from/to ESP32 IPs                                 |
+
+⚠️ **Note:** These steps are aimed at minimizing the risk when HTTP is the only available communication method. They do not replace proper encryption, but help to minimize the risk within a trusted LAN.
