@@ -7,7 +7,6 @@
 
 🚧 **Pre-Release Status**: This project is in a **pre-release phase**. Most features are implemented and functional, but some components may still be incomplete, unstable, or subject to change. Use with caution.
 
-
 ---
 
 ## 📚 Table of Contents
@@ -41,6 +40,8 @@
     - [Nuki Lock PIN](#nuki-lock-pin)
     - [Unpair Nuki Lock](#unpair-nuki-lock)
     - [Factory reset Nuki Bridge](#factory-reset-nuki-bridge)
+  - [Advanced Configuartion](#advanced-configuration)
+- [REST API Enpoints](#rest-api-endpoints) 
 - [Recommended LAN Setup](#recommended-lan-setup)
 
 ---
@@ -63,6 +64,8 @@
 | ✅ Supported | ❌ Not Supported |
 |-------------|------------------|
 | All dual-core ESP32 boards with Wi-Fi + BLE supported by ESP-IDF 5.3.2 / Arduino Core 3.1.3 | ESP32-S2 (no BLE) |
+
+---
 
 ### Nuki Devices
 
@@ -112,6 +115,8 @@ The bridge uses both CPU cores to handle BLE scanning, client connections, and w
 
 Flash the firmware to your ESP32 board using the provided binaries or by compiling via PlatformIO.
 
+---
+
 ### Initial Network Setup
 
 1. Power on the ESP32.
@@ -121,6 +126,8 @@ Flash the firmware to your ESP32 board using the provided binaries or by compili
 4. Select and connect to your home Wi-Fi.
 
 ESP32 will then connect to the selected network.
+
+---
 
 ### Pairing with a Nuki Lock (1.0 to 4.0)
 
@@ -138,6 +145,8 @@ In your browser, open the IP address of the ESP32 to access the Web Config inter
 
 You can configure:
 
+---
+
 ### Network Configuration
 
 #### General Settings
@@ -145,9 +154,11 @@ You can configure:
 - **Host name**: Set the hostname for the Nuki Rest Bridge ESP
 - **Network hardware**: "Wi-Fi only" by default, set to ethernet if available
 - **RSSI send interval**: Set to a positive integer to specify the number of seconds between sending the current Wi-Fi RSSI; set to -1 to disable, default value 60
-  > 📘: Requires Home Automation Reporting to be enabled
+  > 📘 **Note:** Requires Home Automation Reporting to be enabled
 - **Restart on disconnect**: Enable to restart the Nuki Rest Bridge when disconnected from the network.
 - **Find Wi-Fi AP with strongest signal**: Uses the AP with the strongest signal for the connection via Wi-Fi
+
+---
 
 #### IP Address Assignment
 
@@ -175,24 +186,28 @@ You can configure:
 - **Address**: Set to the IP address of Home Automation
 - **Port**: Set to the Port of Home Automation
 - **Mode**: Select either UDP or REST.
-  >📘 In UDP mode, the fields marked as Path are ignored. Only the Param values are used. In REST mode, both Path and Query fields are required.
+  >📘 **Note:** In UDP mode, the fields marked as Path are ignored. Only the Param values are used. In REST mode, both Path and Query fields are required.
 - **REST Request Method**: Select Methode for Rest Request GET/POST.
-  >📘 only available if REST Mode is selected
+  >📘 **Note:** only available if REST Mode is selected
 - **User**: Optional username for authenticating with the Home Automation system. Use `#` to disable authentication.
-  >📘 only available if REST Mode is selected
+  >📘 **Note:** only available if REST Mode is selected
 - **Password**: Password corresponding to the username. Use `#` to disable authentication.
-  >📘 only available if REST Mode is selected
+  >📘 **Note:** only available if REST Mode is selected
 
+---
 
 #### Report Settings
 
->⚠️ In REST Mode the Query field can optionally contain full query strings like ?action=set&ext=Extension1&io=Q1&value=.
-The actual value is appended to the end of this string during transmission.
-This allows compatibility with systems like Loxone and Comexio without special handling.
-In UDP Mode the Path field is not available.
-In UDP Mode the Param field is required.
-In REST mode, an empty key field means that the corresponding report is not sent.
-In UDP mode, an empty param field means that the corresponding report is not sent.
+> ⚠️ **Note:**  
+> In **REST mode**, the **Query** field may optionally include a full query string, such as `?action=set&ext=Extension1&io=Q1&value=`.  
+> The actual value will be appended automatically during transmission. This allows compatibility with systems like **Loxone** and **Comexio** without special handling.  
+>
+> In **UDP mode**, the **Path** field is not available — instead, the **Param** field is **required**.  
+>
+> In **REST mode**, leaving the **Key** field empty disables sending the corresponding report.  
+> In **UDP mode**, leaving the **Param** field empty does the same.
+
+---
 
 ##### General
 
@@ -224,6 +239,7 @@ In UDP mode, an empty param field means that the corresponding report is not sen
 - **BLE RSSI Path**: URL path to report the signal strength (RSSI) of the BLE connection (e.g. `/api/system/ble_rssi`)
 - **BLE RSSI (Query/Param)**: Query to report the value (e.g. `?rssi=`)
 
+---
 
 ##### Key Turner State
 
@@ -266,6 +282,8 @@ In UDP mode, an empty param field means that the corresponding report is not sen
 - **BLE Strength Path**: URL path to report BLE signal strength (e.g. `/api/lock/blestrength`)
 - **BLE Strength (Query/Param)**: Query to report the value (e.g. `?value=`)
 
+---
+
 ##### Battery Report
 
 - **Voltage Path**: URL path to report the current battery voltage (e.g. `/api/battery/voltage`)
@@ -288,7 +306,9 @@ In UDP mode, an empty param field means that the corresponding report is not sen
 
 - **Nuki Smartlock enabled**: Enable if you want Nuki Bridge to connect to a Nuki Lock (1.0-4.0)
 - **New Nuki Bluetooth connection mode**: Enable to use the latest Nuki BLE connection mode (recommended). 
-    > 📘: Disable if you have issues communicating with the lock
+    > 📘 **Note:** Disable if you have issues communicating with the lock
+
+---
 
 #### Advanced Nuki Configuration
 
@@ -296,27 +316,35 @@ In UDP mode, an empty param field means that the corresponding report is not sen
 - **Query interval configuration**: Set to a positive integer to set the maximum amount of seconds between actively querying the Nuki device for the current configuration, default 3600.
 - **Query interval battery**: Set to a positive integer to set the maximum amount of seconds between actively querying the Nuki device for the current battery state, default 1800.
 - **Query interval keypad**: Set to a positive integer to set the maximum amount of seconds between actively querying the Nuki device for the current keypad state, default 1800.
-  >📘: Only available when a Keypad is detected
+  >📘 **Note:** Only available when a Keypad is detected
 - **Number of retries if command failed**: Set to a positive integer to define the amount of times the Nuki Bridge retries sending commands to the Nuki Lock when commands are not acknowledged by the device, default 3.
 - **Delay between retries**: Set to the amount of milliseconds the Nuki Bridge waits between resending not acknowledged commands, default 100.
 - **Restart if bluetooth beacons not received**: Set to a positive integer to restart the Nuki Bridge after the set amount of seconds has passed without receiving a bluetooth beacon from the Nuki device, set to -1 to disable, default 60. Because the bluetooth stack of the ESP32 can silently fail it is not recommended to disable this setting.
 - **BLE transmit power in dB**: Set to a integer between -12 and 9 (ESP32) or -12 and 20 (All newer ESP32 variants) to set the Bluetooth transmit power, default 9.
 - **Update Nuki Bridge and Lock time using NTP**: Enable to update the ESP32 time and Nuki Lock time every 12 hours using a NTP time server.
-  >📘: Updating the Nuki device time requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
+  >📘 **Note:** Updating the Nuki device time requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
 - **NTP server**: Set to the NTP server you want to use, defaults to "`pool.ntp.org`". If DHCP is used and NTP servers are provided using DHCP these will take precedence over the specified NTP server.
+
+---
 
 ### Access Level Configuration
 
 #### Nuki General Access Control
 - **Modify Nuki Bridge configuration over REST API**: Allow changing Nuki Bridge settings using REST API.
-  > 🚨: For security reasons, not all configurations can be changed via the REST API.
+  > 🚨 **Important:** For security reasons, not all configurations can be changed via the REST API.
+
+---
 
 #### Nuki Lock Access Control
 - **Enable or disable executing each available lock action for the Nuki Lock through REST API**
 
+---
+
 #### Nuki Lock Config Control
 - **Enable or disable changing each available configuration setting for the Nuki Lock through REST API**
-  > 📘: Changing configuration settings requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
+  > 📘 **Note:** Changing configuration settings requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
+
+---
 
 ### Credentials
 
@@ -334,22 +362,126 @@ In UDP mode, an empty param field means that the corresponding report is not sen
 
 - **PIN Code**: Fill with the Nuki Security Code of the Nuki Lock. Required for functions that require the security code to be sent to the lock such as setting lock permissions/adding keypad codes, viewing the activity log or changing the Nuki device configuration. Set to "#" to remove the security code from the Nuki Bridge configuration.
 
+---
+
 #### Unpair Nuki Lock
 
 - **Type [4 DIGIT CODE] to confirm unpair**: Set to the shown randomly generated code to unpair the Nuki Lock from the Nuki Bridge.
 
+---
+
 #### Factory reset Nuki Bridge
 
-- **Type [4 DIGIT CODE] to confirm factory reset**: Set to the shown randomly generated code to reset all Nuki Bridge settings to default and unpair Nuki Lock. Optionally also reset Wi-Fi settings to default (and reopen the Wi-Fi configurator) by enabling the checkbox.
+- **Type [4 DIGIT CODE] to confirm factory reset**: Set to the shown randomly generated code to reset all Nuki Hub settings to default and unpair Nuki Lock and/or Opener. Optionally also reset Wi-Fi settings to default (and reopen the Wi-Fi configurator) by enabling the checkbox.
+
+---
+
+### Advanced Configuration
+
+The advanced configuration menu is not reachable from the main menu of the web configurator by default.<br>
+You can reach the menu directly by browsing to http://NUKIHUBIP/get?page=advanced or enable showing it in the main menu by browsing to http://NUKIHUBIP/get?page=debugon once (http://NUKIHUBIP/get?page=debugoff to disable).
+
+>⚠️ **Warning:** that the following options can break Nuki Hub and cause bootloops that will require you to erase your ESP and reflash following the instructions for first-time flashing.
+
+- **Enable Bootloop prevention**: Enable to reset the following stack size and max entry settings to default if Nuki Hub detects a bootloop.
+- **Char buffer size (min 4096, max 65536)**: Set the character buffer size, needs to be enlarged to support large amounts of auth/keypad/timecontrol/authorization entries. Default 4096.
+- **Task size Network (min 6144, max 65536)**: Set the Network task stack size, needs to be enlarged to support large amounts of auth/keypad/timecontrol/authorization entries. Default 6144.
+- **Task size Nuki (min 6144, max 65536)**: Set the Nuki task stack size. Default 6144.
+- **Max auth log entries (min 1, max 100)**: The maximum amount of log entries that will be requested from the lock, default 5.
+- **Max keypad entries (min 1, max 200)**: The maximum amount of keypad codes that will be requested from the lock, default 10.
+- **Max timecontrol entries (min 1, max 100)**: The maximum amount of timecontrol entries that will be requested from the lock, default 10.
+- **Max authorization entries (min 1, max 100)**: The maximum amount of authorization entries that will be requested from the lock, default 10.
+- **Show Pairing secrets on Info page**: Enable to show the pairing secrets on the info page. Will be disabled on reboot.
+- **Manually set lock pairing data**: Enable to save the pairing data fields and manually set pairing info for the lock.
+- **Force Lock ID to current ID**: Enable to force the current Lock ID, irrespective of the config received from the lock.
+- **Force Lock Keypad connected**: Enable to force Nuki Hub to function as if a keypad was connected, irrespective of the config received from the lock.
+- **Force Lock Doorsensor connected**: Enable to force Nuki Hub to function as if a doorsensor was connected, irrespective of the config received from the lock.
+- **Enable Nuki connect debug logging**: Enable to log debug information regarding Nuki BLE connection to Home Automation and/or Serial.
+- **Enable Nuki communication debug logging**: Enable to log debug information regarding Nuki BLE communication to Home Automation and/or Serial.
+- **Enable Nuki readable data debug logging**: Enable to log human readable debug information regarding Nuki BLE to Home Automation and/or Serial.
+- **Enable Nuki hex data debug logging**: Enable to log hex debug information regarding Nuki BLE to Home Automation and/or Serial.
+- **Enable Nuki command debug logging**: Enable to log debug information regarding Nuki BLE commands to Home Automation and/or Serial.
+- **Send free heap to Home Automation**: Enable to send free heap to Home Automation.
+
+---
+
+## 🌐 REST API Endpoints
+
+All REST API endpoints are accessible via the configured port (default: `8080`).  
+🔐 **All endpoints require a valid Access Token** in the HTTP header or query string — **except** for `/shutdown`.
+
+> 🧩 Format:  
+> `http://<bridge-ip>:<port>/<endpoint>?token=<your-token>`
+
+### 🔑 Authentication
+
+Every request must include the access token as:
+- HTTP query parameter: `?token=yourtoken`
+- or HTTP header: `Authorization: Bearer yourtoken`
+
+> ⚠️ The only exception is the `/shutdown` endpoint, which does **not** require a token.
+
+---
+
+### 🔧 Bridge Control
+
+| Endpoint           | Method | Description                                   |
+|--------------------|--------|-----------------------------------------------|
+| `/info`            | GET    | Returns a JSON object with firmware, build, pairing, and BLE info. |
+| `/status`          | GET    | Returns general runtime state and memory info. |
+| `/shutdown`        | GET    | Powers down the ESP32 (no token required).    |
+| `/restart`         | GET    | Restarts the ESP32 immediately.               |
+| `/reset`           | GET    | Triggers a factory reset (requires confirmation code). |
+
+---
+
+### 🔐 Nuki Lock Actions
+
+| Endpoint           | Method | Description                                   |
+|--------------------|--------|-----------------------------------------------|
+| `/lockAction`      | POST   | Sends a lock/unlock/lock ‘n’ go command to the Nuki Lock. |
+| `/lockState`       | GET    | Returns the current lock state.               |
+| `/lockBattery`     | GET    | Returns current battery info.                 |
+| `/lockConfig`      | GET    | Returns the current lock configuration.       |
+| `/lockLog`         | GET    | Returns the latest log entries.               |
+
+---
+
+### 🔒 Authorization & Configuration
+
+| Endpoint                 | Method | Description                                   |
+|--------------------------|--------|-----------------------------------------------|
+| `/lockAuthList`          | GET    | Returns list of authorized users.             |
+| `/lockAddAuth`           | POST   | Adds a new authorized user (PIN required).    |
+| `/lockRemoveAuth`        | POST   | Removes an authorized user (PIN required).    |
+| `/lockKeypadList`        | GET    | Returns list of keypad codes.                 |
+| `/lockAddKeypad`         | POST   | Adds a new keypad code (PIN required).        |
+| `/lockRemoveKeypad`      | POST   | Removes a keypad code (PIN required).         |
+| `/lockTimeControlList`   | GET    | Returns list of time controls.                |
+| `/lockAddTimeControl`    | POST   | Adds a new time control (PIN required).       |
+| `/lockRemoveTimeControl` | POST   | Removes a time control (PIN required).        |
+
+---
+
+### 🔧 Configuration Access
+
+| Endpoint   | Method | Description                                       |
+|------------|--------|---------------------------------------------------|
+| `/get`     | GET    | Returns current configuration as HTML page.       |
+| `/set`     | POST   | Sets configuration parameters via REST (if allowed). |
+| `/save`    | GET    | Triggers configuration save to NVS.               |
+
+> 📘 **Note:** Some configuration options may be restricted even with valid token.  
+> See [Access Level Configuration](#access-level-configuration) for details.
 
 ---
 
 ## Recommended LAN Setup
 
-> 🔐 Among other things, the Nuki REST Bridge uses HTTP for communication. This means that data is transmitted in plain text within the local network, unlike HTTPS. However, the security risk can be considered minimal if the recommended precautions are followed and should not pose a problem for private users in a secured home network.
+> 🔐 **Note:** The Nuki REST Bridge uses HTTP for communication, which means that data is transmitted in plain text within the local network — unlike HTTPS.  
+> While this poses only a minimal risk in secured home environments, proper precautions should still be taken.  
+> The following steps help minimize that risk when HTTP is the only available method. They do not replace encryption but reduce exposure within a trusted LAN.
 
-
-These settings are intended for environments where secure HTTPS is not available and devices communicate via plain HTTP (e.g., with legacy home automation systems or embedded APIs).
 
 | Setting                                | Device / Layer                | Recommended Action                                                                 |
 |----------------------------------------|-------------------------------|------------------------------------------------------------------------------------|
@@ -366,4 +498,3 @@ These settings are intended for environments where secure HTTPS is not available
 | **Set up a separate Guest LAN**        | Router / Access Point         | Create an isolated guest WiFi/LAN for visitors to prevent access to internal devices |
 | **Monitor network traffic**            | Firewall / Network Monitor    | Log or alert on unusual traffic from/to ESP32 IPs                                 |
 
-⚠️ **Note:** These steps are aimed at minimizing the risk when HTTP is the only available communication method. They do not replace proper encryption, but help to minimize the risk within a trusted LAN.
