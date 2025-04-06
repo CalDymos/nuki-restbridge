@@ -1157,8 +1157,8 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
     response += F("<table>");
 
     appendInputFieldRow(response, "LOGFILE", "Filename", LOGGER_FILENAME, 64, "readonly");
-    appendInputFieldRow(response, "LOGMSGLEN", "Max. message length (min 1, max 1024)", _preferences->getInt(preference_log_max_msg_len, 128), 6, "min='1' max='1024'");
-    appendInputFieldRow(response, "LOGMAXSIZE", "Max. log file size (min 256KB, max 1024KB)", _preferences->getInt(preference_log_max_file_size, 256), 6, "min='256' max='1024'");
+    appendInputFieldRow(response, "LOGMSGLEN", "Max. message length (min 5, max 1024)", _preferences->getInt(preference_log_max_msg_len), 6, "min='5' max='1024'");
+    appendInputFieldRow(response, "LOGMAXSIZE", "Max. log file size (min 56KB, max 1024KB)", _preferences->getInt(preference_log_max_file_size), 6, "min='56' max='1024'");
 
     // Log level dropdown
     std::vector<std::pair<String, String>> lvlOptions;
