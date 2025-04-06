@@ -53,7 +53,7 @@ def get_partition_offsets(env):
                 offsets["otadata"] = offset
             elif type_.strip() == "app" and subtype.strip() == "factory":
                 offsets["firmware"] = offset
-            elif name.strip().lower() == "spiffs":
+            elif type_.strip().lower() == "spiffs":
                 offsets["spiffs"] = offset
             elif name.strip().lower() == "coredump":
                 offsets["coredump"] = offset
@@ -105,7 +105,7 @@ def get_partition_sizes(env):
                 sizes["otadata"] = size
             elif type_.strip() == "app" and subtype.strip() == "factory":
                 sizes["firmware"] = size
-            elif name.strip().lower() == "spiffs":
+            elif type_.strip().lower() == "spiffs":
                 sizes["spiffs"] = size
             elif name.strip().lower() == "coredump":
                 sizes["coredump"] = size
@@ -196,8 +196,14 @@ def merge_bin(source, target, env):
         partOffsets["bootloader"], f"{env['BUILD_DIR']}/bootloader.bin",
         partOffsets["partition"], f"{env['BUILD_DIR']}/partitions.bin",
         partOffsets["firmware"], target[0].get_abspath(),
-        partOffsets["spiffs"], f"{env['BUILD_DIR']}/spiffs.bin"
     ]
+    
+    # SPIFFS prüfen und ggf. hinzufügen
+    spiffs_path = os.path.join(env["BUILD_DIR"], "spiffs.bin")
+    if os.path.exists(spiffs_path):
+        flash_args += [partOffsets["spiffs"], spiffs_path]
+    else:
+        print("[INFO] No SPIFFS image found. Skipping in merge_bin().")
         
     cmd = f"esptool.py --chip {chip} merge_bin -o {target_file} --flash_mode dio --flash_freq keep --flash_size keep " + " ".join(flash_args)
     env.Execute(cmd)
@@ -344,7 +350,12 @@ def upload_firmware(source, target, env):
     cmd += f"{partOffsets['bootloader']} {env['BUILD_DIR']}/bootloader.bin "
     cmd += f"{partOffsets['partition']} {env['BUILD_DIR']}/partitions.bin "
     cmd += f"{partOffsets['firmware']} {firmware_path}"
-    cmd += f" {partOffsets['spiffs']} {env['BUILD_DIR']}/spiffs.bin"
+
+    spiffs_path = os.path.join(env["BUILD_DIR"], "spiffs.bin")
+    if os.path.exists(spiffs_path):
+        cmd += f" {partOffsets['spiffs']} {spiffs_path}"
+    else:
+        print("[INFO] No SPIFFS image found. Skipping in upload_firmware().")
     
     print(f"[INFO] Starte Upload auf {upload_port}...")
     env.Execute(cmd)
@@ -364,20 +375,35 @@ def generate_spiffs(source, target, env):
         print(f"[INFO] SPIFFS data folder {data_path} does not exist, will be create!")
         os.mkdir(data_path)
     
-    # get SPIFFS offset address
-    spiffs_size = partSizes["spiffs"] if partSizes["spiffs"] else "0x1E0000"
+    # Prüfe, ob mindestens eine Datei enthalten ist
+    data_files = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))]
+    if not data_files:
+        print(f"[INFO] No files found in {data_path}. empty SPIFFS image will be create.")
+            
+        # get SPIFFS offset address
+        spiffs_size = partSizes["spiffs"] if partSizes["spiffs"] else "0x1E0000"
 
-    # Select the correct mkspiffs version
-    mkspiffs_exe = os.path.join(os.getenv("USERPROFILE"), ".platformio", "packages", "tool-mkspiffs", "mkspiffs_espressif32_arduino.exe")
+        # Select the correct mkspiffs version
+        mkspiffs_exe = os.path.join(os.getenv("USERPROFILE"), ".platformio", "packages", "tool-mkspiffs", "mkspiffs_espressif32_arduino.exe")
 
-    if not os.path.exists(mkspiffs_exe):
-        print("[ERROR] mkspiffs was not found!")
-        return
-
-    # SPIFFS-Image generieren
-    cmd = f'"{mkspiffs_exe}" -c "{data_path}" -b 4096 -p 256 -s {spiffs_size} "{spiffs_path}"'
-    print(f"[INFO] Create SPIFFS image: {cmd}")
-    env.Execute(cmd)
+        if not os.path.exists(mkspiffs_exe):
+            print("[ERROR] mkspiffs was not found!")
+            return
+        
+        # SPIFFS-Image generieren
+        cmd = f'"{mkspiffs_exe}" -c "{data_path}" -b 4096 -p 256 -s {spiffs_size} "{spiffs_path}"'
+        print(f"[INFO] Create SPIFFS image: {cmd}")
+        env.Execute(cmd)
+        
+    else:
+        print(f"[INFO] Building SPIFFS image with {len(data_files)} file(s) from /data...")
+        result = subprocess.run(["pio", "run", "--target", "buildfs"], cwd=env["PROJECT_DIR"])   
+        
+        if result.returncode != 0:
+            print("[ERROR] Failed to build SPIFFS image using PlatformIO.")
+            return
+        
+    print(f"[INFO] SPIFFS image successfully built: {spiffs_path}")
 
 
 # Post-Build Actions
