@@ -106,7 +106,7 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
     }
     else
     {
-      Log->printf(F("[DEBUG]  FILE: %s\tSIZE: %lu\n"), file.name(), file.name());
+      Log->printf(F("[DEBUG]  FILE: %s\tSIZE: %lu\n"), file.name(), file.size());
     }
 
     if (file.size() > (int)(SPIFFS.totalBytes() * 0.4))
