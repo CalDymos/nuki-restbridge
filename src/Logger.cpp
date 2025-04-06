@@ -545,8 +545,12 @@ bool Logger::backupFileToFTPServer()
     println(F("[INFO] FTP Backup is running"));
     return true;
   }
-  if (_backupEnabled)
+
+  if (!_backupEnabled)
   {
+    _logBackupIsRunning.store(false);
+    return false;
+  }
 
     if (!_preferences)
     {
@@ -646,10 +650,9 @@ bool Logger::backupFileToFTPServer()
     _logBackupIsRunning.store(false);
     return true;
   }
-  return false;
-}
 
-void Logger::disableFileLog(){
+void Logger::disableFileLog()
+{
   _fileWriteEnabled = false;
 }
 
