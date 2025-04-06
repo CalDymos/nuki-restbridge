@@ -1723,16 +1723,16 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
 
     response += F("\n\n------------NUKI BRIDGE LOG ------------");
     response += F("\nMax message length: ");
-    response += String(_preferences->getInt(preference_log_max_msg_len), 128);
+    response += String(_preferences->getInt(preference_log_max_msg_len));
     response += F("\nFilename: ");
     response += LOGGER_FILENAME;
     response += F("\nLevel: ");
     response += Log->levelToString(Log->getLevel());
     response += F("\nCurrent file size: ");
-    response += String(Log->getFileSize());
+    response += String(Log->getFileSize() / 1024);
     response += F(" kb");
     response += F("\nMax file size: ");
-    response += String(_preferences->getInt(preference_log_max_file_size, 256));
+    response += String(_preferences->getInt(preference_log_max_file_size));
     response += F(" kb");
     response += F("\nEnable backup to ftp server: ");
     response += _preferences->getBool(preference_log_backup_enabled, false) ? F("Yes") : F("No");
@@ -2933,7 +2933,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         }
         else if (key == "LOGMAXSIZE")
         {
-            if (_preferences->getInt(preference_log_max_file_size, 256) != value.toInt())
+            if (_preferences->getInt(preference_log_max_file_size) != value.toInt())
             {
                 _preferences->putInt(preference_log_max_file_size, value.toInt());
                 Log->print("Setting changed: ");
