@@ -201,7 +201,20 @@ void NukiWrapper::update(bool reboot)
 
     if (!_paired)
     {
-        Log->println(F("[INFO] Nuki lock start pairing"));
+        // first pairing log msg
+        if (!_pairingMsgShown)
+        {
+            Log->println(F("[INFO] Nuki lock start pairing"));
+            _pairingMsgShown = true;
+            _lastPairingLogTs = espMillis();
+        }
+
+        // log pairing msg again every 60 seconds (only if pairing still fails)
+        else if (espMillis() - _lastPairingLogTs > 60000)
+        {
+            Log->println(F("[INFO] Nuki lock start pairing (retrying...)"));
+            _lastPairingLogTs = espMillis();
+        }
 
         Nuki::AuthorizationIdType idType = Nuki::AuthorizationIdType::Bridge;
 
@@ -210,6 +223,8 @@ void NukiWrapper::update(bool reboot)
             Log->println(F("[INFO] Nuki paired"));
             _paired = true;
             _network->sendToHALockBleAddress(_nukiLock.getBleAddress().toString());
+            _pairingMsgShown = false;
+            _lastPairingLogTs = 0;
         }
         else
         {
@@ -355,11 +370,11 @@ void NukiWrapper::update(bool reboot)
                 updateTime();
             }
         }
-        if(_checkKeypadCodes && _invalidCount > 0 && (ts - (120000 * _invalidCount)) > _lastCodeCheck)
+        if (_checkKeypadCodes && _invalidCount > 0 && (ts - (120000 * _invalidCount)) > _lastCodeCheck)
         {
             _invalidCount--;
         }
-        if(reboot && isPinValid())
+        if (reboot && isPinValid())
         {
             Nuki::CmdResult cmdResult = _nukiLock.requestReboot();
         }
@@ -555,7 +570,6 @@ bool NukiWrapper::updateKeyTurnerState()
         lockState == NukiLock::LockState::BootRun ||
         lockState == NukiLock::LockState::MotorBlocked)
     {
-
     }
     else if (espMillis() < _statusUpdatedTs + 10000)
     {
@@ -862,7 +876,6 @@ void NukiWrapper::updateAuth(bool retrieved)
             _preferences->putUInt(preference_lock_max_auth_entry_count, _maxAuthEntryCount);
         }
 
-
         _authIds.clear();
         _authIds.reserve(authEntries.size());
         for (const auto &entry : authEntries)
@@ -876,27 +889,27 @@ void NukiWrapper::updateAuth(bool retrieved)
 
 void NukiWrapper::updateKeypad(bool retrieved)
 {
-    if(!_preferences->getBool(preference_keypad_info_enabled))
+    if (!_preferences->getBool(preference_keypad_info_enabled))
     {
         return;
     }
 
-    if(!isPinValid())
+    if (!isPinValid())
     {
         Log->println(F("[DEBUG] No valid Nuki Lock PIN set"));
         return;
     }
 
-    if(!retrieved)
+    if (!retrieved)
     {
         Nuki::CmdResult result = (Nuki::CmdResult)-1;
         int retryCount = 0;
 
-        while(retryCount < _nrOfRetries + 1)
+        while (retryCount < _nrOfRetries + 1)
         {
             Log->println(F("[DEBUG] Querying lock keypad: "));
             result = _nukiLock.retrieveKeypadEntries(0, _preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD));
-            if(result != Nuki::CmdResult::Success)
+            if (result != Nuki::CmdResult::Success)
             {
                 ++retryCount;
             }
@@ -907,7 +920,7 @@ void NukiWrapper::updateKeypad(bool retrieved)
         }
 
         printCommandResult(result);
-        if(result == Nuki::CmdResult::Success)
+        if (result == Nuki::CmdResult::Success)
         {
             _waitKeypadUpdateTs = espMillis() + 5000;
         }
@@ -920,18 +933,16 @@ void NukiWrapper::updateKeypad(bool retrieved)
         Log->print(F("[DEBUG] Lock keypad codes: "));
         Log->println(entries.size());
 
-        entries.sort([](const NukiLock::KeypadEntry& a, const NukiLock::KeypadEntry& b)
-        {
-            return a.codeId < b.codeId;
-        });
+        entries.sort([](const NukiLock::KeypadEntry &a, const NukiLock::KeypadEntry &b)
+                     { return a.codeId < b.codeId; });
 
-        if(entries.size() > _preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD))
+        if (entries.size() > _preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD))
         {
             entries.resize(_preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD));
         }
 
         uint keypadCount = entries.size();
-        if(keypadCount > _maxKeypadCodeCount)
+        if (keypadCount > _maxKeypadCodeCount)
         {
             _maxKeypadCodeCount = keypadCount;
             _preferences->putUInt(preference_lock_max_keypad_code_count, _maxKeypadCodeCount);
@@ -941,7 +952,7 @@ void NukiWrapper::updateKeypad(bool retrieved)
         _keypadCodes.clear();
         _keypadCodeIds.reserve(entries.size());
         _keypadCodes.reserve(entries.size());
-        for(const auto& entry : entries)
+        for (const auto &entry : entries)
         {
             _keypadCodeIds.push_back(entry.codeId);
             _keypadCodes.push_back(entry.code);
@@ -953,7 +964,7 @@ void NukiWrapper::updateKeypad(bool retrieved)
 
 void NukiWrapper::updateTime()
 {
-    if(!isPinValid())
+    if (!isPinValid())
     {
         Log->println(F("[DEBUG] No valid PIN set"));
         return;
@@ -1005,9 +1016,9 @@ const bool NukiWrapper::isPaired() const
 bool NukiWrapper::hasDoorSensor() const
 {
     return (_forceDoorsensor ||
-           _keyTurnerState.doorSensorState == Nuki::DoorSensorState::DoorClosed ||
-           _keyTurnerState.doorSensorState == Nuki::DoorSensorState::DoorOpened ||
-           _keyTurnerState.doorSensorState == Nuki::DoorSensorState::Calibrating);
+            _keyTurnerState.doorSensorState == Nuki::DoorSensorState::DoorClosed ||
+            _keyTurnerState.doorSensorState == Nuki::DoorSensorState::DoorOpened ||
+            _keyTurnerState.doorSensorState == Nuki::DoorSensorState::Calibrating);
 }
 
 const bool NukiWrapper::hasKeypad() const

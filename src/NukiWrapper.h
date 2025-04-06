@@ -289,6 +289,7 @@ private:
     int64_t _waitTimeControlUpdateTs = 0;                                       // Timestamp for next time control update.
     int64_t _waitKeypadUpdateTs = 0;                                            // Timestamp for next keypad sync.
     int64_t _waitAuthLogUpdateTs = 0;                                           // Timestamp for delayed auth log polling.
+    int64_t _lastPairingLogTs = 0;                                              // throttling pairing Message via time
                                                                                 //
     int _invalidCount = 0;                                                      // Number of invalid communication attempts.
     int _nrOfRetries = 0;                                                       // Retry counter for reconnect attempts.
@@ -306,6 +307,7 @@ private:
     uint _maxAuthEntryCount = 0;                                                // Max supported authorization entries.
                                                                                 //
     bool _paired = false;                                                       // Whether the lock is currently paired.
+    bool _pairingMsgShown = false;                                              // nur einmalige Sofortausgabe
     bool _statusUpdated = false;                                                // Whether the latest update was successful.
     int64_t _lastCodeCheck = 0;                                                 // Last time the PIN codes were checked.
     int64_t _lastRssi = 0;                                                      // Last known RSSI value.
