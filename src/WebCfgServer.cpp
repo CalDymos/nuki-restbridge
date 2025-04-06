@@ -1178,8 +1178,6 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
     appendInputFieldRow(response, "LOGBCKPWD", "FTP Password", _preferences->getString(preference_log_backup_ftp_pwd, "").c_str(), 32, "", true, true);
 
     response += F("</table><br>");
-    response += F("<br><input type=\"submit\" name=\"submit\" value=\"Save\">");
-    response += F("</form>");
 
     response += F("<div style=\"margin-top: 20px;\">");
     response += F("<input type=\"submit\" name=\"submit\" value=\"Save\" style=\"margin-right: 15px;\" />");
