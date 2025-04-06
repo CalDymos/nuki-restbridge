@@ -49,7 +49,8 @@ void Logger::toFile(const String &deviceType, String message)
   _serial->println(message);
 }
 
-void Logger::disableFileLog(){
+void Logger::disableFileLog()
+{
   _serial->println(F("writiing to Log file disabled!"));
 }
 
@@ -72,9 +73,29 @@ Logger::Logger(Print *serial, Preferences *prefs)
   {
     _backupEnabled = _preferences->getBool(preference_log_backup_enabled, false);
     _logFile = LOGGER_FILENAME;
-    _maxMsgLen = _preferences->getInt(preference_log_max_msg_len, 128);
-    _maxLogFileSize = _preferences->getInt(preference_log_max_file_size, 256); // in kb
-    _currentLogLevel = (msgtype)_preferences->getInt(preference_log_level, 2);
+    _maxMsgLen = _preferences->getInt(preference_log_max_msg_len);
+    _currentLogLevel = (msgtype)_preferences->getInt(preference_log_level);
+
+    if (_maxMsgLen < 1)
+    {
+      _maxMsgLen = 128;
+      _preferences->putInt(preference_log_max_msg_len, _maxMsgLen);
+    }
+
+    _maxLogFileSize = _preferences->getInt(preference_log_max_file_size); // in kb
+
+    if (_maxLogFileSize == 0)
+    {
+      _maxLogFileSize = 256;
+      _preferences->putInt(preference_log_max_file_size, _maxLogFileSize);
+
+      // _maxLogFileSize == 0 => first start of Bridge
+      if (_currentLogLevel == 0)
+      {
+        _currentLogLevel = msgtype::MSG_INFO;
+        _preferences->putInt(preference_log_level, (int)_currentLogLevel);
+      }
+    }
   }
   _fileWriteEnabled = true;
   _buffer.reserve(_maxMsgLen + 2); // Reserves memory for up to _maxMsgLen characters
@@ -494,7 +515,7 @@ void Logger::formatUptime(char *buffer, size_t size)
 
 bool Logger::isFileTooBig()
 {
-  return (getFileSize() > _maxLogFileSize);
+  return (getFileSize() > (_maxLogFileSize * 1024));
 }
 
 size_t Logger::getFileSize()
@@ -506,12 +527,12 @@ size_t Logger::getFileSize()
     return 0;
   }
 
-  File f = SPIFFS.open(_logFile, FILE_READ);
+  File f = SPIFFS.open(String("/") + _logFile, FILE_READ);
   if (!f)
   {
     return 0;
   }
-  size_t size = f.size() * 1024;
+  size_t size = f.size();
   f.close();
   return size;
 }
