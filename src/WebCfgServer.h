@@ -289,11 +289,13 @@ private:
      * @param title Display name of the menu item.
      * @param targetPath URL path to navigate to when clicked.
      * @param warningMessage Optional JavaScript confirmation warning.
+     * @param onClick Optional JavaScript onClick handler.
      */
     void appendNavigationMenuEntry(String &response,
                                    const char *title,
                                    const char *targetPath,
-                                   const char *warningMessage = "");
+                                   const char *warningMessage = "",
+                                   const char *onClick = "");
 
     /**
      * @brief Appends an input field to the HTML page.

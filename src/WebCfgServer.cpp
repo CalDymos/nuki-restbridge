@@ -1526,8 +1526,7 @@ void WebCfgServer::buildHtml(WebServer *server)
     appendNavigationMenuEntry(response, "Info page", "/get?page=info");
     String rebooturl = "/get?page=reboot&CONFIRMTOKEN=" + _confirmCode;
     appendNavigationMenuEntry(response, "Reboot Nuki Bridge", rebooturl.c_str());
-    appendNavigationMenuEntry(response, "Shutdown", "/get?page=shutdown", "return confirm('Really Shutdown Nuki Bridge?');");
-
+    appendNavigationMenuEntry(response, "Shutdown", "/get?page=shutdown", "", "return confirm('Really Shutdown Nuki Bridge?');");
 
     if (_preferences->getInt(preference_http_auth_type, 0) == 2)
     {
@@ -2232,14 +2231,23 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
     return server->send(200, F("application/json"), jsonStr.c_str());
 }
 
-void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage)
+void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage, const char *onClick)
 {
     response += F("<a class=\"naventry\" href=\"");
     response += targetPath;
-    response += F("\"><li>");
+    response += F("\"");
+
+    if (*onClick)
+    {
+        response += F(" onclick=\"");
+        response += onClick;
+        response += F("\"");
+    }
+
+    response += F("><li>");
     response += title;
 
-    if (*warningMessage) 
+    if (*warningMessage)
     {
         response += F("<span>");
         response += warningMessage;
