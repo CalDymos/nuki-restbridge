@@ -1152,7 +1152,7 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
 
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
-    response += F("<input type=\"hidden\" name=\"page\" value=\"savelog\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
     response += F("<h3>Logging Configuration</h3>");
     response += F("<table>");
 
