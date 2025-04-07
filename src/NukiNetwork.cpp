@@ -190,13 +190,6 @@ bool NukiNetwork::update()
             delay(10);
             restartEsp(RestartReason::RestartOnDisconnectWatchdog);
         }
-        else if (_disableNetworkIfNotConnected && espMillis() > 60000)
-        {
-            disableNetwork = true;
-            Log->disableFileLog();
-            delay(10);
-            restartEsp(RestartReason::DisableNetworkIfNotConnected);
-        }
     }
 
     if (isConnected() && (_apiEnabled || _homeAutomationEnabled))
@@ -883,7 +876,6 @@ void NukiNetwork::setKeypadCommandReceivedCallback(void (*keypadCommandReceivedR
 
 void NukiNetwork::readSettings()
 {
-    _disableNetworkIfNotConnected = _preferences->getBool(preference_disable_network_not_connected, false);
     _restartOnDisconnect = _preferences->getBool(preference_restart_on_disconnect, false);
     _rssiSendInterval = _preferences->getInt(preference_rssi_send_interval, 0) * 1000;
     _MaintenanceSendIntervall = _preferences->getInt(preference_Maintenance_send_interval, 0) * 1000;

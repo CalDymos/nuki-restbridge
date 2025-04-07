@@ -406,7 +406,6 @@ private:
     bool _hardwareInitialized = false;                                        // Flag indicating that network hardware is initialized
     bool _sendDebugInfo = false;                                              // Whether extended debug info should be published
     bool _restartOnDisconnect = false;                                        // Whether the device should reboot on disconnect
-    bool _disableNetworkIfNotConnected = false;                               // Forces network shutdown if no connection is active
     bool _firstTunerStateSent = true;                                         // Ensures the first lock state is always sent
     NetworkServiceState _networkServicesState = NetworkServiceState::UNKNOWN; // Current state of network services
                                                                               //
