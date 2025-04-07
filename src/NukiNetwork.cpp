@@ -1043,21 +1043,24 @@ char *NukiNetwork::getArgs(WebServer &server)
 {
     JsonDocument doc;
 
-    if (server.args() == 1 && server.argName(0) == "val")
+    if (server.args() == 2 && server.argName(0) == "val")
     {
-        // If only one parameter with the name "val" exists, save only the value
+        // If there are only two arguments and one begins with the name “val”,
+        // only the value of "val" is saved (the other argument is always “token”)
         strncpy(_buffer, server.arg(0).c_str(), _bufferSize - 1);
     }
-    else if (server.args() == 1)
+    else if (server.args() == 2)
     {
-        // If only one parameter exists, save only the name
+        // If there are only two arguments and one does not begin with the name “val”, 
+        // only the name of the argument is saved (the other argument always has the name “token”)
         strncpy(_buffer, server.argName(0).c_str(), _bufferSize - 1);
     }
-    else if (server.args() > 1)
+    // If there are more than two arguments, all arguments are returned as json string
+    else if (server.args() > 2)
     {
         for (uint8_t i = 0; i < server.args(); i++)
         {
-            doc[server.argName(i)] = server.arg(i); // Add parameters to the JSON document
+            doc[server.argName(i)] = server.arg(i); // Add argument to the JSON document
         }
         // Serialization of the JSON to _buffer
         serializeJson(doc, _buffer, _bufferSize);
