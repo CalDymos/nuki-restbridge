@@ -93,9 +93,6 @@ void NukiNetwork::initialize()
 {
     if (!disableNetwork)
     {
-        strncpy(_apiLockPath, api_path_lock, sizeof(_apiLockPath) - 1);
-        strncpy(_apiBridgePath, api_path_bridge, sizeof(_apiBridgePath) - 1);
-
         _homeAutomationEnabled = _preferences->getBool(preference_har_enabled, false);
         _homeAutomationAdress = _preferences->getString(preference_har_address, "");
         _homeAutomationPort = _preferences->getInt(preference_har_port, 0);
@@ -104,7 +101,7 @@ void NukiNetwork::initialize()
 
         _hostname = _preferences->getString(preference_hostname, "");
 
-        if(_hostname == "" || _hostname == "nukirestbridge")
+        if (_hostname == "" || _hostname == "nukirestbridge")
         {
             uint8_t mac[6];
             esp_efuse_mac_get_default(mac);
@@ -1027,8 +1024,12 @@ void NukiNetwork::onRestDataReceivedCallback(const char *path, WebServer &server
             return;
         }
 
-        if (server.hasArg("shutdown"))
+        if (_inst->comparePrefixedPath(path, api_path_bridge, api_path_shutdown))
+        {
             _inst->onShutdownReceived(path, server);
+            return;
+        }
+
         if (!server.hasArg("token") || server.arg("token") != _inst->_apitoken->get())
         {
             server.send(401, F("text/html"), "");
@@ -1080,7 +1081,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
     char *data = getArgs(server);
 
     // Bridge Rest API Requests
-    if (comparePrefixedPath(path, api_path_bridge_enable_api))
+    if (comparePrefixedPath(path, api_path_bridge, api_path_disable_api))
     {
         if (!data || !*data)
         {
@@ -1102,7 +1103,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
         _preferences->putBool(preference_api_enabled, _apiEnabled);
         sendResponse(json);
     }
-    else if (comparePrefixedPath(path, api_path_bridge_reboot))
+    else if (comparePrefixedPath(path, api_path_bridge, api_path_reboot))
     {
         Log->println(F("[INFO] (REST API) Reboot requested"));
         delay(200);
@@ -1149,7 +1150,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
     }
     else if (_lockEnabled)
     {
-        if (comparePrefixedPath(path, api_path_lock_action))
+        if (comparePrefixedPath(path, api_path_lock, api_path_action))
         {
 
             if (!data || !*data)
@@ -1189,7 +1190,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             return;
         }
 
-        if (comparePrefixedPath(path, api_path_keypad_command_action))
+        if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_action))
         {
             if (_keypadCommandReceivedReceivedCallback != nullptr)
             {
@@ -1210,22 +1211,22 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
                 return;
             }
         }
-        else if (comparePrefixedPath(path, api_path_keypad_command_id))
+        else if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_id))
         {
             _keypadCommandId = atoi(data);
             return;
         }
-        else if (comparePrefixedPath(path, api_path_keypad_command_name))
+        else if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_name))
         {
             _keypadCommandName = data;
             return;
         }
-        else if (comparePrefixedPath(path, api_path_keypad_command_code))
+        else if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_code))
         {
             _keypadCommandCode = data;
             return;
         }
-        else if (comparePrefixedPath(path, api_path_keypad_command_enabled))
+        else if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_enabled))
         {
             _keypadCommandEnabled = atoi(data);
             return;
@@ -1234,22 +1235,22 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
         bool queryCmdSet = false;
         if (strcmp(data, "1") == 0)
         {
-            if (comparePrefixedPath(path, api_path_query_config))
+            if (comparePrefixedPath(path, api_path_lock, api_path_query_config))
             {
                 _queryCommands = _queryCommands | QUERY_COMMAND_CONFIG;
                 queryCmdSet = true;
             }
-            else if (comparePrefixedPath(path, api_path_query_lockstate))
+            else if (comparePrefixedPath(path, api_path_lock, api_path_query_lockstate))
             {
                 _queryCommands = _queryCommands | QUERY_COMMAND_LOCKSTATE;
                 queryCmdSet = true;
             }
-            else if (comparePrefixedPath(path, api_path_query_keypad))
+            else if (comparePrefixedPath(path, api_path_lock, api_path_query_keypad))
             {
                 _queryCommands = _queryCommands | QUERY_COMMAND_KEYPAD;
                 queryCmdSet = true;
             }
-            else if (comparePrefixedPath(path, api_path_query_battery))
+            else if (comparePrefixedPath(path, api_path_lock, api_path_query_battery))
             {
                 _queryCommands = _queryCommands | QUERY_COMMAND_BATTERY;
                 queryCmdSet = true;
@@ -1261,7 +1262,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             }
         }
 
-        if (comparePrefixedPath(path, api_path_config_action))
+        if (comparePrefixedPath(path, api_path_lock, api_path_config_action))
         {
 
             if (!data || !*data)
@@ -1278,7 +1279,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             return;
         }
 
-        if (comparePrefixedPath(path, api_path_timecontrol_action))
+        if (comparePrefixedPath(path, api_path_lock, api_path_timecontrol_action))
         {
             if (!data || !*data)
             {
@@ -1294,7 +1295,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             return;
         }
 
-        if (comparePrefixedPath(path, api_path_auth_action))
+        if (comparePrefixedPath(path, api_path_lock, api_path_auth_action))
         {
             if (!data || !*data)
             {
@@ -1824,20 +1825,21 @@ void NukiNetwork::onDisconnected()
     }
 }
 
-bool NukiNetwork::comparePrefixedPath(const char *fullPath, const char *subPath)
+bool NukiNetwork::comparePrefixedPath(const char *fullPath, const char *mainPath, const char *subPath)
 {
     char prefixedPath[385];
-    buildApiPath(subPath, prefixedPath);
+    buildApiPath(mainPath, subPath, prefixedPath);
     return strcmp(fullPath, prefixedPath) == 0;
 }
 
-void NukiNetwork::buildApiPath(const char *path, char *outPath)
+void NukiNetwork::buildApiPath(const char *mainPath, const char *subPath, char *outPath)
 {
-    // Copy (_apiBridgePath) to outPath
-    strncpy(outPath, _apiBridgePath, sizeof(_apiBridgePath) - 1);
+    // Copy (mainPath) to outPath
+    strncpy(outPath, mainPath, 384);
+    outPath[384] = '\0'; // Zero terminate to be on the safe side
 
     // Append the (path) zo outPath
-    strncat(outPath, path, 384 - strlen(outPath)); // Sicherheitsgrenze beachten
+    strncat(outPath, subPath, 384 - strlen(outPath));
 }
 
 void NukiNetwork::assignNewApiToken()
