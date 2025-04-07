@@ -105,7 +105,7 @@ void NukiNetwork::initialize()
         {
             uint8_t mac[6];
             esp_efuse_mac_get_default(mac);
-            
+
             char deviceId[13];
             sprintf(deviceId, "%02X%02X%02X%02X%02X%02X",
                     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -852,10 +852,10 @@ void NukiNetwork::sendDataToHA(const char *key, const char *param, const char *v
     }
 }
 
-void NukiNetwork::sendResponse(JsonDocument &jsonResult, bool success, int httpCode)
+void NukiNetwork::sendResponse(JsonDocument &jsonResult, const char* message, int httpCode)
 {
-    jsonResult[F("success")] = success ? 1 : 0;
-    jsonResult[F("error")] = success ? 0 : httpCode;
+    jsonResult[F("code")] = httpCode;
+    jsonResult[F("message")] = message;
 
     serializeJson(jsonResult, _buffer, _bufferSize);
     _server->send(httpCode, F("application/json"), _buffer);
@@ -864,6 +864,21 @@ void NukiNetwork::sendResponse(JsonDocument &jsonResult, bool success, int httpC
 void NukiNetwork::sendResponse(const char *jsonResultStr)
 {
     _server->send(200, F("application/json"), jsonResultStr);
+}
+
+void NukiNetwork::setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value))
+{
+    _lockActionReceivedCallback = lockActionReceivedCallback;
+}
+
+void NukiNetwork::setConfigUpdateReceivedCallback(void (*configUpdateReceivedCallback)(const char *value))
+{
+    _configUpdateReceivedCallback = configUpdateReceivedCallback;
+}
+
+void NukiNetwork::setKeypadCommandReceivedCallback(void (*keypadCommandReceivedReceivedCallback)(const char* command, const uint& id, const String& name, const String& code, const int& enabled))
+{
+    _keypadCommandReceivedReceivedCallback = keypadCommandReceivedReceivedCallback;
 }
 
 void NukiNetwork::readSettings()
@@ -1044,23 +1059,25 @@ char *NukiNetwork::getArgs(WebServer &server)
 {
     JsonDocument doc;
 
-    if (server.args() == 2 && server.argName(0) == "val")
+    if (server.args() == 2 && server.hasArg("val"))
     {
-        // If there are only two arguments and one begins with the name “val”,
-        // only the value of "val" is saved (the other argument is always “token”)
+        // If there are only two arguments and one has the name "val",
+        // only the value of "val" is saved (the other argument is always "token")
         strncpy(_buffer, server.arg(0).c_str(), _bufferSize - 1);
     }
     else if (server.args() == 2)
     {
-        // If there are only two arguments and one does not begin with the name “val”, 
-        // only the name of the argument is saved (the other argument always has the name “token”)
+        // If there are only two arguments and one does not have the name "val",
+        // only the name of the argument is saved (the other argument always has the name "token")
         strncpy(_buffer, server.argName(0).c_str(), _bufferSize - 1);
     }
-    // If there are more than two arguments, all arguments are returned as json string
+    // If there are more than two arguments, all arguments are returned as a json string, except "token"
     else if (server.args() > 2)
     {
         for (uint8_t i = 0; i < server.args(); i++)
         {
+            if (server.argName(i) != "token")
+                ;
             doc[server.argName(i)] = server.arg(i); // Add argument to the JSON document
         }
         // Serialization of the JSON to _buffer
@@ -1083,23 +1100,9 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
     // Bridge Rest API Requests
     if (comparePrefixedPath(path, api_path_bridge, api_path_disable_api))
     {
-        if (!data || !*data)
-        {
-            json[F("result")] = "missing data";
-            sendResponse(json, false, 400);
-            return;
-        }
 
-        if (atoi(data) == 0)
-        {
-            Log->println(F("[INFO] (REST API) Disable REST API"));
-            _apiEnabled = false;
-        }
-        else
-        {
-            Log->println(F("[INFO] (REST API) Enable REST API"));
-            _apiEnabled = true;
-        }
+        Log->println(F("[INFO] (REST API) Disable REST API"));
+        _apiEnabled = false;
         _preferences->putBool(preference_api_enabled, _apiEnabled);
         sendResponse(json);
     }
@@ -1112,12 +1115,11 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
         delay(500);
         restartEsp(RestartReason::RequestedViaApi);
     }
-    else if (comparePrefixedPath(path, api_path_bridge_enable_web_server))
+    else if (comparePrefixedPath(path, api_path_bridge, api_path_enable_web_server))
     {
         if (!data || !*data)
         {
-            json[F("result")] = "missing data";
-            sendResponse(json, false, 400);
+            sendResponse(json, "missing data", 400);
             return;
         }
 
@@ -1155,8 +1157,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 
             if (!data || !*data)
             {
-                json[F("result")] = "missing data";
-                sendResponse(json, false, 400);
+                sendResponse(json, "missing data", 400);
             }
             return;
 
@@ -1175,16 +1176,13 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
                 sendResponse(json);
                 break;
             case LockActionResult::UnknownAction:
-                json[F("result")] = "unknown_action";
-                sendResponse(json, false, 404);
+                sendResponse(json, "unknown_action", 404);
                 break;
             case LockActionResult::AccessDenied:
-                json[F("result")] = "denied";
-                sendResponse(json, false, 403);
+                sendResponse(json, "denied", 403);
                 break;
             case LockActionResult::Failed:
-                json[F("result")] = "error";
-                sendResponse(json, false, 500);
+                sendResponse(json, "error", 500);
                 break;
             }
             return;
@@ -1196,8 +1194,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             {
                 if (!data || !*data)
                 {
-                    json[F("result")] = "missing data";
-                    sendResponse(json, false, 400);
+                    sendResponse(json, "missing data", 400);
                     return;
                 }
 
@@ -1267,8 +1264,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 
             if (!data || !*data)
             {
-                json[F("result")] = "missing data";
-                sendResponse(json, false, 400);
+                sendResponse(json, "missing data", 400);
                 return;
             }
 
@@ -1283,8 +1279,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
         {
             if (!data || !*data)
             {
-                json[F("result")] = "missing data";
-                sendResponse(json, false, 400);
+                sendResponse(json, "missing data", 400);
                 return;
             }
 
@@ -1299,8 +1294,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
         {
             if (!data || !*data)
             {
-                json[F("result")] = "missing data";
-                sendResponse(json, false, 400);
+                sendResponse(json, "missing data", 400);
                 return;
             }
 

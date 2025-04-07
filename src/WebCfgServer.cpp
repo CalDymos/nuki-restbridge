@@ -635,6 +635,15 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
 
     appendCheckBoxRow(response, "CONFNHCTRL", "Modify Nuki Bridge configuration over REST API", _preferences->getBool(preference_config_from_api, false));
 
+    if ((_nuki != nullptr && _nuki->hasKeypad()))
+    {
+        appendCheckBoxRow(response, "KPPUB", "Update keypad entries information", _preferences->getBool(preference_keypad_info_enabled), "");
+        appendCheckBoxRow(response, "KPENA", "Add, modify and delete keypad codes", _preferences->getBool(preference_keypad_control_enabled), "");
+    }
+
+    appendCheckBoxRow(response, "TCENA", "Add, modify and delete time control entries", _preferences->getBool(preference_timecontrol_control_enabled), "");
+    appendCheckBoxRow(response, "AUTHENA", "Modify and delete authorization entries", _preferences->getBool(preference_auth_control_enabled), "");
+
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
 
     if (_nuki)
@@ -1926,6 +1935,8 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += String(_preferences->getInt(preference_query_interval_battery, 1800));
     response += F("\nConfig query interval (s): ");
     response += String(_preferences->getInt(preference_query_interval_configuration, 3600));
+    response += F("\nUpdate keypad info: ");
+    response += _preferences->getBool(preference_keypad_info_enabled, false) ? F("Yes") : F("No");
     response += F("\nKeypad query interval (s): ");
     response += String(_preferences->getInt(preference_query_interval_keypad, 1800));
     response += F("\nEnable Keypad control: ");
@@ -2168,7 +2179,7 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
 
     json[F("stop")] = 0;
 
-    // MQTT
+    // API
     if (_network->networkServicesState() == NetworkServiceState::OK)
     {
         json[F("APIState")] = F("Yes");
@@ -3376,6 +3387,60 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         else if (key == "ACLLVLCHANGED")
         {
             aclLvlChanged = true;
+        }
+        else if(key == "CONFNHCTRL")
+        {
+            if(_preferences->getBool(preference_config_from_api, false) != (value == "1"))
+            {
+                if(_preferences->getBool(preference_config_from_api, false) && _preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE) < 8192)
+                {
+                    _preferences->putInt(preference_buffer_size, 8192);
+                }
+                _preferences->putBool(preference_config_from_api, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "KPPUB")
+        {
+            if(_preferences->getBool(preference_keypad_info_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_keypad_info_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "KPENA")
+        {
+            if(_preferences->getBool(preference_keypad_control_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_keypad_control_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "TCENA")
+        {
+            if(_preferences->getBool(preference_timecontrol_control_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_timecontrol_control_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "AUTHENA")
+        {
+            if(_preferences->getBool(preference_auth_control_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_auth_control_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
         }
         else if (key == "CREDDIGEST")
         {

@@ -154,12 +154,20 @@ private:
      */
     static LockActionResult onLockActionReceivedCallback(const char *value);
 
+    static void onConfigUpdateReceivedCallback(const char* value);
+
+    static void onKeypadCommandReceivedCallback(const char* command, const uint& id, const String& name, const String& code, const int& enabled);
+
     /**
      * @brief Static callback function for external lock action requests.
      * @param value Lock action string value.
      * @return Result of the lock action execution.
      */
     LockActionResult onLockActionReceived(const char *value);
+
+    void onConfigUpdateReceived(const char* value);
+
+    void onKeypadCommandReceived(const char* command, const uint& id, const String& name, const String& code, const int& enabled);
 
     /**
      * @brief Resets or delays the BLE watchdog timer.
@@ -235,6 +243,13 @@ private:
      * @return Corresponding NukiLock::LockAction enum value.
      */
     NukiLock::LockAction lockActionToEnum(const char *str); // char array at least 14 characters
+
+    Nuki::AdvertisingMode advertisingModeToEnum(const char* str);
+    Nuki::TimeZoneId timeZoneToEnum(const char* str);
+    uint8_t fobActionToInt(const char *str);
+    NukiLock::ButtonPressAction buttonPressActionToEnum(const char* str);
+    Nuki::BatteryType batteryTypeToEnum(const char* str);
+    NukiLock::MotorSpeed motorSpeedToEnum(const char* str);
 
     std::string _deviceName;                                                    // Name of the smart lock device (user-defined identifier).
     NukiDeviceId *_deviceId = nullptr;                                          // Unique device ID stored in preferences.
