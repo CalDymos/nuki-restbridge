@@ -1,4 +1,5 @@
 #pragma once
+#include "Config.h"
 #include <Preferences.h>
 
 // System / Start / Debugging
@@ -80,6 +81,7 @@
 #define preference_timecontrol_max_entries (char *)"tcmaxentry"
 #define preference_timecontrol_info_enabled (char *)"tcInfoEnabled"
 #define preference_timecontrol_control_enabled (char*)"tcCntrlEnabled"
+#define preference_auth_control_enabled (char*)"authCtrlEna"
 #define preference_query_interval_lockstate (char *)"lockStInterval"
 #define preference_query_interval_configuration (char *)"configInterval"
 #define preference_query_interval_battery (char *)"batInterval"
@@ -192,7 +194,8 @@ inline bool initPreferences(Preferences *&preferences)
 
   if (firstStart)
   {
-    // first start, set defaults
+    Serial.println("First start, setting preference defaults");
+
     preferences->putBool(preference_started_before, true);
     preferences->putBool(preference_lock_enabled, true);
     uint32_t aclPrefs[17] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
@@ -204,7 +207,35 @@ inline bool initPreferences(Preferences *&preferences)
 
     preferences->putString(preference_time_server, "pool.ntp.org");
 
+    preferences->putString(preference_bypass_proxy, "");
     preferences->putInt(preference_api_port, 8080);
+    preferences->putBool(preference_ip_dhcp_enabled, true);
+    preferences->putBool(preference_find_best_rssi, true);
+    preferences->putBool(preference_connect_mode, true);
+
+    preferences->putInt(preference_buffer_size, CHAR_BUFFER_SIZE);
+    preferences->putInt(preference_task_size_network, NETWORK_TASK_SIZE);
+    preferences->putInt(preference_task_size_nuki, NUKI_TASK_SIZE);
+
+    preferences->putInt(preference_authlog_max_entries, MAX_AUTHLOG);
+    preferences->putInt(preference_keypad_max_entries, MAX_KEYPAD);
+    preferences->putInt(preference_timecontrol_max_entries, MAX_TIMECONTROL);
+
+    preferences->putInt(preference_rssi_send_interval, 60);
+    preferences->putInt(preference_network_timeout, 60);
+
+    preferences->putInt(preference_command_nr_of_retries, 3);
+    preferences->putInt(preference_command_retry_delay, 100);
+    preferences->putInt(preference_restart_ble_beacon_lost, 60);
+
+    preferences->putInt(preference_query_interval_lockstate, 1800);
+    preferences->putInt(preference_query_interval_configuration, 3600);
+    preferences->putInt(preference_query_interval_battery, 1800);
+    preferences->putInt(preference_query_interval_keypad, 1800);
+
+    preferences->putInt(preference_http_auth_type, 0);
+    preferences->putInt(preference_cred_session_lifetime, 3600);
+    preferences->putInt(preference_cred_session_lifetime_remember, 720);
   }
 
   return firstStart;
