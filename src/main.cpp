@@ -70,6 +70,7 @@ void cbSyncTime(struct timeval *tv)
   timeSynced = true;
 }
 
+#ifdef DEBUG_NUKIBRIDGE
 /**
  * @brief Recursively lists files in a directory and optionally deletes large files.
  * @param fs Reference to filesystem instance (e.g. SPIFFS).
@@ -117,6 +118,7 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
     file = root.openNextFile();
   }
 }
+#endif
 
 void bootloopDetection()
 {
