@@ -53,7 +53,7 @@ inline static void safeShutdownESP(RestartReason reason)
 {
     restartReason = (int)reason;
     restartReasonValidDetect = RESTART_REASON_VALID_DETECT;
-    SPIFFS.end();
+    LittleFS.end();
     delay(10);                        // to ensure that all pending write operations are completed
     esp_deep_sleep_start();           // ESP goes to sleep
 }
@@ -67,7 +67,7 @@ inline static void restartEsp(RestartReason reason)
 {
     restartReason = (int)reason;
     restartReasonValidDetect = RESTART_REASON_VALID_DETECT;
-    SPIFFS.end();
+    LittleFS.end();
     delay(10); // to ensure that all pending write operations are completed
     ESP.restart();
 }

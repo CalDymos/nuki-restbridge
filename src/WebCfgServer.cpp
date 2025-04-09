@@ -910,14 +910,14 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
 
 void WebCfgServer::buildGetLogFileHtml(WebServer *server)
 {
-    if (!SPIFFS.begin(true))
+    if (!LittleFS.begin(true))
     {
-        Log->println(F("SPIFFS Mount Failed"));
-        server->send(500, F("text/plain"), F("SPIFFS mount failed."));
+        Log->println(F("LittleFS Mount Failed"));
+        server->send(500, F("text/plain"), F("LittleFS mount failed."));
         return;
     }
 
-    File file = SPIFFS.open("/" + String(LOGGER_FILENAME), "r");
+    File file = LittleFS.open("/" + String(LOGGER_FILENAME), "r");
 
     if (!file || file.isDirectory())
     {
@@ -934,14 +934,14 @@ void WebCfgServer::buildGetLogFileHtml(WebServer *server)
 
 void WebCfgServer::buildGetCoredumpFileHtml(WebServer *server)
 {
-    if (!SPIFFS.begin(true))
+    if (!LittleFS.begin(true))
     {
-        Log->println(F("SPIFFS Mount Failed"));
-        server->send(500, F("text/plain"), F("SPIFFS mount failed."));
+        Log->println(F("LittleFS Mount Failed"));
+        server->send(500, F("text/plain"), F("LittleFS mount failed."));
         return;
     }
 
-    File file = SPIFFS.open(F("/coredump.hex"), "r");
+    File file = LittleFS.open(F("/coredump.hex"), "r");
 
     if (!file || file.isDirectory())
     {
@@ -1755,19 +1755,19 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += String(_preferences->getInt(preference_log_backup_file_index, 1));
     response += F("\nMax backup file index before rollover: 100");
 
-    response += F("\n\n------------ SPIFFS ------------");
-    if (!SPIFFS.begin(true))
+    response += F("\n\n------------ LittleFS ------------");
+    if (!LittleFS.begin(true))
     {
-        response += F("\nSPIFFS mount failed");
+        response += F("\nLittleFS mount failed");
     }
     else
     {
-        response += F("\nSPIFFS Total Bytes: ");
-        response += String(SPIFFS.totalBytes());
-        response += F("\nSPIFFS Used Bytes: ");
-        response += String(SPIFFS.usedBytes());
-        response += F("\nSPIFFS Free Bytes: ");
-        response += String(SPIFFS.totalBytes() - SPIFFS.usedBytes());
+        response += F("\nLittleFS Total Bytes: ");
+        response += String(LittleFS.totalBytes());
+        response += F("\nLittleFS Used Bytes: ");
+        response += String(LittleFS.usedBytes());
+        response += F("\nLittleFS Free Bytes: ");
+        response += String(LittleFS.totalBytes() - LittleFS.usedBytes());
     }
 
     response += F("\n\n------------ GENERAL SETTINGS ------------");
@@ -4206,15 +4206,15 @@ void WebCfgServer::saveSessions()
 {
     if (_preferences->getBool(preference_update_time, false))
     {
-        if (!SPIFFS.begin(true))
+        if (!LittleFS.begin(true))
         {
-            Log->println(F("[ERROR]SPIFFS Mount Failed"));
+            Log->println(F("[ERROR]LittleFS Mount Failed"));
         }
         else
         {
             File file;
 
-            file = SPIFFS.open("/sessions.json", "w");
+            file = LittleFS.open("/sessions.json", "w");
             serializeJson(_httpSessions, file);
 
             file.close();
@@ -4226,15 +4226,15 @@ void WebCfgServer::loadSessions()
 {
     if (_preferences->getBool(preference_update_time, false))
     {
-        if (!SPIFFS.begin(true))
+        if (!LittleFS.begin(true))
         {
-            Log->println(F("[ERROR] SPIFFS Mount Failed"));
+            Log->println(F("[ERROR] LittleFS Mount Failed"));
         }
         else
         {
             File file;
 
-            file = SPIFFS.open("/sessions.json", "r");
+            file = LittleFS.open("/sessions.json", "r");
 
             if (!file || file.isDirectory())
             {
@@ -4252,15 +4252,15 @@ void WebCfgServer::loadSessions()
 
 void WebCfgServer::clearSessions()
 {
-    if (!SPIFFS.begin(true))
+    if (!LittleFS.begin(true))
     {
-        Log->println(F("[ERROR] SPIFFS Mount Failed"));
+        Log->println(F("[ERROR] LittleFS Mount Failed"));
     }
     else
     {
         _httpSessions.clear();
         File file;
-        file = SPIFFS.open("/sessions.json", "w");
+        file = LittleFS.open("/sessions.json", "w");
         serializeJson(_httpSessions, file);
         file.close();
     }

@@ -54,7 +54,7 @@ void Logger::disableFileLog()
   _serial->println(F("writiing to Log file disabled!"));
 }
 
-#else // SPIFFS based logging
+#else // LittleFS based logging
 
 Logger::Logger(Print *serial, Preferences *prefs)
     : _serial(serial), _preferences(prefs)
@@ -408,18 +408,18 @@ size_t Logger::println(void)
 
 void Logger::clear()
 {
-  if (!SPIFFS.begin(true))
+  if (!LittleFS.begin(true))
   {
     _logFallBack.store(true);
-    println(F("[ERROR] SPIFFS not initialized!"));
+    println(F("[ERROR] LittleFS not initialized!"));
     return;
   }
-  if (SPIFFS.exists(_logFile))
+  if (LittleFS.exists(_logFile))
   {
-    SPIFFS.remove(_logFile);
+    LittleFS.remove(_logFile);
   }
 
-  File f = SPIFFS.open(_logFile, FILE_WRITE);
+  File f = LittleFS.open(_logFile, FILE_WRITE);
   if (f)
   {
     f.close();
@@ -520,14 +520,14 @@ bool Logger::isFileTooBig()
 
 size_t Logger::getFileSize()
 {
-  if (!SPIFFS.begin(true))
+  if (!LittleFS.begin(true))
   {
     _logFallBack.store(true);
-    println(F("[ERROR] SPIFFS not initialized!"));
+    println(F("[ERROR] LittleFS not initialized!"));
     return 0;
   }
 
-  File f = SPIFFS.open(String("/") + _logFile, FILE_READ);
+  File f = LittleFS.open(String("/") + _logFile, FILE_READ);
   if (!f)
   {
     return 0;
@@ -612,15 +612,15 @@ bool Logger::backupFileToFTPServer()
   ftp.DeleteFile(backupFilename.c_str());
   ftp.NewFile(backupFilename.c_str());
 
-  if (!SPIFFS.begin(true))
+  if (!LittleFS.begin(true))
   {
     _logFallBack.store(true);
-    println(F("[ERROR] SPIFFS not initialized!"));
+    println(F("[ERROR] LittleFS not initialized!"));
     _logBackupIsRunning.store(false);
     return false;
   }
 
-  File f = SPIFFS.open(String("/") + _logFile, FILE_READ);
+  File f = LittleFS.open(String("/") + _logFile, FILE_READ);
   if (!f)
   {
     _logFallBack.store(true);
@@ -723,15 +723,15 @@ void Logger::toFile(String message)
   String line;
   serializeJson(doc, line);
 
-  if (!SPIFFS.begin(true))
+  if (!LittleFS.begin(true))
   {
     _logFallBack.store(true);
-    println(F("[ERROR] SPIFFS not initialized!"));
+    println(F("[ERROR] LittleFS not initialized!"));
     return;
   }
 
   // Append to log file
-  File f = SPIFFS.open(String("/") + _logFile, FILE_APPEND);
+  File f = LittleFS.open(String("/") + _logFile, FILE_APPEND);
   if (!f)
   {
     _logFallBack.store(true);

@@ -17,7 +17,7 @@
 /**
  * @brief Logger class for serial and file-based logging with support for multiple log levels.
  *
- * The Logger supports output to serial and to SPIFFS (when not in DEBUG_NUKIBRIDGE mode),
+ * The Logger supports output to serial and to LittleFS (when not in DEBUG_NUKIBRIDGE mode),
  * including JSON log entries, FTP backup, and various print/println overloads.
  */
 class Logger : public Print
@@ -60,7 +60,7 @@ public:
     void clear();
 
     /**
-     * @brief Reset internal fallback state (used when SPIFFS is not usable).
+     * @brief Reset internal fallback state (used when LittleFS is not usable).
      */
     void resetFallBack();
 
@@ -152,7 +152,7 @@ private:
     int _maxLogFileSize;                          // Max log file size (KB)
     bool _backupEnabled;                          // Flag to enable backup of log file
     bool _fileWriteEnabled;                       // Flag to enable writing to Log file
-    std::atomic<bool> _logFallBack{false};        // SPIFFS failure fallback flag
+    std::atomic<bool> _logFallBack{false};        // LittleFS failure fallback flag
     std::atomic<bool> _logBackupIsRunning{false}; // FTP backup activity flag
     msgtype _currentLogLevel;                     // Active log level
 
