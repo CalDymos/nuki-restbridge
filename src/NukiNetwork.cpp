@@ -845,7 +845,7 @@ void NukiNetwork::sendDataToHA(const char *key, const char *param, const char *v
     }
 }
 
-void NukiNetwork::sendResponse(JsonDocument &jsonResult, const char* message, int httpCode)
+void NukiNetwork::sendResponse(JsonDocument &jsonResult, const char *message, int httpCode)
 {
     jsonResult[F("code")] = httpCode;
     jsonResult[F("message")] = message;
@@ -869,7 +869,7 @@ void NukiNetwork::setConfigUpdateReceivedCallback(void (*configUpdateReceivedCal
     _configUpdateReceivedCallback = configUpdateReceivedCallback;
 }
 
-void NukiNetwork::setKeypadCommandReceivedCallback(void (*keypadCommandReceivedReceivedCallback)(const char* command, const uint& id, const String& name, const String& code, const int& enabled))
+void NukiNetwork::setKeypadCommandReceivedCallback(void (*keypadCommandReceivedReceivedCallback)(const char *command, const uint &id, const String &name, const String &code, const int &enabled))
 {
     _keypadCommandReceivedReceivedCallback = keypadCommandReceivedReceivedCallback;
 }
@@ -1085,7 +1085,7 @@ char *NukiNetwork::getArgs(WebServer &server)
 
 void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 {
-    JsonDocument json;
+    JsonDocument jsonResult;
 
     char *data = getArgs(server);
 
@@ -1096,13 +1096,13 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
         Log->println(F("[INFO] (REST API) Disable REST API"));
         _apiEnabled = false;
         _preferences->putBool(preference_api_enabled, _apiEnabled);
-        sendResponse(json);
+        sendResponse(jsonResult);
     }
     else if (comparePrefixedPath(path, api_path_bridge, api_path_reboot))
     {
         Log->println(F("[INFO] (REST API) Reboot requested"));
         delay(200);
-        sendResponse(json);
+        sendResponse(jsonResult);
         Log->disableFileLog();
         delay(500);
         restartEsp(RestartReason::RequestedViaApi);
@@ -1111,7 +1111,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
     {
         if (!data || !*data)
         {
-            sendResponse(json, "missing data", 400);
+            sendResponse(jsonResult, "missing data", 400);
             return;
         }
 
@@ -1133,7 +1133,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             Log->println(F("[INFO] (REST API) Enable Config Web Server, restarting"));
             _preferences->putBool(preference_webcfgserver_enabled, true);
         }
-        sendResponse(json);
+        sendResponse(jsonResult);
 
         clearWifiFallback();
         Log->disableFileLog();
@@ -1149,7 +1149,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 
             if (!data || !*data)
             {
-                sendResponse(json, "missing data", 400);
+                sendResponse(jsonResult, "missing data", 400);
             }
             return;
 
@@ -1165,32 +1165,54 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             switch (lockActionResult)
             {
             case LockActionResult::Success:
-                sendResponse(json);
+                sendResponse(jsonResult);
                 break;
             case LockActionResult::UnknownAction:
-                sendResponse(json, "unknown_action", 404);
+                sendResponse(jsonResult, "unknown_action", 404);
                 break;
             case LockActionResult::AccessDenied:
-                sendResponse(json, "denied", 403);
+                sendResponse(jsonResult, "denied", 403);
                 break;
             case LockActionResult::Failed:
-                sendResponse(json, "error", 500);
+                sendResponse(jsonResult, "error", 500);
                 break;
             }
             return;
         }
 
-        if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_action))
+        if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command))
         {
             if (_keypadCommandReceivedReceivedCallback != nullptr)
             {
                 if (!data || !*data)
                 {
-                    sendResponse(json, "missing data", 400);
+                    sendResponse(jsonResult, "missing data", 400);
                     return;
                 }
 
-                _keypadCommandReceivedReceivedCallback(data, _keypadCommandId, _keypadCommandName, _keypadCommandCode, _keypadCommandEnabled);
+                JsonDocument json;
+
+                DeserializationError jsonError = deserializeJson(json, data);
+
+                if (jsonError)
+                {
+                    sendResponse(jsonResult, "invalid data", 400);
+                    return;
+                }
+
+                const char *command = json.containsKey("command") ? json["command"].as<const char *>() : nullptr;
+                _keypadCommandId = json.containsKey("id") ? json["id"].as<unsigned int>() : 0;
+                _keypadCommandName = json.containsKey("name") ? json["name"].as<String>() : "";
+                _keypadCommandCode = json.containsKey("code") ? json["code"].as<String>() : "";
+                _keypadCommandEnabled = json.containsKey("enabled") ? json["enabled"].as<int>() : 0;
+
+                if (!command || !*command)
+                {
+                    sendResponse(jsonResult, "invalid data", 400);
+                    return;
+                }
+
+                _keypadCommandReceivedReceivedCallback(command, _keypadCommandId, _keypadCommandName, _keypadCommandCode, _keypadCommandEnabled);
 
                 _keypadCommandId = 0;
                 _keypadCommandName = "";
@@ -1199,26 +1221,6 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 
                 return;
             }
-        }
-        else if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_id))
-        {
-            _keypadCommandId = atoi(data);
-            return;
-        }
-        else if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_name))
-        {
-            _keypadCommandName = data;
-            return;
-        }
-        else if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_code))
-        {
-            _keypadCommandCode = data;
-            return;
-        }
-        else if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command_enabled))
-        {
-            _keypadCommandEnabled = atoi(data);
-            return;
         }
 
         bool queryCmdSet = false;
@@ -1246,7 +1248,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
             }
             if (queryCmdSet)
             {
-                sendResponse(json);
+                sendResponse(jsonResult);
                 return;
             }
         }
@@ -1256,7 +1258,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 
             if (!data || !*data)
             {
-                sendResponse(json, "missing data", 400);
+                sendResponse(jsonResult, "missing data", 400);
                 return;
             }
 
@@ -1271,7 +1273,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
         {
             if (!data || !*data)
             {
-                sendResponse(json, "missing data", 400);
+                sendResponse(jsonResult, "missing data", 400);
                 return;
             }
 
@@ -1286,7 +1288,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
         {
             if (!data || !*data)
             {
-                sendResponse(json, "missing data", 400);
+                sendResponse(jsonResult, "missing data", 400);
                 return;
             }
 

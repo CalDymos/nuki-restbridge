@@ -248,7 +248,7 @@ public:
      * @param success Whether the response indicates success (HTTP 200) or failure.
      * @param httpCode Optional HTTP status code to return.
      */
-    void sendResponse(JsonDocument &jsonResult, const char* message = "", int httpCode = 200);
+    void sendResponse(JsonDocument &jsonResult, const char *message = "", int httpCode = 200);
 
     /**
      * @brief Sets the callback for lock action requests.
@@ -256,9 +256,9 @@ public:
      */
     void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value));
 
-    void setConfigUpdateReceivedCallback(void (*configUpdateReceivedCallback)(const char* value));
+    void setConfigUpdateReceivedCallback(void (*configUpdateReceivedCallback)(const char *value));
 
-    void setKeypadCommandReceivedCallback(void (*keypadCommandReceivedReceivedCallback)(const char* command, const uint& id, const String& name, const String& code, const int& enabled));
+    void setKeypadCommandReceivedCallback(void (*keypadCommandReceivedReceivedCallback)(const char *command, const uint &id, const String &name, const String &code, const int &enabled));
 
     /**
      * @brief Sets the callback for time control command requests.

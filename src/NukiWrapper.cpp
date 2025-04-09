@@ -2288,6 +2288,7 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
     }
 }
 
+
 Nuki::AdvertisingMode NukiWrapper::advertisingModeToEnum(const char *str)
 {
     if(strcmp(str, "Automatic") == 0)

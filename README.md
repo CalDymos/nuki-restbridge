@@ -46,7 +46,6 @@
   - [Bridge Control](#bridge-control)
   - [Nuki Lock](#nuki-lock)
     - [Lock Keypad Command (JSON)](#lock-keypad-command-json)
-    - [Lock Keypad Command Action](#lock-keypad-command-action)
     - [Lock Config Action (JSON)](#lock-config-action-json)
     - [Lock Timecontrol Action (JSON)](#lock-timecontrol-action-json)
     - [Lock Authorization action (JSON)](#lock-authorization-action-json)
@@ -444,13 +443,6 @@ Every request must include the access token as HTTP query parameter: `?token=<ap
 |-------------------------------|-----------|--------------|--------|-------------|
 | `lock/action`                | "unlock", "lock", "unlatch", "lockNgo", "lockNgoUnlatch", "fullLock", "fobAction1", "fobAction2", "fobAction3" |      1       | GET | Executes a lock action.|
 | `lock/keypad/command`         |   JSON<br>(see [Lock Keypad command](#lock-keypad-command-json))| various<br>(see [Lock Keypad command](#lock-keypad-command-json))|  GET| Submits a complete keypad command as json string.|
-||||||
-| `lock/keypad/command/action`      | "add", "delete", "update" |    1   |   GET  | Submits a keypad command action (needs to be used in combination with the fileds 'id','name','code','enabled').<br>See [Lock keypad command action](#lock-keypad-command-action)|
-| `lock/keypad/command/id`          | val       | Number       | GET    | ID of the keypad command to be modified or used. |
-| `lock/keypad/command/name`        | val       | String       | GET    | Name to be assigned to the keypad entry. |
-| `lock/keypad/command/code`        | val       | 6-digit code | GET    | Access code for keypad entry. |
-| `lock/keypad/command/enabled`     | val       | 0 / 1        | GET    | Whether the keypad entry is enabled. |
-||||||
 | `lock/query/config`               | val       |  1           | GET    | Requests configuration state from the lock. (Triggers a HAR report for this query) |
 | `lock/query/lockstate`            | val       |  1           | GET    | Requests current lock state from lock. (Triggers a HAR report for this query)|
 | `lock/query/keypad`               | val       |  1           | GET    | Requests keypad status / entries from lock. (Triggers a HAR report for this query)|
@@ -468,56 +460,19 @@ To change the Nuki Lock keypad settings via JSON string, the JSON-formatted stri
 
 | Node             | Delete   | Add      | Update   |  Check   | Usage                                                                                                            | Possible values                        |
 |------------------|----------|----------|----------|----------|------------------------------------------------------------------------------------------------------------------|----------------------------------------|
-| action           | Required | Required | Required | Required | The action to execute                                                                                            | "delete", "add", "update", "check"     |
+| action           | Required | Required | Required | Required | The action to execute                                                                                            | "delete", "add", "update"     |
 | codeId           | Required | Not used | Required | Required | The code ID of the existing code to delete or update found in Web Configurator                                                            | Integer                                |
 | code             | Not used | Required | Optional | Required | The code to create or update                                                                       | 6-digit Integer without zero's, can't start with "12"|
 | enabled          | Not used | Not used | Optional | Not used | Enable or disable the code, always enabled on add                                                                | 1 = enabled, 0 = disabled              |
 | name             | Not used | Required | Optional | Not used | The name of the code to create or update                                                                         | String, max 20 chars                   |
-| timeLimited      | Not used | Optional | Optional | Not used | If this authorization is restricted to access only at certain times, requires enabled = 1                        | 1 = enabled, 0 = disabled              |
-| allowedFrom      | Not used | Optional | Optional | Not used | The start timestamp from which access should be allowed (requires enabled = 1 and timeLimited = 1)               | "YYYY-MM-DD HH:MM:SS"                  |
-| allowedUntil     | Not used | Optional | Optional | Not used | The end timestamp until access should be allowed (requires enabled = 1 and timeLimited = 1)                      | "YYYY-MM-DD HH:MM:SS"                  |
-| allowedWeekdays  | Not used | Optional | Optional | Not used | Weekdays on which access should be allowed (requires enabled = 1 and timeLimited = 1)     | Array of days: "mon", "tue", "wed", "thu" , "fri" "sat", "sun"|
-| allowedFromTime  | Not used | Optional | Optional | Not used | The start time per day from which access should be allowed (requires enabled = 1 and timeLimited = 1)            | "HH:MM"                                |
-| allowedUntilTime | Not used | Optional | Optional | Not used | The end time per day until access should be allowed (requires enabled = 1 and timeLimited = 1)                   | "HH:MM"                                |
+
 
 Examples:
 - Delete: `{ "action": "delete", "codeId": "1234" }`
-- Add: `{ "action": "add", "code": "589472", "name": "Test", "timeLimited": "1", "allowedFrom": "2024-04-12 10:00:00", "allowedUntil": "2034-04-12 10:00:00", "allowedWeekdays": [ "wed", "thu", "fri" ], "allowedFromTime": "08:00", "allowedUntilTime": "16:00" }`
-- Update: `{ "action": "update", "codeId": "1234", "enabled": "1", "name": "Test", "timeLimited": "1", "allowedFrom": "2024-04-12 10:00:00", "allowedUntil": "2034-04-12 10:00:00", "allowedWeekdays": [ "mon", "tue", "sat", "sun" ], "allowedFromTime": "08:00", "allowedUntilTime": "16:00" }`
+- Add: `{ "action": "add", "code": "589472", "name": "Test", "enabled": "0" }`
+- Update: `{ "action": "update", "codeId": "1234", "enabled": "1", "name": "Test" }`
 
 The result of the last keypad change action will be returned.<br>
-
-#### Lock Keypad Command Action
-
-This is an alternative to `lock/keypad/command`.
-If a keypad is connected to the lock, keypad codes can be added, updated and removed.
-This has to enabled first in the configuration portal. Check "Add, modify and delete keypad codes" under "Access Level Configuration" and save the configuration.
-
-To modify keypad codes, a command structure is setup under keypad/command:
-
-- keypad/command/id: The id of an existing code, found under keypad_code_x in Web Configurator
-- keypad/command/name: Display name of the code
-- keypad/command/code: The actual 6-digit keypad code
-- keypad/command/enabled: Set to 1 to enable the code, 0 to disable
-- keypad/command/action: The action to execute. Possible values are add, delete and update
-
-To modify keypad codes, the first four parameter nodes have to be set depending on the command:
-
-- To "add" a code, set 'name', 'code', 'enabled' **
-- To "delete" a code, set 'id'
-- To "update" a code, set 'id', 'name', 'code', 'enabled'
-
-** Note: Rules for codes are:
-- The code must be a 6 digit number
-- The code can't contain 0
-- The code can't start with 12
-
-After setting the necessary parameters, write the action to be executed to the command node.
-For example, to add a code:
-- send "John Doe" to name
-- send 111222 to code
-- send 1 to enabled
-- send "add" to action
 
 #### Lock Config Action (JSON)
 

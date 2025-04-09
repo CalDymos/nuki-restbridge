@@ -28,11 +28,7 @@
 
 #define api_path_config_action (char*)"/config/action"
 
-#define api_path_keypad_command_action (char*)"/keypad/command/action"
-#define api_path_keypad_command_id (char*)"/keypad/command/id"
-#define api_path_keypad_command_name (char*)"/keypad/command/name"
-#define api_path_keypad_command_code (char*)"/keypad/command/code"
-#define api_path_keypad_command_enabled (char*)"/keypad/command/enabled"
+#define api_path_keypad_command (char*)"/keypad/command"
 
 #define api_path_timecontrol_action (char*)"/timecontrol/action"
 
