@@ -1,7 +1,7 @@
 #pragma once
 
 #define NUKI_REST_BRIDGE_VERSION "0.99e"
-#define NUKI_REST_BRIDGE_BUILD "LittleFS-Integration"
+#define NUKI_REST_BRIDGE_BUILD "main"
 #define NUKI_REST_BRIDGE_DATE "2025-04-09"
 #define NUKI_REST_BRIDGE_HW "OLIMEX ESP32-POE-ISO"
 
