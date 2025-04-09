@@ -1,3 +1,4 @@
+#pragma message(">>> USING LOCAL NimBLE-Arduino@2.2.3<<<")
 /*
  * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
