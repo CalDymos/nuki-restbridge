@@ -53,8 +53,8 @@ def get_partition_offsets(env):
                 offsets["otadata"] = offset
             elif type_.strip() == "app" and subtype.strip() == "factory":
                 offsets["firmware"] = offset
-            elif type_.strip().lower() == "littlefs":
-                offsets["littlefs"] = offset
+            elif type_.strip().lower() == "spiffs":
+                offsets["spiffs"] = offset
             elif name.strip().lower() == "coredump":
                 offsets["coredump"] = offset
 
@@ -77,8 +77,8 @@ def get_partition_sizes(env):
 
     # Set default values if `partitions.csv` does not exist
     sizes = {
-        "bootloader": "0x7000",  # Standardgröße für Bootloader (normalerweise 28KB)
-        "partition": "0x1000",   # Standardgröße für die Partitionstabelle (4KB)
+        "bootloader": "0x7000",  # Standard size for the bootloader (28KB)
+        "partition": "0x1000",   # Standard size for the partition table (4KB)
         "nvs": "0x5000",
         "otadata": None,
         "firmware": "0x220000",  # Default for firmware (if not found)
@@ -105,8 +105,8 @@ def get_partition_sizes(env):
                 sizes["otadata"] = size
             elif type_.strip() == "app" and subtype.strip() == "factory":
                 sizes["firmware"] = size
-            elif type_.strip().lower() == "littlefs":
-                sizes["littlefs"] = size
+            elif type_.strip().lower() == "spiffs":
+                sizes["spiffs"] = size
             elif name.strip().lower() == "coredump":
                 sizes["coredump"] = size
 
@@ -197,13 +197,13 @@ def merge_bin(source, target, env):
         partOffsets["partition"], f"{env['BUILD_DIR']}/partitions.bin",
         partOffsets["firmware"], target[0].get_abspath(),
     ]
-
-    # Check LittleFS and add if necessary
-    littlefs_path = os.path.join(env["BUILD_DIR"], "littlefs.bin")
-    if os.path.exists(littlefs_path):
-        flash_args += [partOffsets["littlefs"], littlefs_path]
+    
+    # Check SPIFFS and add if necessary
+    spiffs_path = os.path.join(env["BUILD_DIR"], "spiffs.bin")
+    if os.path.exists(spiffs_path):
+        flash_args += [partOffsets["spiffs"], spiffs_path]
     else:
-        print("[INFO] No LittleFS image found. Skipping in merge_bin().")
+        print("[INFO] No SPIFFS image found. Skipping in merge_bin().")
         
     cmd = f"esptool.py --chip {chip} merge_bin -o {target_file} --flash_mode dio --flash_freq keep --flash_size keep " + " ".join(flash_args)
     env.Execute(cmd)
@@ -292,7 +292,7 @@ def upload_firmware(source, target, env):
 
     root = tk.Tk()
     root.withdraw()  # Hide main window
-    root.attributes('-topmost', True)  # Fenster immer im Vordergrund setzen
+    root.attributes('-topmost', True)  # Always set windows in the foreground
     
     erase_flash = False
     upload_confirmed = False
@@ -350,12 +350,12 @@ def upload_firmware(source, target, env):
     cmd += f"{partOffsets['bootloader']} {env['BUILD_DIR']}/bootloader.bin "
     cmd += f"{partOffsets['partition']} {env['BUILD_DIR']}/partitions.bin "
     cmd += f"{partOffsets['firmware']} {firmware_path}"
-    
-    littlefs_path = os.path.join(env["BUILD_DIR"], "littlefs.bin")
-    if os.path.exists(littlefs_path):
-        cmd += f" {partOffsets['littlefs']} {littlefs_path}"
+
+    spiffs_path = os.path.join(env["BUILD_DIR"], "spiffs.bin")
+    if os.path.exists(spiffs_path):
+        cmd += f" {partOffsets['spiffs']} {spiffs_path}"
     else:
-        print("[INFO] No LittleFS image found. Skipping in upload_firmware().")
+        print("[INFO] No SPIFFS image found. Skipping in upload_firmware().")
     
     print(f"[INFO] Starte Upload auf {upload_port}...")
     env.Execute(cmd)
@@ -378,17 +378,33 @@ def generate_littlefs(source, target, env):
     
     # Check whether at least one file is included
     data_files = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f))]
-    create_dummy = False
-
     if not data_files:
-        print("[INFO] No files found in /data. Creating dummy file for buildfs...")
-        with open(dummy_file, "w") as f:
-            f.write(" ")
+        print(f"[INFO] No files found in {data_path}. empty SPIFFS image will be create.")
+            
+        # get SPIFFS offset address
+        spiffs_size = partSizes["spiffs"] if partSizes["spiffs"] else "0x1E0000"
 
-        create_dummy = True
+        # Select the correct mkspiffs version
+        mkspiffs_exe = os.path.join(os.getenv("USERPROFILE"), ".platformio", "packages", "tool-mkspiffs", "mkspiffs_espressif32_arduino.exe")
 
-    print("[INFO] Running buildfs via PlatformIO...")
-    result = subprocess.run(["pio", "run", "--target", "buildfs"], cwd=env["PROJECT_DIR"])
+        if not os.path.exists(mkspiffs_exe):
+            print("[ERROR] mkspiffs was not found!")
+            return
+        
+        # Generate SPIFFS-Image
+        cmd = f'"{mkspiffs_exe}" -c "{data_path}" -b 4096 -p 256 -s {spiffs_size} "{spiffs_path}"'
+        print(f"[INFO] Create SPIFFS image: {cmd}")
+        env.Execute(cmd)
+        
+    else:
+        print(f"[INFO] Building SPIFFS image with {len(data_files)} file(s) from /data...")
+        result = subprocess.run(["pio", "run", "--target", "buildfs"], cwd=env["PROJECT_DIR"])   
+        
+        if result.returncode != 0:
+            print("[ERROR] Failed to build SPIFFS image using PlatformIO.")
+            return
+        
+    print(f"[INFO] SPIFFS image successfully built: {spiffs_path}")
 
     if create_dummy and os.path.exists(dummy_file):
         os.remove(dummy_file)

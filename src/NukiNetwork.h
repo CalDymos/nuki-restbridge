@@ -248,13 +248,17 @@ public:
      * @param success Whether the response indicates success (HTTP 200) or failure.
      * @param httpCode Optional HTTP status code to return.
      */
-    void sendResponse(JsonDocument &jsonResult, bool success = true, int httpCode = 200);
+    void sendResponse(JsonDocument &jsonResult, const char* message = "", int httpCode = 200);
 
     /**
      * @brief Sets the callback for lock action requests.
      * @param lockActionReceivedCallback Function pointer to lock action handler.
      */
     void setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value));
+
+    void setConfigUpdateReceivedCallback(void (*configUpdateReceivedCallback)(const char* value));
+
+    void setKeypadCommandReceivedCallback(void (*keypadCommandReceivedReceivedCallback)(const char* command, const uint& id, const String& name, const String& code, const int& enabled));
 
     /**
      * @brief Sets the callback for time control command requests.
@@ -364,14 +368,14 @@ private:
      * @param subPath Path to compare with.
      * @return True if prefixed path matches.
      */
-    bool comparePrefixedPath(const char *fullPath, const char *subPath);
+    bool comparePrefixedPath(const char *fullPath, const char *mainPath, const char *subPath);
 
     /**
      * @brief Combines bridge path with the subpath.
      * @param path Path to append.
      * @param outPath Output buffer.
      */
-    void buildApiPath(const char *path, char *outPath);
+    void buildApiPath(const char *mainPath, const char *path, char *outPath);
 
     /**
      * @brief Extracts and serializes HTTP arguments from the REST request into the internal buffer.
@@ -440,8 +444,6 @@ private:
                                                                               //
     char *_buffer;                                                            // Shared buffer for response generation
     const size_t _bufferSize;                                                 // Size of the shared buffer
-    char _apiBridgePath[129] = {0};                                           // API base path (e.g. "/bridge")
-    char _apiLockPath[129] = {0};                                             // API path for lock-related commands
     int _apiPort;                                                             // REST API server port
 
     // Callback handlers

@@ -42,6 +42,14 @@
     - [Factory reset Nuki Bridge](#factory-reset-nuki-bridge)
   - [Advanced Configuartion](#advanced-configuration)
 - [REST API Enpoints](#rest-api-endpoints) 
+  - [Authentication](#authentication)
+  - [Bridge Control](#bridge-control)
+  - [Nuki Lock](#nuki-lock)
+    - [Lock Keypad Command (JSON)](#lock-keypad-command-json)
+    - [Lock Keypad Command Action](#lock-keypad-command-action)
+    - [Lock Config Action (JSON)](#lock-config-action-json)
+    - [Lock Timecontrol Action (JSON)](#lock-timecontrol-action-json)
+    - [Lock Authorization action (JSON)](#lock-authorization-action-json)
 - [Recommended LAN Setup](#recommended-lan-setup)
 
 ---
@@ -405,76 +413,205 @@ You can reach the menu directly by browsing to http://NUKIHUBIP/get?page=advance
 
 ---
 
-## 🌐 REST API Endpoints
+## REST API Endpoints
 
 All REST API endpoints are accessible via the configured port (default: `8080`).  
-🔐 **All endpoints require a valid Access Token** in the HTTP header or query string — **except** for `/shutdown`.
 
 > 🧩 Format:  
-> `http://<bridge-ip>:<port>/<endpoint>?token=<your-token>`
+> `http://<bridge-ip>:<port>/<endpoint>?token=<api-token>&<parameter>=<value>&...`
 
-### 🔑 Authentication
+### Authentication
 
-Every request must include the access token as:
-- HTTP query parameter: `?token=yourtoken`
-- or HTTP header: `Authorization: Bearer yourtoken`
+Every request must include the access token as HTTP query parameter: `?token=<api-token>`
 
 > ⚠️ The only exception is the `/shutdown` endpoint, which does **not** require a token.
 
 ---
 
-### 🔧 Bridge Control
+### Bridge Control
 
-| Endpoint           | Method | Description                                   |
-|--------------------|--------|-----------------------------------------------|
-| `/info`            | GET    | Returns a JSON object with firmware, build, pairing, and BLE info. |
-| `/status`          | GET    | Returns general runtime state and memory info. |
-| `/shutdown`        | GET    | Powers down the ESP32 (no token required).    |
-| `/restart`         | GET    | Restarts the ESP32 immediately.               |
-| `/reset`           | GET    | Triggers a factory reset (requires confirmation code). |
+| Endpoint           | Paramter | Value | Method | Description                                   |
+|--------------------|----------|-------|--------|-----------------------------------------------|
+| `bridge/disableApi`      |    -     |   -   |   GET  | deactivates the REST API <br> (if the API is deactivated, it can only be activated via the web configurator)|
+| `bridge/shutdown`        |    -     |   -   |   GET  | Powers down the ESP32 (no token required).    |
+| `bridge/reboot`          |    -     |   -   |   GET  | Restarts the ESP32 immediately.               |
+| `bridge/enableWebServer` |   val    |  0/1  |   GET  | 0 = Deactivate the web configurator / 1 = Activate the web configurator <br> (reboot is performed after the action)|
+---
+
+### Nuki Lock
+
+| Endpoint                      | Parameter | Value        | Method | Description |
+|-------------------------------|-----------|--------------|--------|-------------|
+| `lock/action`                | "unlock", "lock", "unlatch", "lockNgo", "lockNgoUnlatch", "fullLock", "fobAction1", "fobAction2", "fobAction3" |      1       | GET | Executes a lock action.|
+| `lock/keypad/command`         |   JSON<br>(see [Lock Keypad command](#lock-keypad-command-json))| various<br>(see [Lock Keypad command](#lock-keypad-command-json))|  GET| Submits a complete keypad command as json string.|
+||||||
+| `lock/keypad/command/action`      | "add", "delete", "update" |    1   |   GET  | Submits a keypad command action (needs to be used in combination with the fileds 'id','name','code','enabled').<br>See [Lock keypad command action](#lock-keypad-command-action)|
+| `lock/keypad/command/id`          | val       | Number       | GET    | ID of the keypad command to be modified or used. |
+| `lock/keypad/command/name`        | val       | String       | GET    | Name to be assigned to the keypad entry. |
+| `lock/keypad/command/code`        | val       | 6-digit code | GET    | Access code for keypad entry. |
+| `lock/keypad/command/enabled`     | val       | 0 / 1        | GET    | Whether the keypad entry is enabled. |
+||||||
+| `lock/query/config`               | val       |  1           | GET    | Requests configuration state from the lock. (Triggers a HAR report for this query) |
+| `lock/query/lockstate`            | val       |  1           | GET    | Requests current lock state from lock. (Triggers a HAR report for this query)|
+| `lock/query/keypad`               | val       |  1           | GET    | Requests keypad status / entries from lock. (Triggers a HAR report for this query)|
+| `lock/query/battery`              | val       |  1           | GET    | Requests battery status from lock. (Triggers a HAR report for this query)|
+| `lock/config/action`              | JSON<br>(see [Lock config action](#lock-config-action-json))      | various<br>(see [Lock config action](#lock-config-action-json))     | GET    | Updates lock configuration values.<br> See [Nuki Bluetooh API](https://developer.nuki.io/t/bluetooth-api/27) for more information on the available settings.<br> Changing settings has to enabled first in the configuration portal.<br> Check the settings you want to be able to change under "Nuki Lock Config Control" in "Access Level Configuration" and save the configuration.|
+| `lock/timecontrol/action`         | JSON      | various      | GET    | Sends time control schedule commands.<br>See [Lock Timecontrol Action (JSON)](#lock-timecontrol-action-json) |
+| `lock/authorization/action`       | JSON      | various      | GET    | Sends authorization updates (e.g. new users).<br>See [Lock Authorization action (JSON)](#lock-authorization-action-json) |
+
+
+#### Lock Keypad Command (JSON)
+
+If a keypad is connected to the lock, keypad codes can be added, updated and removed. This has to enabled first in the configuration portal. Check "Add, modify and delete keypad codes" under "Access Level Configuration" and save the configuration.
+
+To change the Nuki Lock keypad settings via JSON string, the JSON-formatted string must contain the following nodes.
+
+| Node             | Delete   | Add      | Update   |  Check   | Usage                                                                                                            | Possible values                        |
+|------------------|----------|----------|----------|----------|------------------------------------------------------------------------------------------------------------------|----------------------------------------|
+| action           | Required | Required | Required | Required | The action to execute                                                                                            | "delete", "add", "update", "check"     |
+| codeId           | Required | Not used | Required | Required | The code ID of the existing code to delete or update found in Web Configurator                                                            | Integer                                |
+| code             | Not used | Required | Optional | Required | The code to create or update                                                                       | 6-digit Integer without zero's, can't start with "12"|
+| enabled          | Not used | Not used | Optional | Not used | Enable or disable the code, always enabled on add                                                                | 1 = enabled, 0 = disabled              |
+| name             | Not used | Required | Optional | Not used | The name of the code to create or update                                                                         | String, max 20 chars                   |
+| timeLimited      | Not used | Optional | Optional | Not used | If this authorization is restricted to access only at certain times, requires enabled = 1                        | 1 = enabled, 0 = disabled              |
+| allowedFrom      | Not used | Optional | Optional | Not used | The start timestamp from which access should be allowed (requires enabled = 1 and timeLimited = 1)               | "YYYY-MM-DD HH:MM:SS"                  |
+| allowedUntil     | Not used | Optional | Optional | Not used | The end timestamp until access should be allowed (requires enabled = 1 and timeLimited = 1)                      | "YYYY-MM-DD HH:MM:SS"                  |
+| allowedWeekdays  | Not used | Optional | Optional | Not used | Weekdays on which access should be allowed (requires enabled = 1 and timeLimited = 1)     | Array of days: "mon", "tue", "wed", "thu" , "fri" "sat", "sun"|
+| allowedFromTime  | Not used | Optional | Optional | Not used | The start time per day from which access should be allowed (requires enabled = 1 and timeLimited = 1)            | "HH:MM"                                |
+| allowedUntilTime | Not used | Optional | Optional | Not used | The end time per day until access should be allowed (requires enabled = 1 and timeLimited = 1)                   | "HH:MM"                                |
+
+Examples:
+- Delete: `{ "action": "delete", "codeId": "1234" }`
+- Add: `{ "action": "add", "code": "589472", "name": "Test", "timeLimited": "1", "allowedFrom": "2024-04-12 10:00:00", "allowedUntil": "2034-04-12 10:00:00", "allowedWeekdays": [ "wed", "thu", "fri" ], "allowedFromTime": "08:00", "allowedUntilTime": "16:00" }`
+- Update: `{ "action": "update", "codeId": "1234", "enabled": "1", "name": "Test", "timeLimited": "1", "allowedFrom": "2024-04-12 10:00:00", "allowedUntil": "2034-04-12 10:00:00", "allowedWeekdays": [ "mon", "tue", "sat", "sun" ], "allowedFromTime": "08:00", "allowedUntilTime": "16:00" }`
+
+The result of the last keypad change action will be returned.<br>
+
+#### Lock Keypad Command Action
+
+This is an alternative to `lock/keypad/command`.
+If a keypad is connected to the lock, keypad codes can be added, updated and removed.
+This has to enabled first in the configuration portal. Check "Add, modify and delete keypad codes" under "Access Level Configuration" and save the configuration.
+
+To modify keypad codes, a command structure is setup under keypad/command:
+
+- keypad/command/id: The id of an existing code, found under keypad_code_x in Web Configurator
+- keypad/command/name: Display name of the code
+- keypad/command/code: The actual 6-digit keypad code
+- keypad/command/enabled: Set to 1 to enable the code, 0 to disable
+- keypad/command/action: The action to execute. Possible values are add, delete and update
+
+To modify keypad codes, the first four parameter nodes have to be set depending on the command:
+
+- To "add" a code, set 'name', 'code', 'enabled' **
+- To "delete" a code, set 'id'
+- To "update" a code, set 'id', 'name', 'code', 'enabled'
+
+** Note: Rules for codes are:
+- The code must be a 6 digit number
+- The code can't contain 0
+- The code can't start with 12
+
+After setting the necessary parameters, write the action to be executed to the command node.
+For example, to add a code:
+- send "John Doe" to name
+- send 111222 to code
+- send 1 to enabled
+- send "add" to action
+
+#### Lock Config Action (JSON)
+
+| Setting                                 | Usage                                                                                            | Possible values                                                   | Example                            |
+|-----------------------------------------|--------------------------------------------------------------------------------------------------|-------------------------------------------------------------------|------------------------------------|
+| name                                    | The name of the Smart Lock.                                                                      | Alphanumeric string, max length 32 chars                          |`{ "name": "Frontdoor" }`           |
+| latitude                                | The latitude of the Smart Locks geoposition.                                                     | Float                                                             |`{ "latitude": "48.858093" }`       |
+| longitude                               | The longitude of the Smart Locks geoposition                                                     | Float                                                             |`{ "longitude": "2.294694" }`       |
+| autoUnlatch                             | Whether or not the door shall be unlatched by manually operating a door handle from the outside. | 1 = enabled, 0 = disabled                                         |`{ "autoUnlatch": "1" }`            |
+| pairingEnabled                          | Whether or not activating the pairing mode via button should be enabled.                         | 1 = enabled, 0 = disabled                                         |`{ "pairingEnabled": "0" }`         |
+| buttonEnabled                           | Whether or not the button should be enabled.                                                     | 1 = enabled, 0 = disabled                                         |`{ "buttonEnabled": "1" }`          |
+| ledEnabled                              | Whether or not the flashing LED should be enabled to signal an unlocked door.                    | 1 = enabled, 0 = disabled                                         |`{ "ledEnabled": "1" }`             |
+| ledBrightness                           | The LED brightness level                                                                         | 0 = off, …, 5 = max                                               |`{ "ledBrightness": "2" }`          |
+| timeZoneOffset                          | The timezone offset (UTC) in minutes                                                             | Integer between 0 and 60                                          |`{ "timeZoneOffset": "0" }`         |
+| dstMode                                 | The desired daylight saving time mode.                                                           | 0 = disabled, 1 = European                                        |`{ "dstMode": "0" }`                |
+| fobAction1                              | The desired action, if a Nuki Fob is pressed once.                                               | "No Action", "Unlock", "Lock", "Lock n Go", "Intelligent"         |`{ "fobAction1": "Lock n Go" }`     |
+| fobAction2                              | The desired action, if a Nuki Fob is pressed twice.                                              | "No Action", "Unlock", "Lock", "Lock n Go", "Intelligent"         |`{ "fobAction2": "Intelligent" }`   |
+| fobAction3                              | The desired action, if a Nuki Fob is pressed three times.                                        | "No Action", "Unlock", "Lock", "Lock n Go", "Intelligent"         |`{ "fobAction3": "Unlock" }`        |
+| singleLock                              | Whether only a single lock or double lock should be performed                                    | 0 = double lock, 1 = single lock                                  |`{ "singleLock": "0" }`             |
+| advertisingMode                         | The desired advertising mode.                                                                    | "Automatic", "Normal", "Slow", "Slowest"                          |`{ "advertisingMode": "Normal" }`   |
+| timeZone                                | The current timezone or "None" if timezones are not supported                                    | "None" or one of the timezones from [Nuki Bluetooh API](https://developer.nuki.io/t/bluetooth-api/27)                                                                                                                                                                              |`{ "timeZone": "Europe/Berlin" }`   |
+| unlockedPositionOffsetDegrees           | Offset that alters the unlocked position in degrees.                                             | Integer between -90 and 180                              |`{ "unlockedPositionOffsetDegrees": "-90" }` |
+| lockedPositionOffsetDegrees             | Offset that alters the locked position in degrees.                                               | Integer between -180 and 90                                 |`{ "lockedPositionOffsetDegrees": "80" }` |
+| singleLockedPositionOffsetDegrees       | Offset that alters the single locked position in degrees.                                        | Integer between -180 and 180                         |`{ "singleLockedPositionOffsetDegrees": "120" }` |
+| unlockedToLockedTransitionOffsetDegrees | Offset that alters the position where transition from unlocked to locked happens in degrees.     | Integer between -180 and 180                   |`{ "unlockedToLockedTransitionOffsetDegrees": "180" }` |
+| lockNgoTimeout                          | Timeout for lock ‘n’ go in seconds                                                               | Integer between 5 and 60                                          |`{ "lockNgoTimeout": "60" }`        |
+| singleButtonPressAction                 | The desired action, if the button is pressed once.                  | "No Action", "Intelligent", "Unlock", "Lock", "Unlatch", "Lock n Go", "Show Status"   |`{ "singleButtonPressAction": "Lock n Go" }` |
+| doubleButtonPressAction                 | The desired action, if the button is pressed twice.                 | "No Action", "Intelligent", "Unlock", "Lock", "Unlatch", "Lock n Go", "Show Status" |`{ "doubleButtonPressAction": "Show Status" }` |
+| detachedCylinder                        | Wheter the inner side of the used cylinder is detached from the outer side.                      | 0 = not detached, 1 = detached                                    |`{ "detachedCylinder": "1" }`       |
+| batteryType                             | The type of the batteries present in the smart lock.                                             | "Alkali", "Accumulators", "Lithium"                               |`{ "batteryType": "Accumulators" }` |
+| automaticBatteryTypeDetection           | Whether the automatic detection of the battery type is enabled.                                  | 1 = enabled, 0 = disabled                          |`{ "automaticBatteryTypeDetection": "Lock n Go" }` |
+| unlatchDuration                         | Duration in seconds for holding the latch in unlatched position.                                 | Integer between 1 and 30                                          |`{ "unlatchDuration": "3" }`        |
+| autoLockTimeOut                         | Seconds until the smart lock relocks itself after it has been unlocked.                          | Integer between 30 and 1800                                       |`{ "autoLockTimeOut": "60" }`       |
+| autoUnLockDisabled                      | Whether auto unlock should be disabled in general.                                               | 1 = auto unlock disabled, 0 = auto unlock enabled                 |`{ "autoUnLockDisabled": "1" }`     |
+| nightModeEnabled                        | Whether nightmode is enabled.                                                                    | 1 = enabled, 0 = disabled                                         |`{ "nightModeEnabled": "1" }`       |
+| nightModeStartTime                      | Start time for nightmode if enabled.                                                             | Time in "HH:MM" format                                            |`{ "nightModeStartTime": "22:00" }` |
+| nightModeEndTime                        | End time for nightmode if enabled.                                                               | Time in "HH:MM" format                                            |`{ "nightModeEndTime": "07:00" }`   |
+| nightModeAutoLockEnabled                | Whether auto lock should be enabled during nightmode.                                            | 1 = enabled, 0 = disabled                                        |`{ "nightModeAutoLockEnabled": "1" }`|
+| nightModeAutoUnlockDisabled             | Whether auto unlock should be disabled during nightmode.                                         | 1 = auto unlock disabled, 0 = auto unlock enabled             |`{ "nightModeAutoUnlockDisabled": "1" }`|
+| nightModeImmediateLockOnStart           | Whether the door should be immediately locked on nightmode start.                                | 1 = enabled, 0 = disabled                                   |`{ "nightModeImmediateLockOnStart": "1" }`|
+| autoLockEnabled                         | Whether auto lock is enabled.                                                                    | 1 = enabled, 0 = disabled                                         |`{ "autoLockEnabled": "1" }`        |
+| immediateAutoLockEnabled                | Whether auto lock should be performed immediately after the door has been closed.                | 1 = enabled, 0 = disabled                                        |`{ "immediateAutoLockEnabled": "1" }`|
+| autoUpdateEnabled                       | Whether automatic firmware updates should be enabled.                                            | 1 = enabled, 0 = disabled                                         |`{ "autoUpdateEnabled": "1" }`      |
+| motorSpeed                              | The desired motor speed (Ultra/5th gen Pro only)                                                 | "Standard", "Insane", "Gentle"                                    |`{ "motorSpeed": "Standard" }`      |
+| enableSlowSpeedDuringNightMode          | Whether the slow speed should be applied during Night Mode (Ultra/5th gen Pro only)              | 1 = enabled, 0 = disabled                            |`{ "enableSlowSpeedDuringNightMode": "1" }`      |
+| rebootNuki                              | Reboot the Nuki device immediately                                                               | 1 = reboot nuki                                                   |`{ "rebootNuki": "1" }`             |
+
+#### Lock Timecontrol Action (JSON)
+
+Timecontrol entries can be added, updated and removed. This has to enabled first in the configuration portal. Check "Add, modify and delete timecontrol entries" under "Access Level Configuration" and save the configuration.
+
+To change Nuki Lock timecontrol settings send to `lock/timecontrol/actionJson` a JSON formatted string containing the following nodes.
+
+| Node             | Delete   | Add      | Update   | Usage                                                                                    | Possible values                                                |
+|------------------|----------|----------|----------|------------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| action           | Required | Required | Required | The action to execute                                                                    | "delete", "add", "update"                                      |
+| entryId          | Required | Not used | Required | The entry ID of the existing entry to delete or update                                   | Integer                                                        |
+| enabled          | Not used | Not used | Optional | Enable or disable the entry, always enabled on add                                       | 1 = enabled, 0 = disabled                                      |
+| weekdays         | Not used | Optional | Optional | Weekdays on which the chosen lock action should be exectued (requires enabled = 1)       | Array of days: "mon", "tue", "wed", "thu" , "fri" "sat", "sun" |
+| time             | Not used | Required | Optional | The time on which the chosen lock action should be executed (requires enabled = 1)       | "HH:MM"                                                        |
+| lockAction       | Not used | Required | Optional | The lock action that should be executed on the chosen weekdays at the chosen time (requires enabled = 1) | For the Nuki lock: "Unlock", "Lock", "Unlatch", "LockNgo", "LockNgoUnlatch", "FullLock". For the Nuki Opener: "ActivateRTO", "DeactivateRTO", "ElectricStrikeActuation", "ActivateCM", "DeactivateCM |
+
+Examples:
+- Delete: `{ "action": "delete", "entryId": "1234" }`
+- Add: `{ "action": "add", "weekdays": [ "wed", "thu", "fri" ], "time": "08:00", "lockAction": "Unlock" }`
+- Update: `{ "action": "update", "entryId": "1234", "enabled": "1", "weekdays": [ "mon", "tue", "sat", "sun" ], "time": "08:00", "lockAction": "Lock" }`
+
+#### Lock Authorization action (JSON)
+
+Authorization entries can be updated and removed. This has to enabled first in the configuration portal. Check "Modify and delete authorization entries" under "Access Level Configuration" and save the configuration.
+It is currently not (yet) possible to add authorization entries this way.
+
+To change Nuki Lock authorization settings send to `lock/authorization/action` a JSON formatted string containing the following nodes.
+
+| Node             | Delete   | Add      | Update   | Usage                                                                                                            | Possible values                        |
+|------------------|----------|----------|----------|------------------------------------------------------------------------------------------------------------------|----------------------------------------|
+| action           | Required | Required | Required | The action to execute                                                                                            | "delete", "add", "update"              |
+| authId           | Required | Not used | Required | The auth ID of the existing entry to delete or update                                                            | Integer                                |
+| enabled          | Not used | Not used | Optional | Enable or disable the authorization, always enabled on add                                                       | 1 = enabled, 0 = disabled              |
+| name             | Not used | Required | Optional | The name of the authorization to create or update                                                                | String, max 20 chars                   |
+| remoteAllowed    | Not used | Optional | Optional | If this authorization is allowed remote access, requires enabled = 1                                             | 1 = enabled, 0 = disabled              |
+| timeLimited      | Not used | Optional | Optional | If this authorization is restricted to access only at certain times, requires enabled = 1                        | 1 = enabled, 0 = disabled              |
+| allowedFrom      | Not used | Optional | Optional | The start timestamp from which access should be allowed (requires enabled = 1 and timeLimited = 1)               | "YYYY-MM-DD HH:MM:SS"                  |
+| allowedUntil     | Not used | Optional | Optional | The end timestamp until access should be allowed (requires enabled = 1 and timeLimited = 1)                      | "YYYY-MM-DD HH:MM:SS"                  |
+| allowedWeekdays  | Not used | Optional | Optional | Weekdays on which access should be allowed (requires enabled = 1 and timeLimited = 1)     | Array of days: "mon", "tue", "wed", "thu" , "fri" "sat", "sun"|
+| allowedFromTime  | Not used | Optional | Optional | The start time per day from which access should be allowed (requires enabled = 1 and timeLimited = 1)            | "HH:MM"                                |
+| allowedUntilTime | Not used | Optional | Optional | The end time per day until access should be allowed (requires enabled = 1 and timeLimited = 1)                   | "HH:MM"                                |
+
+Examples:
+- Delete: `{ "action": "delete", "authId": "1234" }`
+- Update: `{ "action": "update", "authId": "1234", "enabled": "1", "name": "Test", "timeLimited": "1", "allowedFrom": "2024-04-12 10:00:00", "allowedUntil": "2034-04-12 10:00:00", "allowedWeekdays": [ "mon", "tue", "sat", "sun" ], "allowedFromTime": "08:00", "allowedUntilTime": "16:00" }`
 
 ---
 
-### 🔐 Nuki Lock Actions
-
-| Endpoint           | Method | Description                                   |
-|--------------------|--------|-----------------------------------------------|
-| `/lockAction`      | POST   | Sends a lock/unlock/lock ‘n’ go command to the Nuki Lock. |
-| `/lockState`       | GET    | Returns the current lock state.               |
-| `/lockBattery`     | GET    | Returns current battery info.                 |
-| `/lockConfig`      | GET    | Returns the current lock configuration.       |
-| `/lockLog`         | GET    | Returns the latest log entries.               |
-
----
-
-### 🔒 Authorization & Configuration
-
-| Endpoint                 | Method | Description                                   |
-|--------------------------|--------|-----------------------------------------------|
-| `/lockAuthList`          | GET    | Returns list of authorized users.             |
-| `/lockAddAuth`           | POST   | Adds a new authorized user (PIN required).    |
-| `/lockRemoveAuth`        | POST   | Removes an authorized user (PIN required).    |
-| `/lockKeypadList`        | GET    | Returns list of keypad codes.                 |
-| `/lockAddKeypad`         | POST   | Adds a new keypad code (PIN required).        |
-| `/lockRemoveKeypad`      | POST   | Removes a keypad code (PIN required).         |
-| `/lockTimeControlList`   | GET    | Returns list of time controls.                |
-| `/lockAddTimeControl`    | POST   | Adds a new time control (PIN required).       |
-| `/lockRemoveTimeControl` | POST   | Removes a time control (PIN required).        |
-
----
-
-### 🔧 Configuration Access
-
-| Endpoint   | Method | Description                                       |
-|------------|--------|---------------------------------------------------|
-| `/get`     | GET    | Returns current configuration as HTML page.       |
-| `/set`     | POST   | Sets configuration parameters via REST (if allowed). |
-| `/save`    | GET    | Triggers configuration save to NVS.               |
-
-> 📘 **Note:** Some configuration options may be restricted even with valid token.  
-> See [Access Level Configuration](#access-level-configuration) for details.
-
----
 
 ## Recommended LAN Setup
 

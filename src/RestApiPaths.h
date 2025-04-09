@@ -1,16 +1,25 @@
 #pragma once
 
-// main path for bridge
+// ------------------------------
+// 📡 Bridge API Paths
+// ------------------------------
+// main path
 #define api_path_bridge (char*)"/bridge"
 
-#define api_path_bridge_enable_api (char*)"/enableApi"
-#define api_path_bridge_reboot (char*)"/reboot"
-#define api_path_bridge_enable_web_server (char*)"/enableWebServer"
+// sub paths
+#define api_path_shutdown (char*) "/shutdown"
+#define api_path_disable_api (char*)"/disableApi"
+#define api_path_reboot (char*)"/reboot"
+#define api_path_enable_web_server (char*)"/enableWebServer"
 
-// main path for lock
+// ------------------------------
+// 🔒 Lock API Paths
+// ------------------------------
+// main path
 #define api_path_lock (char*)"/lock"
 
-#define api_path_lock_action (char*)"/action"
+// sub paths
+#define api_path_action (char*)"/action"
 
 #define api_path_query_config (char*)"/query/config"
 #define api_path_query_lockstate (char*)"/query/lockstate"

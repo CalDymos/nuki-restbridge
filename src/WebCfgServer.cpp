@@ -635,6 +635,15 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
 
     appendCheckBoxRow(response, "CONFNHCTRL", "Modify Nuki Bridge configuration over REST API", _preferences->getBool(preference_config_from_api, false));
 
+    if ((_nuki != nullptr && _nuki->hasKeypad()))
+    {
+        appendCheckBoxRow(response, "KPPUB", "Update keypad entries information", _preferences->getBool(preference_keypad_info_enabled), "");
+        appendCheckBoxRow(response, "KPENA", "Add, modify and delete keypad codes", _preferences->getBool(preference_keypad_control_enabled), "");
+    }
+
+    appendCheckBoxRow(response, "TCENA", "Add, modify and delete time control entries", _preferences->getBool(preference_timecontrol_control_enabled), "");
+    appendCheckBoxRow(response, "AUTHENA", "Modify and delete authorization entries", _preferences->getBool(preference_auth_control_enabled), "");
+
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
 
     if (_nuki)
@@ -1151,13 +1160,13 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
 
     buildHtmlHeader(response);
     response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
-    response += F("<input type=\"hidden\" name=\"page\" value=\"savelog\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"savecfg\">");
     response += F("<h3>Logging Configuration</h3>");
     response += F("<table>");
 
     appendInputFieldRow(response, "LOGFILE", "Filename", LOGGER_FILENAME, 64, "readonly");
-    appendInputFieldRow(response, "LOGMSGLEN", "Max. message length (min 1, max 1024)", _preferences->getInt(preference_log_max_msg_len, 128), 6, "min='1' max='1024'");
-    appendInputFieldRow(response, "LOGMAXSIZE", "Max. log file size (min 256KB, max 1024KB)", _preferences->getInt(preference_log_max_file_size, 256), 6, "min='256' max='1024'");
+    appendInputFieldRow(response, "LOGMSGLEN", "Max. message length (min 5, max 1024)", _preferences->getInt(preference_log_max_msg_len), 6, "min='5' max='1024'");
+    appendInputFieldRow(response, "LOGMAXSIZE", "Max. log file size (min 56KB, max 1024KB)", _preferences->getInt(preference_log_max_file_size), 6, "min='56' max='1024'");
 
     // Log level dropdown
     std::vector<std::pair<String, String>> lvlOptions;
@@ -1177,8 +1186,6 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
     appendInputFieldRow(response, "LOGBCKPWD", "FTP Password", _preferences->getString(preference_log_backup_ftp_pwd, "").c_str(), 32, "", true, true);
 
     response += F("</table><br>");
-    response += F("<br><input type=\"submit\" name=\"submit\" value=\"Save\">");
-    response += F("</form>");
 
     response += F("<div style=\"margin-top: 20px;\">");
     response += F("<input type=\"submit\" name=\"submit\" value=\"Save\" style=\"margin-right: 15px;\" />");
@@ -1527,8 +1534,7 @@ void WebCfgServer::buildHtml(WebServer *server)
     appendNavigationMenuEntry(response, "Info page", "/get?page=info");
     String rebooturl = "/get?page=reboot&CONFIRMTOKEN=" + _confirmCode;
     appendNavigationMenuEntry(response, "Reboot Nuki Bridge", rebooturl.c_str());
-    appendNavigationMenuEntry(response, "Shutdown", "/get?page=shutdown", "return confirm('Really Shutdown Nuki Bridge?');");
-
+    appendNavigationMenuEntry(response, "Shutdown", "/get?page=shutdown", "", "return confirm('Really Shutdown Nuki Bridge?');");
 
     if (_preferences->getInt(preference_http_auth_type, 0) == 2)
     {
@@ -1724,16 +1730,16 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
 
     response += F("\n\n------------NUKI BRIDGE LOG ------------");
     response += F("\nMax message length: ");
-    response += String(_preferences->getInt(preference_log_max_msg_len), 128);
+    response += String(_preferences->getInt(preference_log_max_msg_len));
     response += F("\nFilename: ");
     response += LOGGER_FILENAME;
     response += F("\nLevel: ");
     response += Log->levelToString(Log->getLevel());
     response += F("\nCurrent file size: ");
-    response += String(Log->getFileSize());
+    response += String(Log->getFileSize() / 1024);
     response += F(" kb");
     response += F("\nMax file size: ");
-    response += String(_preferences->getInt(preference_log_max_file_size, 256));
+    response += String(_preferences->getInt(preference_log_max_file_size));
     response += F(" kb");
     response += F("\nEnable backup to ftp server: ");
     response += _preferences->getBool(preference_log_backup_enabled, false) ? F("Yes") : F("No");
@@ -1926,6 +1932,8 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += String(_preferences->getInt(preference_query_interval_battery, 1800));
     response += F("\nConfig query interval (s): ");
     response += String(_preferences->getInt(preference_query_interval_configuration, 3600));
+    response += F("\nUpdate keypad info: ");
+    response += _preferences->getBool(preference_keypad_info_enabled, false) ? F("Yes") : F("No");
     response += F("\nKeypad query interval (s): ");
     response += String(_preferences->getInt(preference_query_interval_keypad, 1800));
     response += F("\nEnable Keypad control: ");
@@ -2168,7 +2176,7 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
 
     json[F("stop")] = 0;
 
-    // MQTT
+    // API
     if (_network->networkServicesState() == NetworkServiceState::OK)
     {
         json[F("APIState")] = F("Yes");
@@ -2231,14 +2239,23 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
     return server->send(200, F("application/json"), jsonStr.c_str());
 }
 
-void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage)
+void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage, const char *onClick)
 {
     response += F("<a class=\"naventry\" href=\"");
     response += targetPath;
-    response += F("\"><li>");
+    response += F("\"");
+
+    if (*onClick)
+    {
+        response += F(" onclick=\"");
+        response += onClick;
+        response += F("\"");
+    }
+
+    response += F("><li>");
     response += title;
 
-    if (*warningMessage) 
+    if (*warningMessage)
     {
         response += F("<span>");
         response += warningMessage;
@@ -2932,7 +2949,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         }
         else if (key == "LOGMAXSIZE")
         {
-            if (_preferences->getInt(preference_log_max_file_size, 256) != value.toInt())
+            if (_preferences->getInt(preference_log_max_file_size) != value.toInt())
             {
                 _preferences->putInt(preference_log_max_file_size, value.toInt());
                 Log->print("Setting changed: ");
@@ -3357,6 +3374,60 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         else if (key == "ACLLVLCHANGED")
         {
             aclLvlChanged = true;
+        }
+        else if(key == "CONFNHCTRL")
+        {
+            if(_preferences->getBool(preference_config_from_api, false) != (value == "1"))
+            {
+                if(_preferences->getBool(preference_config_from_api, false) && _preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE) < 8192)
+                {
+                    _preferences->putInt(preference_buffer_size, 8192);
+                }
+                _preferences->putBool(preference_config_from_api, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "KPPUB")
+        {
+            if(_preferences->getBool(preference_keypad_info_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_keypad_info_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
+        else if(key == "KPENA")
+        {
+            if(_preferences->getBool(preference_keypad_control_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_keypad_control_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "TCENA")
+        {
+            if(_preferences->getBool(preference_timecontrol_control_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_timecontrol_control_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if(key == "AUTHENA")
+        {
+            if(_preferences->getBool(preference_auth_control_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_auth_control_enabled, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
         }
         else if (key == "CREDDIGEST")
         {
