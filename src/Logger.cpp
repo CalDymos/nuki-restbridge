@@ -54,7 +54,7 @@ void Logger::disableFileLog()
   _serial->println(F("writiing to Log file disabled!"));
 }
 
-#else // LittleFS based logging
+#else // SPIFFS based logging
 
 Logger::Logger(Print *serial, Preferences *prefs)
     : _serial(serial), _preferences(prefs)
@@ -408,18 +408,18 @@ size_t Logger::println(void)
 
 void Logger::clear()
 {
-  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
+  if (!SPIFFS.begin(true))
   {
     _logFallBack.store(true);
-    println(F("[ERROR] LittleFS not initialized!"));
+    println(F("[ERROR] SPIFFS not initialized!"));
     return;
   }
-  if (LittleFS.exists(_logFile))
+  if (SPIFFS.exists(_logFile))
   {
-    LittleFS.remove(_logFile);
+    SPIFFS.remove(_logFile);
   }
 
-  File f = LittleFS.open(_logFile, FILE_WRITE);
+  File f = SPIFFS.open(_logFile, FILE_WRITE);
   if (f)
   {
     f.close();
@@ -520,10 +520,10 @@ bool Logger::isFileTooBig()
 
 size_t Logger::getFileSize()
 {
-  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
+  if (!SPIFFS.begin(true))
   {
     _logFallBack.store(true);
-    println(F("[ERROR] LittleFS not initialized!"));
+    println(F("[ERROR] SPIFFS not initialized!"));
     return 0;
   }
 
@@ -723,15 +723,15 @@ void Logger::toFile(String message)
   String line;
   serializeJson(doc, line);
 
-  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
+  if (!SPIFFS.begin(true))
   {
     _logFallBack.store(true);
-    println(F("[ERROR] LittleFS not initialized!"));
+    println(F("[ERROR] SPIFFS not initialized!"));
     return;
   }
 
   // Append to log file
-  File f = LittleFS.open(String("/") + _logFile, FILE_APPEND);
+  File f = SPIFFS.open(String("/") + _logFile, FILE_APPEND);
   if (!f)
   {
     _logFallBack.store(true);

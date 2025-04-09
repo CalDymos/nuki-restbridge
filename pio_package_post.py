@@ -18,7 +18,7 @@ def get_partition_offsets(env):
 
     Returns:
         dict: {"otadata": "0x19000",
-               "firmware": "0x20000", "littlefs": "0x220000"}
+               "firmware": "0x20000", "spiffs": "0x220000"}
     """
     partitions_file = env.GetProjectOption("board_build.partitions", "partitions.csv")
     partitions_path = os.path.join(env["PROJECT_DIR"], partitions_file)
@@ -30,7 +30,7 @@ def get_partition_offsets(env):
         "nvs": "0x9000",
         "otadata": None,
         "firmware": "0x10000",  # Default for firmware (if not found)
-        "littlefs": "0x230000",
+        "spiffs": "0x230000",
         "coredump": None
     }
     
@@ -70,7 +70,7 @@ def get_partition_sizes(env):
 
     Returns:
         dict: {"bootloader": "0x1000", "partition": "0x9000", "otadata": "0x19000",
-               "firmware": "0x20000", "littlefs": "0x220000"}
+               "firmware": "0x20000", "spiffs": "0x220000"}
     """
     partitions_file = env.GetProjectOption("board_build.partitions", "partitions.csv")
     partitions_path = os.path.join(env["PROJECT_DIR"], partitions_file)
@@ -82,7 +82,7 @@ def get_partition_sizes(env):
         "nvs": "0x5000",
         "otadata": None,
         "firmware": "0x220000",  # Default for firmware (if not found)
-        "littlefs": "0x180000",
+        "spiffs": "0x180000",
         "coredump": None
     }
 
@@ -364,16 +364,16 @@ def upload_firmware(source, target, env):
     print(f"[INFO] Öffne Serial Monitor auf {upload_port}...")
     subprocess.run(["pio", "device", "monitor", "--port", upload_port, "--baud", str(monitor_speed)])
 
-def generate_littlefs(source, target, env):
-    """ Creates the LittleFS image automatically after the build """
+def generate_spiffs(source, target, env):
+    """ Creates the SPIFFS image automatically after the build """
     board = get_board_name(env)
-    littlefs_path = os.path.join(env["BUILD_DIR"], "littlefs.bin")
+    spiffs_path = os.path.join(env["BUILD_DIR"], "spiffs.bin")
     data_path = os.path.join(env["PROJECT_DIR"], "data")
     dummy_file = os.path.join(data_path, ".keep")
 
     # Ensure that the data/ directory exists
     if not os.path.exists(data_path):
-        print(f"[INFO] LittleFS data folder {data_path} does not exist, will be create!")
+        print(f"[INFO] SPIFFS data folder {data_path} does not exist, will be create!")
         os.mkdir(data_path)
     
     # Check whether at least one file is included
@@ -404,21 +404,11 @@ def generate_littlefs(source, target, env):
             print("[ERROR] Failed to build SPIFFS image using PlatformIO.")
             return
         
-    print(f"[INFO] SPIFFS image successfully built: {spiffs_path}")
-
-    if create_dummy and os.path.exists(dummy_file):
-        os.remove(dummy_file)
-        print("[INFO] Removed temporary dummy file.")
-
-    if result.returncode != 0:
-        print("[ERROR] Failed to build LittleFS image using PlatformIO.")
-    else:
-        print("[INFO] LittleFS image successfully built.")
-    
+    print(f"[INFO] SPIFFS image successfully built: {spiffs_path}")    
 # Post-Build Actions
 env.AddPostAction("$BUILD_DIR/firmware.bin", copy_files) # type: ignore
 env.AddPostAction("$BUILD_DIR/firmware.bin", package_last_files) # type: ignore
-env.AddPostAction("$BUILD_DIR/firmware.bin", generate_littlefs) # type: ignore
+env.AddPostAction("$BUILD_DIR/firmware.bin", generate_spiffs) # type: ignore
 env.AddPostAction("$BUILD_DIR/partitions.bin", copy_files) # type: ignore
 env.AddPostAction("$BUILD_DIR/bootloader.bin", copy_files) # type: ignore
 env.AddPostAction("$BUILD_DIR/firmware.elf", copy_files) # type: ignore
