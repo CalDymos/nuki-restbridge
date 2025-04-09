@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import subprocess
 import ipaddress
 from concurrent.futures import ThreadPoolExecutor
+import socket
 
 # IP lists
 online_ips = []
@@ -20,20 +21,26 @@ def ping(ip):
     )
 
     output = result.stdout.lower()
+    hostname = ""
 
     # Check for unreachable host indicators
     if subprocess.os.name == "nt":
         if "zielhost nicht erreichbar" in output or "allgemeiner fehler" in output:
-            return str(ip), False
+            return str(ip), hostname, False
         elif "destination host unreachable" in output or "general failure" in output:
-            return str(ip), False
+            return str(ip), hostname, False
     else:
         if "destination host unreachable" in output:
             return str(ip), False
+        
+    # Try to resolve hostname
+    if result.returncode == 0:
+        try:
+            hostname = socket.gethostbyaddr(str(ip))[0]
+        except socket.herror:
+            hostname = ""
 
-    return str(ip), result.returncode == 0
-
-
+    return str(ip), hostname, result.returncode == 0
 
 # start Scan (UI + Scan-Thread)
 def start_scan():
@@ -60,19 +67,21 @@ def start_scan():
 
     ip_list = list(network.hosts())
 
-    def run():
-        with ThreadPoolExecutor(max_workers=100) as executor:
-            results = list(executor.map(ping, ip_list))
+    def run_scan():
+        with ThreadPoolExecutor(max_workers=100) as thread_pool:
+            results = list(thread_pool.map(ping, ip_list))
 
-        for ip, status in results:
+        for ip, hostname, status in results:
             if status:
-                online_ips.append(ip)
+                entry = f"{ip} ({hostname})" if hostname else ip
+                online_ips.append(entry)
             else:
                 offline_ips.append(ip)
 
-        update_ui()
+        root.after(0, update_ui)
 
-    root.after(100, lambda: executor.submit(run))
+    from threading import Thread
+    Thread(target=run_scan).start()
 
 # Update the UI with scan results
 def update_ui():
