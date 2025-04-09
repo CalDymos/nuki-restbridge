@@ -5,7 +5,7 @@
 #include "EspMillis.h"
 #include <Preferences.h>
 #include "PreferencesKeys.h"
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <FS.h>
 #include "ArduinoJson.h"
 #include "ESP32_FTPClient.h"

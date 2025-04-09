@@ -9,8 +9,9 @@
 #include "esp_chip_info.h"
 #include "esp_netif_sntp.h"
 #include "esp_core_dump.h"
+#include <LittleFS.h>
+#define SPIFFS LittleFS
 #include "FS.h"
-#include <SPIFFS.h>
 #ifdef CONFIG_SOC_SPIRAM_SUPPORTED
 #include "esp_psram.h"
 #endif
