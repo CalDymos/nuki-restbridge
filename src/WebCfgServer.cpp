@@ -729,7 +729,36 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
 #endif
 
     appendCheckBoxRow(response, "UPTIME", "Update Nuki Bridge and Lock time using NTP", _preferences->getBool(preference_update_time, false));
-    appendInputFieldRow(response, "TIMESRV", "NTP server", _preferences->getString(preference_time_server, "pool.ntp.org").c_str(), 255, "");
+    appendInputFieldRow(response, "TIMESRV", "NTP server", _preferences->getString(preference_time_server, "pool.ntp.org").c_str(), 255);
+
+    if ((_nuki && _nuki->hasKeypad()))
+    {
+        response += F("<tr><th colspan=\"2\">Keypad Code Encryption</th></tr>");
+        appendCheckBoxRow(response, "KPENCENA", "Enable encryption", _preferences->getBool(preference_keypad_code_encryption, false));
+        appendInputFieldRow(response, "KPMULT", "Encryption multiplier", _preferences->getUInt(preference_keypad_code_multiplier, 73), 10, "");
+        appendInputFieldRow(response, "KPOFF", "Encryption offset", _preferences->getUInt(preference_keypad_code_offset, 12345), 6, "");
+        appendInputFieldRow(response, "KPMOD", "Encryption modulus", _preferences->getUInt(preference_keypad_code_modulus, 100000), 7, "");
+
+        // calc inverse multiplier for HA
+        uint32_t mult = _preferences->getUInt(preference_keypad_code_multiplier, 73);
+        uint32_t mod = _preferences->getUInt(preference_keypad_code_modulus, 100000);
+        uint32_t inv = 0;
+
+        for (uint32_t i = 1; i < mod; ++i)
+        {
+            if ((mult * i) % mod == 1)
+            {
+                inv = i;
+                break;
+            }
+        }
+
+        // show Inverse multiplier
+        appendInputFieldRow(response, "KPINV", "Inverse multiplier (readonly)", inv, 10, "readonly");
+        // help
+        response += F("<tr><td colspan=\"2\"><i>Hinweis:</i> Der Multiplikator muss teilerfremd zum Modulus sein. <br>");
+        response += F("Offset ≥ 1. Modulus ≥ 100000</td></tr>");
+    }
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
 
@@ -2324,7 +2353,7 @@ void WebCfgServer::appendInputFieldRow(String &response,
     response += F("<input type=");
     response += isPassword ? F("\"password\"") : F("\"text\"");
 
-    if (strcmp(args, "") != 0)
+    if (args && *args)
     {
         response += F(" ");
         response += args;
@@ -2594,6 +2623,17 @@ size_t WebCfgServer::estimateHtmlSize(
             }                                                   \
         }                                                       \
     }
+
+uint32_t WebCfgServer::getGCD(uint32_t a, uint32_t b)
+{
+    while (b != 0)
+    {
+        uint32_t t = b;
+        b = a % b;
+        a = t;
+    }
+    return a;
+}
 
 bool WebCfgServer::processArgs(WebServer *server, String &message)
 {
@@ -3375,11 +3415,11 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         {
             aclLvlChanged = true;
         }
-        else if(key == "CONFNHCTRL")
+        else if (key == "CONFNHCTRL")
         {
-            if(_preferences->getBool(preference_config_from_api, false) != (value == "1"))
+            if (_preferences->getBool(preference_config_from_api, false) != (value == "1"))
             {
-                if(_preferences->getBool(preference_config_from_api, false) && _preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE) < 8192)
+                if (_preferences->getBool(preference_config_from_api, false) && _preferences->getInt(preference_buffer_size, CHAR_BUFFER_SIZE) < 8192)
                 {
                     _preferences->putInt(preference_buffer_size, 8192);
                 }
@@ -3389,19 +3429,19 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "KPPUB")
+        else if (key == "KPPUB")
         {
-            if(_preferences->getBool(preference_keypad_info_enabled, false) != (value == "1"))
+            if (_preferences->getBool(preference_keypad_info_enabled, false) != (value == "1"))
             {
                 _preferences->putBool(preference_keypad_info_enabled, (value == "1"));
                 Log->print("Setting changed: ");
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
-        else if(key == "KPENA")
+        else if (key == "KPENA")
         {
-            if(_preferences->getBool(preference_keypad_control_enabled, false) != (value == "1"))
+            if (_preferences->getBool(preference_keypad_control_enabled, false) != (value == "1"))
             {
                 _preferences->putBool(preference_keypad_control_enabled, (value == "1"));
                 Log->print("Setting changed: ");
@@ -3409,9 +3449,63 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "TCENA")
+        else if (key == "KPENCENA")
         {
-            if(_preferences->getBool(preference_timecontrol_control_enabled, false) != (value == "1"))
+            if (_preferences->getBool(preference_keypad_code_encryption, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_keypad_code_encryption, (value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        if (key == "KPOFF")
+        {
+            uint32_t val = (uint32_t)value.toInt();
+            if (_preferences->getUInt(preference_keypad_code_offset, 0) != val)
+            {
+                if (val >= 1 && val <= 999999)
+                {
+                    _preferences->putUInt(preference_keypad_code_offset, val);
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+
+        if (key == "KPMOD")
+        {
+            uint32_t val = (uint32_t)value.toInt();
+            if (_preferences->getUInt(preference_keypad_code_modulus, 0) != val)
+            {
+                if (val >= 100000 && val <= 1000000)
+                {
+                    _preferences->putUInt(preference_keypad_code_modulus, val);
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+        if (key == "KPMULT")
+        {
+            uint32_t val = (uint32_t)value.toInt();
+            uint32_t currentMod = _preferences->getUInt(preference_keypad_code_modulus, 0);
+            if (_preferences->getUInt(preference_keypad_code_multiplier, 0) != val)
+            {
+                if (val > 1 && getGCD(val, currentMod) == 1)
+                {
+                    _preferences->putUInt(preference_keypad_code_multiplier, val);
+                    Log->print("Setting changed: ");
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
+        else if (key == "TCENA")
+        {
+            if (_preferences->getBool(preference_timecontrol_control_enabled, false) != (value == "1"))
             {
                 _preferences->putBool(preference_timecontrol_control_enabled, (value == "1"));
                 Log->print("Setting changed: ");
@@ -3419,9 +3513,9 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "AUTHENA")
+        else if (key == "AUTHENA")
         {
-            if(_preferences->getBool(preference_auth_control_enabled, false) != (value == "1"))
+            if (_preferences->getBool(preference_auth_control_enabled, false) != (value == "1"))
             {
                 _preferences->putBool(preference_auth_control_enabled, (value == "1"));
                 Log->print("Setting changed: ");

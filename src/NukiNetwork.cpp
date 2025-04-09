@@ -20,9 +20,6 @@ NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSi
 {
     _inst = this;
     _webCfgEnabled = _preferences->getBool(preference_webcfgserver_enabled, true);
-    _apiPort = _preferences->getInt(preference_api_port, REST_SERVER_PORT);
-    _apitoken = new BridgeApiToken(_preferences, preference_api_token);
-    _apiEnabled = _preferences->getBool(preference_api_enabled);
     _lockEnabled = preferences->getBool(preference_lock_enabled);
     setupDevice();
 }
@@ -93,6 +90,10 @@ void NukiNetwork::initialize()
 {
     if (!disableNetwork)
     {
+        _apiPort = _preferences->getInt(preference_api_port, REST_SERVER_PORT);
+        _apitoken = new BridgeApiToken(_preferences, preference_api_token);
+        _apiEnabled = _preferences->getBool(preference_api_enabled);
+        
         _homeAutomationEnabled = _preferences->getBool(preference_har_enabled, false);
         _homeAutomationAdress = _preferences->getString(preference_har_address, "");
         _homeAutomationPort = _preferences->getInt(preference_har_port, 0);
@@ -1203,7 +1204,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
                 const char *command = json.containsKey("command") ? json["command"].as<const char *>() : nullptr;
                 _keypadCommandId = json.containsKey("id") ? json["id"].as<unsigned int>() : 0;
                 _keypadCommandName = json.containsKey("name") ? json["name"].as<String>() : "";
-                _keypadCommandCode = json.containsKey("code") ? json["code"].as<String>() : "";
+                _keypadCommandEncCode = json.containsKey("code") ? json["code"].as<String>() : "";
                 _keypadCommandEnabled = json.containsKey("enabled") ? json["enabled"].as<int>() : 0;
 
                 if (!command || !*command)
@@ -1212,11 +1213,11 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
                     return;
                 }
 
-                _keypadCommandReceivedReceivedCallback(command, _keypadCommandId, _keypadCommandName, _keypadCommandCode, _keypadCommandEnabled);
+                _keypadCommandReceivedReceivedCallback(command, _keypadCommandId, _keypadCommandName, _keypadCommandEncCode, _keypadCommandEnabled);
 
                 _keypadCommandId = 0;
                 _keypadCommandName = "";
-                _keypadCommandCode = "000000";
+                _keypadCommandEncCode = "000000";
                 _keypadCommandEnabled = 1;
 
                 return;

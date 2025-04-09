@@ -146,6 +146,22 @@ public:
      */
     void notify(Nuki::EventType eventType) override;
 
+    /**
+     * @brief Encrypts a numeric keypad code using user-defined Preferences values.
+     *        Applies: Encrypted = (Code * Multiplier + Offset) % Modulus
+     * @param code The original numeric code (max. 6 digits).
+     * @return Encrypted code as 32-bit unsigned integer.
+     */
+    uint32_t encryptKeypadCode(uint32_t code);
+
+    /**
+     * @brief Decrypts a previously encrypted keypad code using inverse logic.
+     *        Applies: Decrypted = ((Encrypted + Modulus - Offset) * Inverse) % Modulus
+     * @param encryptedCode The encrypted code to decode.
+     * @return Original 6-digit code as 32-bit unsigned integer.
+     */
+    uint32_t decryptKeypadCode(uint32_t encryptedCode);
+
 private:
     /**
      * @brief Handles an incoming lock action request from API.
@@ -154,9 +170,9 @@ private:
      */
     static LockActionResult onLockActionReceivedCallback(const char *value);
 
-    static void onConfigUpdateReceivedCallback(const char* value);
+    static void onConfigUpdateReceivedCallback(const char *value);
 
-    static void onKeypadCommandReceivedCallback(const char* command, const uint& id, const String& name, const String& code, const int& enabled);
+    static void onKeypadCommandReceivedCallback(const char *command, const uint &id, const String &name, const String &code, const int &enabled);
 
     /**
      * @brief Static callback function for external lock action requests.
@@ -165,9 +181,9 @@ private:
      */
     LockActionResult onLockActionReceived(const char *value);
 
-    void onConfigUpdateReceived(const char* value);
+    void onConfigUpdateReceived(const char *value);
 
-    void onKeypadCommandReceived(const char* command, const uint& id, const String& name, const String& code, const int& enabled);
+    void onKeypadCommandReceived(const char *command, const uint &id, const String &name, const String &code, const int &enabled);
 
     /**
      * @brief Resets or delays the BLE watchdog timer.
@@ -221,6 +237,8 @@ private:
      */
     void updateTime();
 
+    uint32_t calcKeypadCodeInverse();
+
     /**
      * @brief Reads basic lock configuration from the device.
      */
@@ -244,12 +262,12 @@ private:
      */
     NukiLock::LockAction lockActionToEnum(const char *str); // char array at least 14 characters
 
-    Nuki::AdvertisingMode advertisingModeToEnum(const char* str);
-    Nuki::TimeZoneId timeZoneToEnum(const char* str);
+    Nuki::AdvertisingMode advertisingModeToEnum(const char *str);
+    Nuki::TimeZoneId timeZoneToEnum(const char *str);
     uint8_t fobActionToInt(const char *str);
-    NukiLock::ButtonPressAction buttonPressActionToEnum(const char* str);
-    Nuki::BatteryType batteryTypeToEnum(const char* str);
-    NukiLock::MotorSpeed motorSpeedToEnum(const char* str);
+    NukiLock::ButtonPressAction buttonPressActionToEnum(const char *str);
+    Nuki::BatteryType batteryTypeToEnum(const char *str);
+    NukiLock::MotorSpeed motorSpeedToEnum(const char *str);
 
     std::string _deviceName;                                                    // Name of the smart lock device (user-defined identifier).
     NukiDeviceId *_deviceId = nullptr;                                          // Unique device ID stored in preferences.
@@ -320,6 +338,12 @@ private:
     uint _maxKeypadCodeCount = 0;                                               // Max supported number of keypad entries.
     uint _maxTimeControlEntryCount = 0;                                         // Max supported time control entries.
     uint _maxAuthEntryCount = 0;                                                // Max supported authorization entries.
+                                                                                //
+    bool _keypadCodeEncryptionEnabled = false;                                  //
+    uint32_t _keypadCodeMultiplier;                                             //
+    uint32_t _keypadCodeOffset;                                                 //
+    uint32_t _keypadCodeModulus;                                                //
+    uint32_t _keypadCodeInverse;                                                //
                                                                                 //
     bool _paired = false;                                                       // Whether the lock is currently paired.
     bool _pairingMsgShown = false;                                              // nur einmalige Sofortausgabe

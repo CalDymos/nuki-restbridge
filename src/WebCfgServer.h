@@ -313,7 +313,7 @@ private:
                              const char *description,
                              const char *value,
                              const size_t &maxLength,
-                             const char *args,
+                             const char *args = "",
                              const bool &isPassword = false,
                              const bool &showLengthRestriction = false);
 
@@ -331,7 +331,7 @@ private:
                              const char *description,
                              const int value,
                              size_t maxLength,
-                             const char *args);
+                             const char *args = "");
 
     /**
      * @brief Appends a dropdown field (select box) to the HTML page.
@@ -485,6 +485,8 @@ private:
      * @brief Clears all HTTP sessions.
      */
     void clearSessions();
+
+    uint32_t getGCD(uint32_t a, uint32_t b);
 
     // --- Member variables ---
     std::vector<String> _ssidList;       // List of visible SSIDs (Wi-Fi networks).

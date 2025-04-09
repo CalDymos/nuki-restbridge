@@ -331,6 +331,10 @@ You can configure:
 - **Update Nuki Bridge and Lock time using NTP**: Enable to update the ESP32 time and Nuki Lock time every 12 hours using a NTP time server.
   >📘 **Note:** Updating the Nuki device time requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
 - **NTP server**: Set to the NTP server you want to use, defaults to "`pool.ntp.org`". If DHCP is used and NTP servers are provided using DHCP these will take precedence over the specified NTP server.
+- **Enable encryption**: Enable Keypad Code Encryption (REST API & HAR), see "[Keypad Code Encryption](#keypad-code-encryption).
+- **Encryption multiplier**: Integer used to scramble the input. Must be coprime to the modulus.
+- **Encryption offset**: Fixed number added to the scrambled value.
+- **Encryption modulus**: Final result is calculated modulo this value. Should be ≥ 100000.
 
 ---
 
@@ -473,6 +477,37 @@ Examples:
 - Update: `{ "action": "update", "codeId": "1234", "enabled": "1", "name": "Test" }`
 
 The result of the last keypad change action will be returned.<br>
+
+##### Keypad Code Encryption
+
+The Nuki REST Bridge supports encryption of keypad PIN codes to allow safe transmission over REST.
+
+You can configure the encryption logic under: [Advanced Nuki Configuration](#advanced-nuki-configuration)
+
+The following formulas are used for
+
+- **Encryption:**  
+  `encrypted = (code * multiplier + offset) % modulus`
+
+- **Decryption:**  
+  `decrypted = ((encrypted + modulus - offset) * inverseMultiplier) % modulus`
+
+> ℹ️ `inverseMultiplier` means the **modular inverse** of the multiplier modulo the modulus.
+
+---
+
+**example for the values**:
+- multiplier = 73
+- offset = 12345
+- modulus = 1000000
+- input code = 123456
+
+```text
+encrypted = (123456 * 73 + 12345) % 1000000 = 929553
+decrypted = ((929553 + 1000000 - 12345) * 410959) % 1000000 = 123456
+```
+
+---
 
 #### Lock Config Action (JSON)
 

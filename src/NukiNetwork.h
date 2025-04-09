@@ -410,9 +410,10 @@ private:
     NetworkServiceState _networkServicesState = NetworkServiceState::UNKNOWN; // Current state of network services
                                                                               //
     String _keypadCommandName = "";                                           // Temporary buffer for keypad command name
-    String _keypadCommandCode = "";                                           // Temporary buffer for keypad command code
+    String _keypadCommandEncCode = "";                                        // Temporary buffer for encrypted keypad command code
     uint _keypadCommandId = 0;                                                // Temporary buffer for keypad command ID
     int _keypadCommandEnabled = 1;                                            // Temporary buffer for keypad enabled state
+                                                                              //
     uint8_t _queryCommands = 0;                                               // Bitmask of active QUERY_COMMAND_* values
                                                                               //
     int64_t _checkIpTs = -1;                                                  // Last time IP was validated
