@@ -102,7 +102,7 @@ void NukiNetwork::initialize()
 
         _hostname = _preferences->getString(preference_hostname, "");
 
-        if (_hostname == "" || _hostname == "nukirestbridge")
+        if (_hostname == "")
         {
             uint8_t mac[6];
             esp_efuse_mac_get_default(mac);

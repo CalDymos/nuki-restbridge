@@ -1003,7 +1003,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
     response += F("<h3>Network Configuration</h3>");
     response += F("<table>");
 
-    appendInputFieldRow(response, "HOSTNAME", "Hostname (needs to be unique, \"nukirestbridge\" is not allowed)", _preferences->getString(preference_hostname).c_str(), 100, "");
+    appendInputFieldRow(response, "HOSTNAME", "Hostname (needs to be unique)", _preferences->getString(preference_hostname).c_str(), 100, "");
     appendDropDownRow(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions());
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
@@ -3038,7 +3038,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         }
         else if (key == "HOSTNAME")
         {
-            if (_preferences->getString(preference_hostname, "") != value && value != "nukirestbridge")
+            if (_preferences->getString(preference_hostname, "") != value)
             {
                 _preferences->putString(preference_hostname, value);
                 Log->print(F("[DEBUG] Setting changed: "));
