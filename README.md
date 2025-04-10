@@ -333,9 +333,9 @@ You can configure:
   >📘 **Note:** Updating the Nuki device time requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
 - **NTP server**: Set to the NTP server you want to use, defaults to "`pool.ntp.org`". If DHCP is used and NTP servers are provided using DHCP these will take precedence over the specified NTP server.
 - **Enable encryption**: Enable Keypad Code Encryption (REST API & HAR), see "[Keypad Code Encryption](#keypad-code-encryption).
-- **Encryption multiplier**: Integer used to scramble the input. Must be coprime to the modulus.
-- **Encryption offset**: Fixed number added to the scrambled value.
-- **Encryption modulus**: Final result is calculated modulo this value. Should be ≥ 100000.
+- **Encryption multiplier**: Integer used to scramble the input. Must be coprime to the modulus. Should be > 1 and < (modulus - 1)
+- **Encryption offset**: Fixed number added to the scrambled value. Should be > 0 and < (modulus - 1)
+- **Encryption modulus**: Final result is calculated modulo this value. Should be > 100000 and < 2147483647
 
 ---
 
@@ -501,11 +501,12 @@ The following formulas are used for
 - multiplier = 73
 - offset = 12345
 - modulus = 1000000
-- input code = 123456
+- inverse multiplier = 410959 (is calculated automatically)
+- kepad Code = 123456
 
 ```text
-encrypted = (123456 * 73 + 12345) % 1000000 = 929553
-decrypted = ((929553 + 1000000 - 12345) * 410959) % 1000000 = 123456
+encrypted = ((123456 * 73 + 12345) % 1000000) + 1000000 = 1929553
+decrypted = ((1929553 - 12345) * 410959) % 1000000 = 123456
 ```
 
 ---

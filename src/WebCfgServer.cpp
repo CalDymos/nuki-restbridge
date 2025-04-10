@@ -735,13 +735,13 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
     {
         response += F("<tr><th colspan=\"2\">Keypad Code Encryption</th></tr>");
         appendCheckBoxRow(response, "KPENCENA", "Enable encryption", _preferences->getBool(preference_keypad_code_encryption, false));
+        appendInputFieldRow(response, "KPMOD", "Encryption modulus", _preferences->getUInt(preference_keypad_code_modulus, 100001), 10, "");
         appendInputFieldRow(response, "KPMULT", "Encryption multiplier", _preferences->getUInt(preference_keypad_code_multiplier, 73), 10, "");
-        appendInputFieldRow(response, "KPOFF", "Encryption offset", _preferences->getUInt(preference_keypad_code_offset, 12345), 6, "");
-        appendInputFieldRow(response, "KPMOD", "Encryption modulus", _preferences->getUInt(preference_keypad_code_modulus, 100000), 7, "");
+        appendInputFieldRow(response, "KPOFF", "Encryption offset", _preferences->getUInt(preference_keypad_code_offset, 12345), 10, "");
 
         // calc inverse multiplier for HA
         uint32_t mult = _preferences->getUInt(preference_keypad_code_multiplier, 73);
-        uint32_t mod = _preferences->getUInt(preference_keypad_code_modulus, 100000);
+        uint32_t mod = _preferences->getUInt(preference_keypad_code_modulus, 100001);
         uint32_t inv = 0;
 
         for (uint32_t i = 1; i < mod; ++i)
@@ -754,10 +754,10 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
         }
 
         // show Inverse multiplier
-        appendInputFieldRow(response, "KPINV", "Inverse multiplier (readonly)", inv, 10, "readonly");
+        appendInputFieldRow(response, "KPINV", "Inverse multiplier (readonly, generated after saving)", inv, 10, "readonly");
         // help
-        response += F("<tr><td colspan=\"2\"><i>Hinweis:</i> Der Multiplikator muss teilerfremd zum Modulus sein. <br>");
-        response += F("Offset ≥ 1. Modulus ≥ 100000</td></tr>");
+        response += F("<tr><td colspan=\"2\"><i>Hinweis:</i> The multiplier must be independent of the modulus. <br>");
+        response += F("Offset ≥ 1 and < (Modulus - 1)<br>Modulus ≥ 100001 and < 2147483647<br>Multiplier ≥ 2 and < (Modulus - 1)</td></tr>");
     }
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
@@ -3459,29 +3459,29 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        if (key == "KPOFF")
+        if (key == "KPMOD")
         {
             uint32_t val = (uint32_t)value.toInt();
-            if (_preferences->getUInt(preference_keypad_code_offset, 0) != val)
+            if (_preferences->getUInt(preference_keypad_code_modulus, 0) != val)
             {
-                if (val >= 1 && val <= 999999)
+                if (val > 100000 && val <= 2147483647)
                 {
-                    _preferences->putUInt(preference_keypad_code_offset, val);
+                    _preferences->putUInt(preference_keypad_code_modulus, val);
                     Log->print("Setting changed: ");
                     Log->println(key);
                     configChanged = true;
                 }
             }
         }
-
-        if (key == "KPMOD")
+        if (key == "KPOFF")
         {
             uint32_t val = (uint32_t)value.toInt();
-            if (_preferences->getUInt(preference_keypad_code_modulus, 0) != val)
+            uint32_t currentMod = _preferences->getUInt(preference_keypad_code_modulus, 0);
+            if (_preferences->getUInt(preference_keypad_code_offset, 0) != val)
             {
-                if (val >= 100000 && val <= 1000000)
+                if (val >= 1 && val <= currentMod - 1)
                 {
-                    _preferences->putUInt(preference_keypad_code_modulus, val);
+                    _preferences->putUInt(preference_keypad_code_offset, val);
                     Log->print("Setting changed: ");
                     Log->println(key);
                     configChanged = true;
@@ -3494,7 +3494,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             uint32_t currentMod = _preferences->getUInt(preference_keypad_code_modulus, 0);
             if (_preferences->getUInt(preference_keypad_code_multiplier, 0) != val)
             {
-                if (val > 1 && getGCD(val, currentMod) == 1)
+                if (val > 1 && val <= currentMod - 1 && getGCD(val, currentMod) == 1)
                 {
                     _preferences->putUInt(preference_keypad_code_multiplier, val);
                     Log->print("Setting changed: ");

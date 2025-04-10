@@ -2661,7 +2661,7 @@ uint32_t NukiWrapper::calcKeypadCodeInverse()
 
 uint32_t NukiWrapper::encryptKeypadCode(uint32_t code)
 {
-    return (code * _keypadCodeMultiplier + _keypadCodeOffset) % _keypadCodeModulus;
+    return ((code * _keypadCodeMultiplier + _keypadCodeOffset) % _keypadCodeModulus) + _keypadCodeModulus;
 }
 
 uint32_t NukiWrapper::decryptKeypadCode(uint32_t encryptedCode)
@@ -2669,11 +2669,11 @@ uint32_t NukiWrapper::decryptKeypadCode(uint32_t encryptedCode)
 
     if (_keypadCodeInverse == 0)
     {
-        // Fehlerfall: kein Inverses gefunden
+        // Error: no inverse
         return 0;
     }
 
-    return ((encryptedCode + _keypadCodeModulus - _keypadCodeOffset) * _keypadCodeInverse) % _keypadCodeModulus;
+    return ((encryptedCode - _keypadCodeOffset) * _keypadCodeInverse) % _keypadCodeModulus;
 }
 
 void NukiWrapper::readAdvancedConfig()

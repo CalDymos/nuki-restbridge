@@ -148,7 +148,7 @@ public:
 
     /**
      * @brief Encrypts a numeric keypad code using user-defined Preferences values.
-     *        Applies: Encrypted = (Code * Multiplier + Offset) % Modulus
+     *        Applies: Encrypted = ((Code * Multiplier + Offset) % Modulus) + Modulus
      * @param code The original numeric code (max. 6 digits).
      * @return Encrypted code as 32-bit unsigned integer.
      */
@@ -156,7 +156,7 @@ public:
 
     /**
      * @brief Decrypts a previously encrypted keypad code using inverse logic.
-     *        Applies: Decrypted = ((Encrypted + Modulus - Offset) * Inverse) % Modulus
+     *        Applies: Decrypted = ((Encrypted - Offset) * InverseMultiplier) % Modulus
      * @param encryptedCode The encrypted code to decode.
      * @return Original 6-digit code as 32-bit unsigned integer.
      */
