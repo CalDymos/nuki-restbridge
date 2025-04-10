@@ -60,7 +60,7 @@
 > 🔗 **Fork Notice**: This project is a **disconnected fork** of [Nuki Hub](https://github.com/technyon/nuki_hub). It's not actively synchronized with upstream and has diverged significantly.
 
 - Offers direct REST access for smart home platforms (e.g., Loxone Miniserver).
-- Ideal for standalone environments without MQTT or external bridges.
+- Ideal for autonomous environments without MQTT broker or additional original NukiBridge.
 
 ---
 
@@ -70,13 +70,14 @@
 
 | ✅ Supported | ❌ Not Supported |
 |-------------|------------------|
-| All dual-core ESP32 boards with Wi-Fi + BLE supported by ESP-IDF 5.3.2 / Arduino Core 3.1.3 | ESP32-S2 (no BLE) |
+| All dual-core ESP32 boards with Wi-Fi + BLE supported by ESP-IDF 5.4.1 / Arduino Core 3.2.0 | ESP32-S2 (no BLE) |
 
 ---
 
 ### Nuki Devices
 
 - Nuki Smart Lock 1.0 → 4.0
+- Nuki Keypad 1.0 -> 2.0
 
 ### Ethernet Support
 
@@ -101,7 +102,7 @@ We recommend using dual-core ESP32 boards with stable BLE + Wi-Fi support and su
 - ESP32-WROVER (more RAM, ideal for PSRAM and SSL)
 - ESP32-DevKitC
 
-Avoid low-RAM models if using HAR or logging features extensively.
+Avoid low-RAM models if using HAR (Home Automation Reporting) or logging features extensively.
 
 ## 🚫 Not Recommended
 
@@ -120,7 +121,7 @@ The bridge uses both CPU cores to handle BLE scanning, client connections, and w
 
 ### Installation
 
-Flash the firmware to your ESP32 board using the provided binaries or by compiling via PlatformIO.
+Flash the firmware to your ESP32 board by compiling it via PlatformIO.
 
 ---
 
