@@ -159,7 +159,7 @@ You can configure:
 
 #### General Settings
 
-- **Host name**: Set the hostname for the Nuki Rest Bridge ESP
+- **Host name**: Set the hostname for the Nuki Rest Bridge ESP (needs to be unique)
 - **Network hardware**: "Wi-Fi only" by default, set to ethernet if available
 - **RSSI send interval**: Set to a positive integer to specify the number of seconds between sending the current Wi-Fi RSSI; set to -1 to disable, default value 60
   > 📘 **Note:** Requires Home Automation Reporting to be enabled
