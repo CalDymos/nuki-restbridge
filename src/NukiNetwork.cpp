@@ -875,6 +875,16 @@ void NukiNetwork::setKeypadCommandReceivedCallback(void (*keypadCommandReceivedR
     _keypadCommandReceivedReceivedCallback = keypadCommandReceivedReceivedCallback;
 }
 
+void NukiNetwork::setTimeControlCommandReceivedCallback(void (*timeControlCommandReceivedReceivedCallback)(const char *value))
+{
+    _timeControlCommandReceivedReceivedCallback = timeControlCommandReceivedReceivedCallback;
+}
+
+void NukiNetwork::setAuthCommandReceivedCallback(void (*authCommandReceivedReceivedCallback)(const char *value))
+{
+    _authCommandReceivedReceivedCallback = authCommandReceivedReceivedCallback;
+}
+
 void NukiNetwork::readSettings()
 {
     _restartOnDisconnect = _preferences->getBool(preference_restart_on_disconnect, false);

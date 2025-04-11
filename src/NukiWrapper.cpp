@@ -34,6 +34,8 @@ NukiWrapper::NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, 
     network->setLockActionReceivedCallback(nukiInst->onLockActionReceivedCallback);
     network->setConfigUpdateReceivedCallback(nukiInst->onConfigUpdateReceivedCallback);
     network->setKeypadCommandReceivedCallback(nukiInst->onKeypadCommandReceivedCallback);
+    network->setTimeControlCommandReceivedCallback(nukiInst->onTimeControlCommandReceivedCallback);
+    network->setAuthCommandReceivedCallback(nukiInst->onAuthCommandReceivedCallback);
 }
 
 NukiWrapper::~NukiWrapper()
@@ -129,14 +131,16 @@ void NukiWrapper::readSettings()
     _intervalConfig = _preferences->getInt(preference_query_interval_configuration);
     _intervalBattery = _preferences->getInt(preference_query_interval_battery);
     _intervalKeypad = _preferences->getInt(preference_query_interval_keypad);
-    _keypadEnabled = _preferences->getBool(preference_keypad_info_enabled);
+    _keypadInfoEnabled = _preferences->getBool(preference_keypad_info_enabled);
     _maxKeypadCodeCount = _preferences->getUInt(preference_lock_max_keypad_code_count);
     _keypadCodeEncryptionEnabled = _preferences->getBool(preference_keypad_code_encryption);
     _keypadCodeMultiplier = _preferences->getUInt(preference_keypad_code_multiplier, 73);
     _keypadCodeOffset = _preferences->getUInt(preference_keypad_code_offset, 12345);
     _keypadCodeModulus = _preferences->getUInt(preference_keypad_code_modulus, 1000000);
     _keypadCodeInverse = calcKeypadCodeInverse();
+    _timeCtrlInfoEnabled = _preferences->getBool(preference_timecontrol_info_enabled);
     _maxTimeControlEntryCount = _preferences->getUInt(preference_lock_max_timecontrol_entry_count);
+    _authInfoEnabled = _preferences->getBool(preference_auth_info_enabled);
     _maxAuthEntryCount = _preferences->getUInt(preference_lock_max_auth_entry_count);
     _restartBeaconTimeout = _preferences->getInt(preference_restart_ble_beacon_lost);
     _nrOfRetries = _preferences->getInt(preference_command_nr_of_retries, 200);
@@ -365,7 +369,7 @@ void NukiWrapper::update(bool reboot)
                     _lastRssi = rssi;
                 }
             }
-            if (hasKeypad() && _keypadEnabled && (_nextKeypadUpdateTs == 0 || ts > _nextKeypadUpdateTs || (queryCommands & QUERY_COMMAND_KEYPAD) > 0))
+            if (hasKeypad() && _keypadInfoEnabled && (_nextKeypadUpdateTs == 0 || ts > _nextKeypadUpdateTs || (queryCommands & QUERY_COMMAND_KEYPAD) > 0))
             {
                 Log->println("[DEBUG] Updating Lock keypad based on timer or query");
                 _nextKeypadUpdateTs = ts + _intervalKeypad * 1000;
@@ -662,11 +666,11 @@ bool NukiWrapper::updateConfig()
             _firmwareVersion = String(_nukiConfig.firmwareVersion[0]) + "." + String(_nukiConfig.firmwareVersion[1]) + "." + String(_nukiConfig.firmwareVersion[2]);
             _hardwareVersion = String(_nukiConfig.hardwareRevision[0]) + "." + String(_nukiConfig.hardwareRevision[1]);
 
-            if (_preferences->getBool(preference_timecontrol_info_enabled))
+            if (_timeCtrlInfoEnabled)
             {
                 updateTimeControl(false);
             }
-            if (_preferences->getBool(preference_auth_info_enabled))
+            if (_authInfoEnabled)
             {
                 updateAuth(false);
             }
@@ -749,7 +753,7 @@ bool NukiWrapper::updateConfig()
 
 void NukiWrapper::updateTimeControl(bool retrieved)
 {
-    if (!_preferences->getBool(preference_timecontrol_info_enabled))
+    if (!_timeCtrlInfoEnabled)
     {
         return;
     }
@@ -829,7 +833,7 @@ void NukiWrapper::updateAuth(bool retrieved)
         return;
     }
 
-    if (!_preferences->getBool(preference_auth_info_enabled))
+    if (!_authInfoEnabled)
     {
         return;
     }
@@ -883,6 +887,8 @@ void NukiWrapper::updateAuth(bool retrieved)
             _preferences->putUInt(preference_lock_max_auth_entry_count, _maxAuthEntryCount);
         }
 
+        //_network->sendToHAAuth(authEntries, _maxAuthEntryCount);
+
         _authIds.clear();
         _authIds.reserve(authEntries.size());
         for (const auto &entry : authEntries)
@@ -896,7 +902,7 @@ void NukiWrapper::updateAuth(bool retrieved)
 
 void NukiWrapper::updateKeypad(bool retrieved)
 {
-    if (!_preferences->getBool(preference_keypad_info_enabled))
+    if (!_keypadInfoEnabled)
     {
         return;
     }
@@ -954,6 +960,8 @@ void NukiWrapper::updateKeypad(bool retrieved)
             _maxKeypadCodeCount = keypadCount;
             _preferences->putUInt(preference_lock_max_keypad_code_count, _maxKeypadCodeCount);
         }
+
+        //_network->sendToHAKeypad(entries, _maxKeypadCodeCount);
 
         _keypadCodeIds.clear();
         _keypadCodes.clear();
@@ -2158,11 +2166,11 @@ void NukiWrapper::onKeypadCommandReceivedCallback(const char *command, const uin
 
 void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, const String &name, const String &code, const int &enabled)
 {
-    JsonDocument json;
+    JsonDocument jsonResult;
 
     if (!_preferences->getBool(preference_keypad_control_enabled))
     {
-        _network->sendResponse(json, "Keypad control disabled", 540);
+        _network->sendResponse(jsonResult, "KeypadControlDisabled", 403);
         return;
     }
 
@@ -2170,13 +2178,8 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
     {
         if (_nukiConfigValid)
         {
-            _network->sendResponse(json, "Keypad not available", 501);
+            _network->sendResponse(jsonResult, "KeypadNotAvailable", 404);
         }
-        return;
-    }
-    if (!_keypadEnabled)
-    {
-        _network->sendResponse(json, "Keypad not enabled", 540);
         return;
     }
 
@@ -2196,17 +2199,17 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
         {
             if (name == "")
             {
-                _network->sendResponse(json, "Missing parameter name", 400);
+                _network->sendResponse(jsonResult, "MissingParameterName", 400);
                 return;
             }
             if (codeInt == 0)
             {
-                _network->sendResponse(json, "Missing parameter code", 400);
+                _network->sendResponse(jsonResult, "MissingParameterCode", 400);
                 return;
             }
             if (!codeValid)
             {
-                _network->sendResponse(json, "Code invalid", 401);
+                _network->sendResponse(jsonResult, "CodeInvalid", 422);
                 return;
             }
 
@@ -2216,7 +2219,7 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
             memcpy(&entry.name, name.c_str(), nameLen > 20 ? 20 : nameLen);
             entry.code = codeInt;
             result = _nukiLock.addKeypadEntry(entry);
-            Log->print("Add keypad code: ");
+            Log->print("[INFO] Add keypad code: ");
             Log->println((int)result);
             updateKeypad(false);
         }
@@ -2224,12 +2227,12 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
         {
             if (!idExists)
             {
-                _network->sendResponse(json, "Unknown Id", 401);
+                _network->sendResponse(jsonResult, "UnknownId", 404);
                 return;
             }
 
             result = _nukiLock.deleteKeypadEntry(id);
-            Log->print("Delete keypad code: ");
+            Log->print("[INFO] Delete keypad code: ");
             Log->println((int)result);
             updateKeypad(false);
         }
@@ -2237,22 +2240,22 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
         {
             if (name == "" || name == "--")
             {
-                _network->sendResponse(json, "Missing parameter name", 400);
+                _network->sendResponse(jsonResult, "MissingParameterName", 400);
                 return;
             }
             if (codeInt == 0)
             {
-                _network->sendResponse(json, "Missing parameter code", 400);
+                _network->sendResponse(jsonResult, "MissingParameterCode", 400);
                 return;
             }
             if (!codeValid)
             {
-                _network->sendResponse(json, "Code invalid", 401);
+                _network->sendResponse(jsonResult, "CodeInvalid", 422);
                 return;
             }
             if (!idExists)
             {
-                _network->sendResponse(json, "Unknown id", 401);
+                _network->sendResponse(jsonResult, "UnknownId", 404);
                 return;
             }
 
@@ -2264,13 +2267,13 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
             entry.code = codeInt;
             entry.enabled = enabled == 0 ? 0 : 1;
             result = _nukiLock.updateKeypadEntry(entry);
-            Log->print("Update keypad code: ");
+            Log->print("[INFO] Update keypad code: ");
             Log->println((int)result);
             updateKeypad(false);
         }
         else if (strcmp(command, "") != 0)
         {
-            _network->sendResponse(json, "Unknown command", 400);
+            _network->sendResponse(jsonResult, "UnknownCommand", 400);
             return;
         }
         else
@@ -2293,7 +2296,844 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
         char resultStr[15];
         memset(&resultStr, 0, sizeof(resultStr));
         NukiLock::cmdResultToString(result, resultStr);
-        _network->sendResponse(json, resultStr, 200);
+        _network->sendResponse(jsonResult, resultStr, 200);
+    }
+}
+
+void NukiWrapper::onTimeControlCommandReceivedCallback(const char *value)
+{
+    nukiInst->onTimeControlCommandReceived(value);
+}
+
+void NukiWrapper::onTimeControlCommandReceived(const char *value)
+{
+    JsonDocument jsonResult;
+    if(!_nukiConfigValid)
+    {
+        _network->sendResponse(jsonResult, "configNotReady", 503);
+        return;
+    }
+
+    if(!isPinValid())
+    {
+        _network->sendResponse(jsonResult, "noValidPinSet", 400);
+        return;
+    }
+
+    if(!_preferences->getBool(preference_timecontrol_control_enabled))
+    {
+        _network->sendResponse(jsonResult, "timeControlControlDisabled", 403);
+        return;
+    }
+
+    JsonDocument json;
+    DeserializationError jsonError = deserializeJson(json, value);
+
+    if(jsonError)
+    {
+        _network->sendResponse(jsonResult, "invalidJson", 400);
+        return;
+    }
+
+    const char *action = json["action"].as<const char*>();
+    uint8_t entryId = json["entryId"].as<unsigned int>();
+    uint8_t enabled;
+    String weekdays;
+    String time;
+    String lockAction;
+    NukiLock::LockAction timeControlLockAction;
+
+    if(json["enabled"].is<JsonVariant>())
+    {
+        enabled = json["enabled"].as<unsigned int>();
+    }
+    else
+    {
+        enabled = 2;
+    }
+
+    if(json["weekdays"].is<JsonVariant>())
+    {
+        weekdays = json["weekdays"].as<String>();
+    }
+    if(json["time"].is<JsonVariant>())
+    {
+        time = json["time"].as<String>();
+    }
+    if(json["lockAction"].is<JsonVariant>())
+    {
+        lockAction = json["lockAction"].as<String>();
+    }
+
+    if(lockAction.length() > 0)
+    {
+        timeControlLockAction = nukiInst->lockActionToEnum(lockAction.c_str());
+
+        if((int)timeControlLockAction == 0xff)
+        {
+            _network->sendResponse(jsonResult, "invalidLockAction", 400);
+            return;
+        }
+    }
+
+    if(action)
+    {
+        bool idExists = false;
+
+        if(entryId)
+        {
+            idExists = std::find(_timeControlIds.begin(), _timeControlIds.end(), entryId) != _timeControlIds.end();
+        }
+
+        Nuki::CmdResult result = (Nuki::CmdResult)-1;
+        int retryCount = 0;
+
+        while(retryCount < _nrOfRetries + 1)
+        {
+            if(strcmp(action, "delete") == 0)
+            {
+                if(idExists)
+                {
+                    result = _nukiLock.removeTimeControlEntry(entryId);
+                    Log->print("[INFO] Delete timecontrol: ");
+                    Log->println((int)result);
+                }
+                else
+                {
+                    _network->sendResponse(jsonResult, "noExistingEntryIdSet", 404);
+                    return;
+                }
+            }
+            else if(strcmp(action, "add") == 0 || strcmp(action, "update") == 0)
+            {
+                uint8_t timeHour;
+                uint8_t timeMin;
+                uint8_t weekdaysInt = 0;
+                unsigned int timeAr[2];
+
+                if(time.length() > 0)
+                {
+                    if(time.length() == 5)
+                    {
+                        timeAr[0] = (uint8_t)time.substring(0, 2).toInt();
+                        timeAr[1] = (uint8_t)time.substring(3, 5).toInt();
+
+                        if(timeAr[0] < 0 || timeAr[0] > 23 || timeAr[1] < 0 || timeAr[1] > 59)
+                        {
+                            _network->sendResponse(jsonResult, "invalidTime", 400);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        _network->sendResponse(jsonResult, "invalidTime", 400);
+                        return;
+                    }
+                }
+
+                if(weekdays.indexOf("mon") >= 0)
+                {
+                    weekdaysInt += 64;
+                }
+                if(weekdays.indexOf("tue") >= 0)
+                {
+                    weekdaysInt += 32;
+                }
+                if(weekdays.indexOf("wed") >= 0)
+                {
+                    weekdaysInt += 16;
+                }
+                if(weekdays.indexOf("thu") >= 0)
+                {
+                    weekdaysInt += 8;
+                }
+                if(weekdays.indexOf("fri") >= 0)
+                {
+                    weekdaysInt += 4;
+                }
+                if(weekdays.indexOf("sat") >= 0)
+                {
+                    weekdaysInt += 2;
+                }
+                if(weekdays.indexOf("sun") >= 0)
+                {
+                    weekdaysInt += 1;
+                }
+
+                if(strcmp(action, "add") == 0)
+                {
+                    NukiLock::NewTimeControlEntry entry;
+                    memset(&entry, 0, sizeof(entry));
+                    entry.weekdays = weekdaysInt;
+
+                    if(time.length() > 0)
+                    {
+                        entry.timeHour = timeAr[0];
+                        entry.timeMin = timeAr[1];
+                    }
+
+                    entry.lockAction = timeControlLockAction;
+
+                    result = _nukiLock.addTimeControlEntry(entry);
+                    Log->print("[INFO] Add timecontrol: ");
+                    Log->println((int)result);
+                }
+                else if (strcmp(action, "update") == 0)
+                {
+                    if(!idExists)
+                    {
+                        _network->sendResponse(jsonResult, "noExistingEntryIdSet"), 404;
+                        return;
+                    }
+
+                    Nuki::CmdResult resultTc = _nukiLock.retrieveTimeControlEntries();
+                    bool foundExisting = false;
+
+                    if(resultTc == Nuki::CmdResult::Success)
+                    {
+                        delay(5000);
+                        std::list<NukiLock::TimeControlEntry> timeControlEntries;
+                        _nukiLock.getTimeControlEntries(&timeControlEntries);
+
+                        for(const auto& entry : timeControlEntries)
+                        {
+                            if (entryId != entry.entryId)
+                            {
+                                continue;
+                            }
+                            else
+                            {
+                                foundExisting = true;
+                            }
+
+                            if(enabled == 2)
+                            {
+                                enabled = entry.enabled;
+                            }
+                            if(weekdays.length() < 1)
+                            {
+                                weekdaysInt = entry.weekdays;
+                            }
+                            if(time.length() < 1)
+                            {
+                                time = "old";
+                                timeAr[0] = entry.timeHour;
+                                timeAr[1] = entry.timeMin;
+                            }
+                            if(lockAction.length() < 1)
+                            {
+                                timeControlLockAction = entry.lockAction;
+                            }
+                        }
+
+                        if(!foundExisting)
+                        {
+                            _network->sendResponse(jsonResult, "failedToRetrieveExistingTimeControlEntry", 500);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        _network->sendResponse(jsonResult, "failedToRetrieveExistingTimeControlEntry", 500);
+                        return;
+                    }
+
+                    NukiLock::TimeControlEntry entry;
+                    memset(&entry, 0, sizeof(entry));
+                    entry.entryId = entryId;
+                    entry.enabled = enabled;
+                    entry.weekdays = weekdaysInt;
+
+                    if(time.length() > 0)
+                    {
+                        entry.timeHour = timeAr[0];
+                        entry.timeMin = timeAr[1];
+                    }
+
+                    entry.lockAction = timeControlLockAction;
+
+                    result = _nukiLock.updateTimeControlEntry(entry);
+                    Log->print("[INFO] Update timecontrol: ");
+                    Log->println((int)result);
+                }
+            }
+            else
+            {
+                _network->sendResponse(jsonResult, "invalidAction", 400);
+                return;
+            }
+
+            if(result != Nuki::CmdResult::Success)
+            {
+                ++retryCount;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if((int)result != -1)
+        {
+            char resultStr[15];
+            memset(&resultStr, 0, sizeof(resultStr));
+            NukiLock::cmdResultToString(result, resultStr);
+            _network->sendResponse(jsonResult, resultStr);
+        }
+
+        _nextConfigUpdateTs = espMillis() + 300;
+    }
+    else
+    {
+        _network->sendResponse(jsonResult, "noActionSet", 400);
+        return;
+    }
+}
+
+void NukiWrapper::onAuthCommandReceivedCallback(const char *value)
+{
+    nukiInst->onAuthCommandReceived(value);
+}
+
+void NukiWrapper::onAuthCommandReceived(const char *value)
+{
+    JsonDocument jsonResult;
+    if(!_nukiConfigValid)
+    {
+        _network->sendResponse(jsonResult, "configNotReady", 503);
+        return;
+    }
+
+    if(!isPinValid())
+    {
+        _network->sendResponse(jsonResult, "noValidPinSet", 401);
+        return;
+    }
+
+    if(!_preferences->getBool(preference_auth_control_enabled))
+    {
+        _network->sendResponse(jsonResult, "keypadControlDisabled", 403);
+        return;
+    }
+
+    JsonDocument json;
+    DeserializationError jsonError = deserializeJson(json, value);
+
+    if(jsonError)
+    {
+        _network->sendResponse(jsonResult, "invalidJson", 400);
+        return;
+    }
+
+    char oldName[33];
+    const char *action = json["action"].as<const char*>();
+    uint32_t authId = json["authId"].as<unsigned int>();
+    //uint8_t idType = json["idType"].as<unsigned int>();
+    //unsigned char secretKeyK[32] = {0x00};
+    uint8_t remoteAllowed;
+    uint8_t enabled;
+    uint8_t timeLimited;
+    String name;
+    //String sharedKey;
+    String allowedFrom;
+    String allowedUntil;
+    String allowedWeekdays;
+    String allowedFromTime;
+    String allowedUntilTime;
+
+    if(json["remoteAllowed"].is<JsonVariant>())
+    {
+        remoteAllowed = json["remoteAllowed"].as<unsigned int>();
+    }
+    else
+    {
+        remoteAllowed = 2;
+    }
+
+    if(json["enabled"].is<JsonVariant>())
+    {
+        enabled = json["enabled"].as<unsigned int>();
+    }
+    else
+    {
+        enabled = 2;
+    }
+
+    if(json["timeLimited"].is<JsonVariant>())
+    {
+        timeLimited = json["timeLimited"].as<unsigned int>();
+    }
+    else
+    {
+        timeLimited = 2;
+    }
+
+    if(json["name"].is<JsonVariant>())
+    {
+        name = json["name"].as<String>();
+    }
+    //if(json["sharedKey"].is<JsonVariant>()) sharedKey = json["sharedKey"].as<String>();
+    if(json["allowedFrom"].is<JsonVariant>())
+    {
+        allowedFrom = json["allowedFrom"].as<String>();
+    }
+    if(json["allowedUntil"].is<JsonVariant>())
+    {
+        allowedUntil = json["allowedUntil"].as<String>();
+    }
+    if(json["allowedWeekdays"].is<JsonVariant>())
+    {
+        allowedWeekdays = json["allowedWeekdays"].as<String>();
+    }
+    if(json["allowedFromTime"].is<JsonVariant>())
+    {
+        allowedFromTime = json["allowedFromTime"].as<String>();
+    }
+    if(json["allowedUntilTime"].is<JsonVariant>())
+    {
+        allowedUntilTime = json["allowedUntilTime"].as<String>();
+    }
+
+    if(action)
+    {
+        bool idExists = false;
+
+        if(authId)
+        {
+            idExists = std::find(_authIds.begin(), _authIds.end(), authId) != _authIds.end();
+        }
+
+        Nuki::CmdResult result = (Nuki::CmdResult)-1;
+        int retryCount = 0;
+
+        while(retryCount < _nrOfRetries)
+        {
+            if(strcmp(action, "delete") == 0)
+            {
+                if(idExists)
+                {
+                    result = _nukiLock.deleteAuthorizationEntry(authId);
+                    delay(250);
+                    Log->print("[INFO] Delete authorization: ");
+                    Log->println((int)result);
+                }
+                else
+                {
+                    _network->sendResponse(jsonResult, "noExistingAuthIdSet", 404);
+                    return;
+                }
+            }
+            else if(strcmp(action, "add") == 0 || strcmp(action, "update") == 0)
+            {
+                if(name.length() < 1)
+                {
+                    if (strcmp(action, "update") != 0)
+                    {
+                        _network->sendResponse(jsonResult, "noNameSet", 400);
+                        return;
+                    }
+                }
+
+                /*
+                if(sharedKey.length() != 64)
+                {
+                    if (strcmp(action, "update") != 0)
+                    {
+                        _network->sendResponse(jsonResult, "noSharedKeySet", 400);
+                        return;
+                    }
+                }
+                else
+                {
+                    for(int i=0; i<sharedKey.length();i+=2) secretKeyK[(i/2)] = std::stoi(sharedKey.substring(i, i+2).c_str(), nullptr, 16);
+                }
+                */
+
+                unsigned int allowedFromAr[6];
+                unsigned int allowedUntilAr[6];
+                unsigned int allowedFromTimeAr[2];
+                unsigned int allowedUntilTimeAr[2];
+                uint8_t allowedWeekdaysInt = 0;
+
+                if(timeLimited == 1)
+                {
+                    if(allowedFrom.length() > 0)
+                    {
+                        if(allowedFrom.length() == 19)
+                        {
+                            allowedFromAr[0] = (uint16_t)allowedFrom.substring(0, 4).toInt();
+                            allowedFromAr[1] = (uint8_t)allowedFrom.substring(5, 7).toInt();
+                            allowedFromAr[2] = (uint8_t)allowedFrom.substring(8, 10).toInt();
+                            allowedFromAr[3] = (uint8_t)allowedFrom.substring(11, 13).toInt();
+                            allowedFromAr[4] = (uint8_t)allowedFrom.substring(14, 16).toInt();
+                            allowedFromAr[5] = (uint8_t)allowedFrom.substring(17, 19).toInt();
+
+                            if(allowedFromAr[0] < 2000 || allowedFromAr[0] > 3000 || allowedFromAr[1] < 1 || allowedFromAr[1] > 12 || allowedFromAr[2] < 1 || allowedFromAr[2] > 31 || allowedFromAr[3] < 0 || allowedFromAr[3] > 23 || allowedFromAr[4] < 0 || allowedFromAr[4] > 59 || allowedFromAr[5] < 0 || allowedFromAr[5] > 59)
+                            {
+                                _network->sendResponse(jsonResult, "invalidAllowedFrom", 422);
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            _network->sendResponse(jsonResult, "invalidAllowedFrom", 422);
+                            return;
+                        }
+                    }
+
+                    if(allowedUntil.length() > 0)
+                    {
+                        if(allowedUntil.length() == 19)
+                        {
+                            allowedUntilAr[0] = (uint16_t)allowedUntil.substring(0, 4).toInt();
+                            allowedUntilAr[1] = (uint8_t)allowedUntil.substring(5, 7).toInt();
+                            allowedUntilAr[2] = (uint8_t)allowedUntil.substring(8, 10).toInt();
+                            allowedUntilAr[3] = (uint8_t)allowedUntil.substring(11, 13).toInt();
+                            allowedUntilAr[4] = (uint8_t)allowedUntil.substring(14, 16).toInt();
+                            allowedUntilAr[5] = (uint8_t)allowedUntil.substring(17, 19).toInt();
+
+                            if(allowedUntilAr[0] < 2000 || allowedUntilAr[0] > 3000 || allowedUntilAr[1] < 1 || allowedUntilAr[1] > 12 || allowedUntilAr[2] < 1 || allowedUntilAr[2] > 31 || allowedUntilAr[3] < 0 || allowedUntilAr[3] > 23 || allowedUntilAr[4] < 0 || allowedUntilAr[4] > 59 || allowedUntilAr[5] < 0 || allowedUntilAr[5] > 59)
+                            {
+                                _network->sendResponse(jsonResult, "invalidAllowedUntil", 422);
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            _network->sendResponse(jsonResult, "invalidAllowedUntil", 422);
+                            return;
+                        }
+                    }
+
+                    if(allowedFromTime.length() > 0)
+                    {
+                        if(allowedFromTime.length() == 5)
+                        {
+                            allowedFromTimeAr[0] = (uint8_t)allowedFromTime.substring(0, 2).toInt();
+                            allowedFromTimeAr[1] = (uint8_t)allowedFromTime.substring(3, 5).toInt();
+
+                            if(allowedFromTimeAr[0] < 0 || allowedFromTimeAr[0] > 23 || allowedFromTimeAr[1] < 0 || allowedFromTimeAr[1] > 59)
+                            {
+                                _network->sendResponse(jsonResult, "invalidAllowedFromTime", 422);
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            _network->sendResponse(jsonResult, "invalidAllowedFromTime", 422);
+                            return;
+                        }
+                    }
+
+                    if(allowedUntilTime.length() > 0)
+                    {
+                        if(allowedUntilTime.length() == 5)
+                        {
+                            allowedUntilTimeAr[0] = (uint8_t)allowedUntilTime.substring(0, 2).toInt();
+                            allowedUntilTimeAr[1] = (uint8_t)allowedUntilTime.substring(3, 5).toInt();
+
+                            if(allowedUntilTimeAr[0] < 0 || allowedUntilTimeAr[0] > 23 || allowedUntilTimeAr[1] < 0 || allowedUntilTimeAr[1] > 59)
+                            {
+                                _network->sendResponse(jsonResult, "invalidAllowedUntilTime", 422);
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            _network->sendResponse(jsonResult, "invalidAllowedUntilTime", 422);
+                            return;
+                        }
+                    }
+
+                    if(allowedWeekdays.indexOf("mon") >= 0)
+                    {
+                        allowedWeekdaysInt += 64;
+                    }
+                    if(allowedWeekdays.indexOf("tue") >= 0)
+                    {
+                        allowedWeekdaysInt += 32;
+                    }
+                    if(allowedWeekdays.indexOf("wed") >= 0)
+                    {
+                        allowedWeekdaysInt += 16;
+                    }
+                    if(allowedWeekdays.indexOf("thu") >= 0)
+                    {
+                        allowedWeekdaysInt += 8;
+                    }
+                    if(allowedWeekdays.indexOf("fri") >= 0)
+                    {
+                        allowedWeekdaysInt += 4;
+                    }
+                    if(allowedWeekdays.indexOf("sat") >= 0)
+                    {
+                        allowedWeekdaysInt += 2;
+                    }
+                    if(allowedWeekdays.indexOf("sun") >= 0)
+                    {
+                        allowedWeekdaysInt += 1;
+                    }
+                }
+
+                if(strcmp(action, "add") == 0)
+                {
+                    _network->sendResponse(jsonResult, "addActionNotSupported", 501);
+                    return;
+
+                    NukiLock::NewAuthorizationEntry entry;
+                    memset(&entry, 0, sizeof(entry));
+                    size_t nameLen = name.length();
+                    memcpy(&entry.name, name.c_str(), nameLen > 32 ? 32 : nameLen);
+                    /*
+                    memcpy(&entry.sharedKey, secretKeyK, 32);
+
+                    if(idType != 1)
+                    {
+                        _network->sendResponse(jsonResult, "invalidIdType");
+                        return;
+                    }
+
+                    entry.idType = idType;
+                    */
+                    entry.remoteAllowed = remoteAllowed == 1 ? 1 : 0;
+                    entry.timeLimited = timeLimited == 1 ? 1 : 0;
+
+                    if(allowedFrom.length() > 0)
+                    {
+                        entry.allowedFromYear = allowedFromAr[0];
+                        entry.allowedFromMonth = allowedFromAr[1];
+                        entry.allowedFromDay = allowedFromAr[2];
+                        entry.allowedFromHour = allowedFromAr[3];
+                        entry.allowedFromMinute = allowedFromAr[4];
+                        entry.allowedFromSecond = allowedFromAr[5];
+                    }
+
+                    if(allowedUntil.length() > 0)
+                    {
+                        entry.allowedUntilYear = allowedUntilAr[0];
+                        entry.allowedUntilMonth = allowedUntilAr[1];
+                        entry.allowedUntilDay = allowedUntilAr[2];
+                        entry.allowedUntilHour = allowedUntilAr[3];
+                        entry.allowedUntilMinute = allowedUntilAr[4];
+                        entry.allowedUntilSecond = allowedUntilAr[5];
+                    }
+
+                    entry.allowedWeekdays = allowedWeekdaysInt;
+
+                    if(allowedFromTime.length() > 0)
+                    {
+                        entry.allowedFromTimeHour = allowedFromTimeAr[0];
+                        entry.allowedFromTimeMin = allowedFromTimeAr[1];
+                    }
+
+                    if(allowedUntilTime.length() > 0)
+                    {
+                        entry.allowedUntilTimeHour = allowedUntilTimeAr[0];
+                        entry.allowedUntilTimeMin = allowedUntilTimeAr[1];
+                    }
+
+                    result = _nukiLock.addAuthorizationEntry(entry);
+                    delay(250);
+                    Log->print("[INFO] Add authorization: ");
+                    Log->println((int)result);
+                }
+                else if (strcmp(action, "update") == 0)
+                {
+                    if(!authId)
+                    {
+                        _network->sendResponse(jsonResult, "noAuthIdSet", 400);
+                        return;
+                    }
+
+                    if(!idExists)
+                    {
+                        _network->sendResponse(jsonResult, "noExistingAuthIdSet", 404);
+                        return;
+                    }
+
+                    Nuki::CmdResult resultAuth = _nukiLock.retrieveAuthorizationEntries(0, _preferences->getInt(preference_auth_max_entries, MAX_AUTH));
+                    bool foundExisting = false;
+
+                    if(resultAuth == Nuki::CmdResult::Success)
+                    {
+                        delay(5000);
+                        std::list<NukiLock::AuthorizationEntry> entries;
+                        _nukiLock.getAuthorizationEntries(&entries);
+
+                        for(const auto& entry : entries)
+                        {
+                            if (authId != entry.authId)
+                            {
+                                continue;
+                            }
+                            else
+                            {
+                                foundExisting = true;
+                            }
+
+                            if(name.length() < 1)
+                            {
+                                memset(oldName, 0, sizeof(oldName));
+                                memcpy(oldName, entry.name, sizeof(entry.name));
+                            }
+                            if(remoteAllowed == 2)
+                            {
+                                remoteAllowed = entry.remoteAllowed;
+                            }
+                            if(enabled == 2)
+                            {
+                                enabled = entry.enabled;
+                            }
+                            if(timeLimited == 2)
+                            {
+                                timeLimited = entry.timeLimited;
+                            }
+                            if(allowedFrom.length() < 1)
+                            {
+                                allowedFrom = "old";
+                                allowedFromAr[0] = entry.allowedFromYear;
+                                allowedFromAr[1] = entry.allowedFromMonth;
+                                allowedFromAr[2] = entry.allowedFromDay;
+                                allowedFromAr[3] = entry.allowedFromHour;
+                                allowedFromAr[4] = entry.allowedFromMinute;
+                                allowedFromAr[5] = entry.allowedFromSecond;
+                            }
+                            if(allowedUntil.length() < 1)
+                            {
+                                allowedUntil = "old";
+                                allowedUntilAr[0] = entry.allowedUntilYear;
+                                allowedUntilAr[1] = entry.allowedUntilMonth;
+                                allowedUntilAr[2] = entry.allowedUntilDay;
+                                allowedUntilAr[3] = entry.allowedUntilHour;
+                                allowedUntilAr[4] = entry.allowedUntilMinute;
+                                allowedUntilAr[5] = entry.allowedUntilSecond;
+                            }
+                            if(allowedWeekdays.length() < 1)
+                            {
+                                allowedWeekdaysInt = entry.allowedWeekdays;
+                            }
+                            if(allowedFromTime.length() < 1)
+                            {
+                                allowedFromTime = "old";
+                                allowedFromTimeAr[0] = entry.allowedFromTimeHour;
+                                allowedFromTimeAr[1] = entry.allowedFromTimeMin;
+                            }
+
+                            if(allowedUntilTime.length() < 1)
+                            {
+                                allowedUntilTime = "old";
+                                allowedUntilTimeAr[0] = entry.allowedUntilTimeHour;
+                                allowedUntilTimeAr[1] = entry.allowedUntilTimeMin;
+                            }
+                        }
+
+                        if(!foundExisting)
+                        {
+                            _network->sendResponse(jsonResult, "failedToRetrieveExistingAuthorizationEntry", 500);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        _network->sendResponse(jsonResult, "failedToRetrieveExistingAuthorizationEntry", 500);
+                        return;
+                    }
+
+                    NukiLock::UpdatedAuthorizationEntry entry;
+
+                    memset(&entry, 0, sizeof(entry));
+                    entry.authId = authId;
+
+                    if(name.length() < 1)
+                    {
+                        size_t nameLen = strlen(oldName);
+                        memcpy(&entry.name, oldName, nameLen > 20 ? 20 : nameLen);
+                    }
+                    else
+                    {
+                        size_t nameLen = name.length();
+                        memcpy(&entry.name, name.c_str(), nameLen > 20 ? 20 : nameLen);
+                    }
+                    entry.remoteAllowed = remoteAllowed;
+                    entry.enabled = enabled;
+                    entry.timeLimited = timeLimited;
+
+                    if(enabled == 1)
+                    {
+                        if(timeLimited == 1)
+                        {
+                            if(allowedFrom.length() > 0)
+                            {
+                                entry.allowedFromYear = allowedFromAr[0];
+                                entry.allowedFromMonth = allowedFromAr[1];
+                                entry.allowedFromDay = allowedFromAr[2];
+                                entry.allowedFromHour = allowedFromAr[3];
+                                entry.allowedFromMinute = allowedFromAr[4];
+                                entry.allowedFromSecond = allowedFromAr[5];
+                            }
+
+                            if(allowedUntil.length() > 0)
+                            {
+                                entry.allowedUntilYear = allowedUntilAr[0];
+                                entry.allowedUntilMonth = allowedUntilAr[1];
+                                entry.allowedUntilDay = allowedUntilAr[2];
+                                entry.allowedUntilHour = allowedUntilAr[3];
+                                entry.allowedUntilMinute = allowedUntilAr[4];
+                                entry.allowedUntilSecond = allowedUntilAr[5];
+                            }
+
+                            entry.allowedWeekdays = allowedWeekdaysInt;
+
+                            if(allowedFromTime.length() > 0)
+                            {
+                                entry.allowedFromTimeHour = allowedFromTimeAr[0];
+                                entry.allowedFromTimeMin = allowedFromTimeAr[1];
+                            }
+
+                            if(allowedUntilTime.length() > 0)
+                            {
+                                entry.allowedUntilTimeHour = allowedUntilTimeAr[0];
+                                entry.allowedUntilTimeMin = allowedUntilTimeAr[1];
+                            }
+                        }
+                    }
+
+                    result = _nukiLock.updateAuthorizationEntry(entry);
+                    delay(250);
+                    Log->print("[INFO] Update authorization: ");
+                    Log->println((int)result);
+                }
+            }
+            else
+            {
+                _network->sendResponse(jsonResult, "invalidAction", 400);
+                return;
+            }
+
+            if(result != Nuki::CmdResult::Success)
+            {
+                ++retryCount;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        updateAuth(false);
+
+        if((int)result != -1)
+        {
+            char resultStr[15];
+            memset(&resultStr, 0, sizeof(resultStr));
+            NukiLock::cmdResultToString(result, resultStr);
+            _network->sendResponse(jsonResult, resultStr);
+        }
+    }
+    else
+    {
+        _network->sendResponse(jsonResult, "noActionSet", 400);
+        return;
     }
 }
 
@@ -2703,3 +3543,7 @@ void NukiWrapper::readAdvancedConfig()
         }
     }
 }
+
+void NukiWrapper::setTimeCtrlInfoEnabled(bool enabled) { _timeCtrlInfoEnabled = enabled; }
+void NukiWrapper::setAuthInfoEnabled(bool enabled) { _authInfoEnabled = enabled; }
+void NukiWrapper::setkeypadInfoEnabled(bool enabled) { _keypadInfoEnabled = enabled; }

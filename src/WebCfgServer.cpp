@@ -641,7 +641,9 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
         appendCheckBoxRow(response, "KPENA", "Add, modify and delete keypad codes", _preferences->getBool(preference_keypad_control_enabled), "");
     }
 
+    appendCheckBoxRow(response, "TCPUB", "Update control entries information", _preferences->getBool(preference_timecontrol_info_enabled), "");
     appendCheckBoxRow(response, "TCENA", "Add, modify and delete time control entries", _preferences->getBool(preference_timecontrol_control_enabled), "");
+    appendCheckBoxRow(response, "AUTHPUB", "Update authorization entries information", _preferences->getBool(preference_auth_info_enabled), "");
     appendCheckBoxRow(response, "AUTHENA", "Modify and delete authorization entries", _preferences->getBool(preference_auth_control_enabled), "");
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
@@ -1973,12 +1975,16 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += String(_preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD));
     response += F("\nKeypad query interval (s): ");
     response += String(_preferences->getInt(preference_query_interval_keypad, 1800));
+    response += F("\nUpdate timecontrol info: ");
+    response += F(_preferences->getBool(preference_timecontrol_info_enabled, false) ? "Yes" : "No");
     response += F("\nEnable timecontrol control: ");
     response += _preferences->getBool(preference_timecontrol_control_enabled, false) ? F("Yes") : F("No");
     response += F("\nMax timecontrol entries to retrieve: ");
     response += String(_preferences->getInt(preference_timecontrol_max_entries, MAX_TIMECONTROL));
-    response += F("\nEnable authorization control: ");
+    response += F("\nUpdate authorization info: ");
     response += _preferences->getBool(preference_auth_info_enabled, false) ? F("Yes") : F("No");
+    response += F("\nEnable authorization control: ");
+    response += _preferences->getBool(preference_auth_control_enabled, false) ? F("Yes") : F("No");
     response += F("\nMax authorization entries to retrieve: ");
     response += String(_preferences->getInt(preference_auth_max_entries, MAX_AUTH));
 
@@ -3434,6 +3440,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if (_preferences->getBool(preference_keypad_info_enabled, false) != (value == "1"))
             {
                 _preferences->putBool(preference_keypad_info_enabled, (value == "1"));
+                _nuki->setkeypadInfoEnabled((value == "1"));
                 Log->print("Setting changed: ");
                 Log->println(key);
                 // configChanged = true;
@@ -3503,6 +3510,17 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 }
             }
         }
+        else if(key == "TCPUB")
+        {
+            if(_preferences->getBool(preference_timecontrol_info_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_timecontrol_info_enabled, (value == "1"));
+                _nuki->setTimeCtrlInfoEnabled((value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
+            }
+        }
         else if (key == "TCENA")
         {
             if (_preferences->getBool(preference_timecontrol_control_enabled, false) != (value == "1"))
@@ -3511,6 +3529,17 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 Log->print("Setting changed: ");
                 Log->println(key);
                 configChanged = true;
+            }
+        }
+        else if(key == "AUTHPUB")
+        {
+            if(_preferences->getBool(preference_auth_info_enabled, false) != (value == "1"))
+            {
+                _preferences->putBool(preference_auth_info_enabled, (value == "1"));
+                _nuki->setAuthInfoEnabled((value == "1"));
+                Log->print("Setting changed: ");
+                Log->println(key);
+                //configChanged = true;
             }
         }
         else if (key == "AUTHENA")

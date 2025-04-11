@@ -266,6 +266,8 @@ public:
      */
     void setTimeControlCommandReceivedCallback(void (*timeControlCommandReceivedReceivedCallback)(const char *value));
 
+    void setAuthCommandReceivedCallback(void (*authCommandReceivedReceivedCallback)(const char* value));
+    
     /**
      * @brief Loads saved WiFi and IP configuration settings.
      */

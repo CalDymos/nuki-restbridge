@@ -162,6 +162,10 @@ public:
      */
     uint32_t decryptKeypadCode(uint32_t encryptedCode);
 
+    void setTimeCtrlInfoEnabled(bool enable);
+    void setAuthInfoEnabled(bool enable);
+    void setkeypadInfoEnabled(bool enable);
+
 private:
     /**
      * @brief Handles an incoming lock action request from API.
@@ -174,6 +178,10 @@ private:
 
     static void onKeypadCommandReceivedCallback(const char *command, const uint &id, const String &name, const String &code, const int &enabled);
 
+    static void onTimeControlCommandReceivedCallback(const char *value);
+
+    static void onAuthCommandReceivedCallback(const char *value);
+
     /**
      * @brief Static callback function for external lock action requests.
      * @param value Lock action string value.
@@ -185,6 +193,9 @@ private:
 
     void onKeypadCommandReceived(const char *command, const uint &id, const String &name, const String &code, const int &enabled);
 
+    void onTimeControlCommandReceived(const char *value);
+
+    void onAuthCommandReceived(const char *value);
     /**
      * @brief Resets or delays the BLE watchdog timer.
      */
@@ -293,7 +304,10 @@ private:
     bool _forceDoorsensor = false;                                              // Enforce door sensor presence.
     bool _forceKeypad = false;                                                  // Enforce keypad detection.
     bool _forceId = false;                                                      // Force assignment of a specific device ID.
-    bool _keypadEnabled = false;                                                // Indicates if the keypad is currently active.
+    bool _keypadInfoEnabled = false;                                            // Indicates if the keypad info is currently active.
+                                                                                //
+    bool _authInfoEnabled = false;                                              // Indicates if the keypad info is currently active.
+    bool _timeCtrlInfoEnabled = false;                                          // Indicates if the keypad info is currently active.
                                                                                 //
     NukiLock::Config _nukiConfig = {0};                                         // Basic configuration of the lock.
     NukiLock::AdvancedConfig _nukiAdvancedConfig = {0};                         // Advanced configuration.
