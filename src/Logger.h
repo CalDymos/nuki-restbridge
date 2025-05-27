@@ -11,6 +11,7 @@
 #include "ESP32_FTPClient.h"
 #include <Print.h>
 #include <atomic>
+#include <freertos/semphr.h>
 
 #define LOGGER_FILENAME (char *)"nukiBridge.log"
 
@@ -154,6 +155,7 @@ private:
     bool _fileWriteEnabled;                       // Flag to enable writing to Log file
     std::atomic<bool> _logFallBack{false};        // LittleFS failure fallback flag
     std::atomic<bool> _logBackupIsRunning{false}; // FTP backup activity flag
+    SemaphoreHandle_t _bufferMutex;               // 
     msgtype _currentLogLevel;                     // Active log level
 
     /**

@@ -462,10 +462,16 @@ void logCoreDump()
   coredumpPrinted = false;
   delay(500);
   Log->println(F("[INFO] Printing coredump and saving to coredump.hex on LittleFS"));
+  delay(5);
   size_t size = 0;
   size_t address = 0;
   if (esp_core_dump_image_get(&address, &size) == ESP_OK)
   {
+    if (size == 0 || size > 65536) // Safety for maximum partition size
+    {
+      Log->println(F("[ERROR] Invalid coredump size!"));
+      return;
+    }
     const esp_partition_t *pt = NULL;
     pt = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_COREDUMP, "coredump");
 
@@ -476,9 +482,16 @@ void logCoreDump()
       char str_dst[640];
       int16_t toRead;
 
+      if (size == 0 || size > pt->size)
+      {
+        Log->println(F("[ERROR] Invalid coredump size!"));
+        return;
+      }
+
       if (!LittleFS.begin(true))
       {
         Log->println(F("[ERROR] LittleFS Mount Failed"));
+        return;
       }
       else
       {

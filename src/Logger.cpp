@@ -99,22 +99,37 @@ Logger::Logger(Print *serial, Preferences *prefs)
   }
   _fileWriteEnabled = true;
   _buffer.reserve(_maxMsgLen + 2); // Reserves memory for up to _maxMsgLen characters
+
+  _bufferMutex = xSemaphoreCreateMutex();
 }
 
-Logger::~Logger() {}
+Logger::~Logger()
+{
+  if (_bufferMutex)
+  {
+    vSemaphoreDelete(_bufferMutex);
+  }
+}
 
 size_t Logger::write(uint8_t c)
 {
   if (!_fileWriteEnabled || _logBackupIsRunning.load() || _logFallBack.load())
     return _serial->write(c);
 
-  _buffer += (char)c;
-  if (c == '\n')
+  if (c == '\0')
+    return 0; // IGNORE null-terminator
+
+  if (xSemaphoreTake(_bufferMutex, portMAX_DELAY))
   {
-    _buffer.trim();
-    if (!_buffer.isEmpty())
-      toFile(_buffer);
-    _buffer = "";
+    _buffer += (char)c;
+    if (c == '\n')
+    {
+      _buffer.trim();
+      if (!_buffer.isEmpty())
+        toFile(_buffer);
+      _buffer = "";
+    }
+    xSemaphoreGive(_bufferMutex);
   }
   return 1;
 }
@@ -124,30 +139,55 @@ size_t Logger::write(const uint8_t *buffer, size_t size)
   if (!_fileWriteEnabled || _logBackupIsRunning.load() || _logFallBack.load())
     return _serial->write(buffer, size);
 
-  if (size == 2 && buffer[0] == '\r' && buffer[1] == '\n')
+  size_t n = 0;
+  if (xSemaphoreTake(_bufferMutex, portMAX_DELAY))
   {
-    _buffer.trim();
-    if (!_buffer.isEmpty())
-      toFile(_buffer);
-    _buffer = "";
-    return 2;
+    if (size == 2 && buffer[0] == '\r' && buffer[1] == '\n')
+    {
+      _buffer.trim();
+      if (!_buffer.isEmpty())
+        toFile(_buffer);
+      _buffer = "";
+      n = 2;
+    }
+    else if (size > 0 && size <= _maxMsgLen && buffer[size - 1] == '\n')
+    {
+      _buffer = "";
+      _buffer.reserve(size);
+      for (size_t i = 0; i < size; ++i)
+      {
+        if (buffer[i] == '\0')
+          continue; // Nullbytes ignorieren
+        _buffer += (char)buffer[i];
+      }
+
+      _buffer.trim();
+      if (!_buffer.isEmpty())
+        toFile(_buffer);
+      _buffer = "";
+      n = size;
+    }
+    else
+    {
+      for (size_t i = 0; i < size; ++i)
+      {
+        if (buffer[i] != '\0')
+          _buffer += (char)buffer[i];
+        if (buffer[i] == '\n')
+        {
+          _buffer.trim();
+          if (!_buffer.isEmpty())
+            toFile(_buffer);
+          _buffer = "";
+        }
+      }
+      n = size;
+    }
+
+    xSemaphoreGive(_bufferMutex);
   }
-  else if (size > 0 && size <= _maxMsgLen && buffer[size - 1] == '\n')
-  {
-    _buffer = String((const char *)buffer);
-    _buffer.trim();
-    if (!_buffer.isEmpty())
-      toFile(_buffer);
-    _buffer = "";
-    return 1;
-  }
-  else
-  {
-    size_t n = 0;
-    while (size--)
-      n += write(*buffer++);
-    return n;
-  }
+
+  return n;
 }
 
 size_t Logger::printf(const __FlashStringHelper *ifsh, ...)
@@ -157,6 +197,7 @@ size_t Logger::printf(const __FlashStringHelper *ifsh, ...)
   va_start(arg, ifsh);
   const char *format = (reinterpret_cast<const char *>(ifsh));
   size_t len = vsnprintf(buf, sizeof(buf), format, arg);
+  buf[sizeof(buf)-1] = '\0'; // For safety reasons
   va_end(arg);
   if (len > 0)
   {
@@ -171,6 +212,7 @@ size_t Logger::printf(const char *format, ...)
   va_list args;
   va_start(args, format);
   int len = vsnprintf(buf, sizeof(buf), format, args);
+  buf[sizeof(buf)-1] = '\0'; // For safety reasons
   va_end(args);
   if (len > 0)
   {

@@ -972,7 +972,7 @@ void WebCfgServer::buildGetCoredumpFileHtml(WebServer *server)
         return;
     }
 
-    File file = LittleFS.open(F("/coredump.hex"), "r");
+    File file = LittleFS.open("/coredump.hex", FILE_READ);
 
     if (!file || file.isDirectory())
     {
