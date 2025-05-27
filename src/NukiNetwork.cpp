@@ -176,7 +176,7 @@ bool NukiNetwork::update()
         break;
     }
 
-    if (disableNetwork || isApOpen())
+    if (disableNetwork || (!_homeAutomationEnabled && !_apiEnabled) || isApOpen())
     {
         return false;
     }

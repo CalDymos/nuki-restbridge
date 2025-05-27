@@ -68,6 +68,7 @@ inline static void restartEsp(RestartReason reason)
     restartReason = (int)reason;
     restartReasonValidDetect = RESTART_REASON_VALID_DETECT;
     LittleFS.end();
+    Serial.printf("restartEsp reason: %d\n", (int)reason);
     delay(10); // to ensure that all pending write operations are completed
     ESP.restart();
 }
