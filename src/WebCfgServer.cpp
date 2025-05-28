@@ -52,7 +52,11 @@ const char css[] PROGMEM = ":root{--nc-font-sans:'Inter',-apple-system,BlinkMacS
                            ".tdbtn{text-align:center;vertical-align:middle}"
                            ".naventry{float:left;max-width:375px;width:100%}"
                            ".tab-button.active{background-color: var(--nc-ac-1);color: var(--nc-ac-tx);font-weight: bold;}"
-                           ".home-button{position:fixed;top:10px;right:10px;z-index:999}";
+                           ".home-button{position:fixed;top:10px;right:10px;z-index:999}"
+                           ".btn-icon{text-decoration:none;display:inline-block;width:36px;height:36px;font-size:1.2rem;background:var(--nc-lk-1);color:var(--nc-lk-tx);text-align:center;line-height:36px;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.2)}"
+                           ".btn-icon:hover{background:var(--nc-lk-2)}"
+                           "/* version: " NUKI_REST_BRIDGE_VERSION " */";
+
 extern bool timeSynced;
 
 WebCfgServer::WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences *preferences)
@@ -2268,6 +2272,8 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
 
     response += F("</pre></body></html>");
 
+    appendHomeButton(response);
+
     server->send(200, F("text/html"), response);
 }
 
@@ -2611,7 +2617,7 @@ void WebCfgServer::appendCheckBoxRow(String &response,
 
 void WebCfgServer::appendHomeButton(String &response)
 {
-    response += F("<div class=\"home-button\"><a href=\"/\" class=\"btn\">🏠</a></div>");
+    response += F("<div class=\"home-button\"><a href=\"/\" class=\"btn btn-icon\" title=\"Home\">&#127968;</a></div>");
 }
 
 const std::vector<std::pair<String, String>> WebCfgServer::getNetworkDetectionOptions() const
