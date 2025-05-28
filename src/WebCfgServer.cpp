@@ -664,9 +664,13 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
             "ACLLCKLCK", "ACLLCKUNLCK", "ACLLCKUNLTCH", "ACLLCKLNG", "ACLLCKLNGU",
             "ACLLCKFLLCK", "ACLLCKFOB1", "ACLLCKFOB2", "ACLLCKFOB3"};
 
+        const char *lockDescriptions[] = {
+            "Lock", "Unlock", "Unlatch", "Lock N Go", "Lock N Go Unlatch",
+            "Full Lock", "Fob Action 1", "Fob Action 2", "Fob Action 3"};
+
         for (int i = 0; i < 9; i++)
         {
-            appendCheckBoxRow(response, lockActions[i], lockActions[i] + 9, aclPrefs[i], "chk_access_lock");
+            appendCheckBoxRow(response, lockActions[i], lockDescriptions[i], aclPrefs[i], "chk_access_lock");
         }
 
         response += F("</table><br><h3>Nuki Lock Config Control (Requires PIN to be set)</h3>");
@@ -674,13 +678,38 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
         response += F("<input type=\"button\" value=\"Disallow all\" onclick=\"for(el of document.getElementsByClassName('chk_config_lock')){el.checked=false;}\">");
         response += F("<table><tr><th>Change</th><th>Allowed</th></tr>");
 
-        const char *configActions[] = {
+        const char *basicConfigActions[] = {
             "CONFLCKNAME", "CONFLCKLAT", "CONFLCKLONG", "CONFLCKAUNL", "CONFLCKPRENA",
-            "CONFLCKBTENA", "CONFLCKLEDENA", "CONFLCKLEDBR", "CONFLCKTZOFF", "CONFLCKDSTM"};
+            "CONFLCKBTENA", "CONFLCKLEDENA", "CONFLCKLEDBR", "CONFLCKTZOFF", "CONFLCKDSTM",
+            "CONFLCKFOB1", "CONFLCKFOB2", "CONFLCKFOB3", "CONFLCKSGLLCK", "CONFLCKADVM", "CONFLCKTZID"};
 
-        for (int i = 0; i < 10; i++)
+        const char *basicConfigDescriptions[] = {
+            "Name", "Latitude", "Longitude", "Auto unlatch", "Pairing enabled",
+            "Button enabled", "LED flash enabled", "LED brightness", "Timezone offset", "DST mode",
+            "Fob Action 1", "Fob Action 2", "Fob Action 3", "Single Lock", "Advertising Mode", "Timezone ID"};
+
+        for (int i = 0; i < 16; i++)
         {
-            appendCheckBoxRow(response, configActions[i], configActions[i] + 9, basicLockConfigAclPrefs[i], "chk_config_lock");
+            appendCheckBoxRow(response, basicConfigActions[i], basicConfigDescriptions[i], basicLockConfigAclPrefs[i], "chk_config_lock");
+        }
+
+        const char *advancedConfigActions[] = {
+            "CONFLCKUPOD", "CONFLCKLPOD", "CONFLCKSLPOD", "CONFLCKUTLTOD", "CONFLCKLNGT",
+            "CONFLCKSBPA", "CONFLCKDBPA", "CONFLCKDC", "CONFLCKBATT", "CONFLCKABTD",
+            "CONFLCKUNLD", "CONFLCKALT", "CONFLCKAUNLD", "CONFLCKNMENA", "CONFLCKNMST",
+            "CONFLCKNMET", "CONFLCKNMALENA", "CONFLCKNMAULD", "CONFLCKNMLOS", "CONFLCKALENA",
+            "CONFLCKIALENA", "CONFLCKAUENA", "CONFLCKRBTNUKI", "CONFLCKMTRSPD", "CONFLCKESSDNM"};
+
+        const char *advancedConfigDescriptions[] = {
+            "Unlocked Position Offset Degrees", "Locked Position Offset Degrees", "Single Locked Position Offset Degrees", "Unlocked To Locked Transition Offset Degrees", "Lock n Go timeout",
+            "Single button press action", "Double button press action", "Detached cylinder", "Battery type", "Automatic battery type detection",
+            "Unlatch duration", "Auto lock timeout", "Auto unlock disabled", "Nightmode enabled", "Nightmode start time",
+            "Nightmode end time", "Nightmode auto lock enabled", "Nightmode auto unlock disabled", "Nightmode immediate lock on start", "Auto lock enabled",
+            "Immediate auto lock enabled", "Auto update enabled", "Reboot Nuki", "Motor speed", "Enable slow speed during nightmode"};
+
+        for (int i = 0; i < 25; i++)
+        {
+            appendCheckBoxRow(response, advancedConfigActions[i], advancedConfigDescriptions[i], advancedLockConfigAclPrefs[i], "chk_config_lock");
         }
 
         response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\">");
