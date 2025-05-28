@@ -377,7 +377,11 @@ void WebCfgServer::initialize()
             }
             else if (value == "shutdown")
             {
-                buildConfirmHtml(this->_webServer, "Shutting down...", 2, true);
+                buildConfirmHtml(this->_webServer,
+                                 "<b>Shutting down...</b><br><br>"
+                                 "Please wait until your browser shows <i>ERR_CONNECTION_TIMED_OUT</i>.<br>"
+                                 "This confirms the Nuki Bridge is now shut down and can be safely disconnected.",
+                                 0, false);
                 Log->disableFileLog();
                 _network->disableHAR();
                 _network->disableAPI();
@@ -991,7 +995,7 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
                         0,  // Parameter rows
                         0,  // Buttons
                         0,  // menus
-                        352 // extra bytes for JS/CSS
+                        400 // extra bytes for JS/CSS
     );
 
     String header;
