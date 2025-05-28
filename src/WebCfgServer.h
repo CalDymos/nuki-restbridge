@@ -391,6 +391,15 @@ private:
                            const char *id = "");
 
     /**
+     * @brief Appends a home button to the HTML response.
+     *
+     * Adds a button to the HTML response that links back to the main page.
+     *
+     * @param response Reference to the HTML response string.
+     */
+    void appendHomeButton(String &response);
+
+    /**
      * Estimate required HTML response buffer size.
      *
      * @param checkboxCount Number of checkbox rows (appendCheckBoxRow).
