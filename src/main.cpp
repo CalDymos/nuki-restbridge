@@ -7,7 +7,7 @@
 #include "esp32-hal-log.h"
 #include "hal/wdt_hal.h"
 #include "esp_chip_info.h"
-#include "esp_netif_sntp.h"
+#include "time.h"
 #include "esp_core_dump.h"
 #include <LittleFS.h>
 #include "FS.h"
@@ -32,9 +32,12 @@ NukiDeviceId *deviceIdLock = nullptr;      // Unique device ID handler.
 WebCfgServer *webCfgServer = nullptr;      // Web-based configuration interface.
 Logger *Log = nullptr;                     // Global logger instance.
 
-bool lockEnabled = false; // Whether lock operations are currently permitted.
-bool networkReady = false; // Ob das Netzwerk angeschlossen/verbunden und bereit ist.
-bool rebootLock = false;  // Whether to reboot lock logic after failure.
+bool lockEnabled = false;    // Whether lock operations are currently permitted.
+bool networkReady = false;   // Whether network is connected / ready
+bool rebootLock = false;     // Whether to reboot lock logic after failure.
+bool coredumpPrinted = true; // Prevent repeated printing of core dump on each boot.
+bool timeSynced = false;     // Whether NTP time sync was successful.
+bool restartReason_isValid;  // True if restart reason could be determined.
 
 int64_t restartTs = (pow(2, 63) - (5 * 1000 * 60000)) / 1000; // Time stamp for restarting the ESP to prevent the ESPtimer from overflowing
 
@@ -48,28 +51,13 @@ RTC_NOINIT_ATTR bool ethCriticalFailure;           // Flag for Ethernet hardware
 RTC_NOINIT_ATTR uint64_t bootloopValidDetect;
 RTC_NOINIT_ATTR int8_t bootloopCounter;
 
-bool coredumpPrinted = true; // Prevent repeated printing of core dump on each boot.
-bool timeSynced = false;     // Whether NTP time sync was successful.
-
-int lastHTTPeventId = -1;   // ID of last received HTTP event.
-bool restartReason_isValid; // True if restart reason could be determined.
-
+int lastHTTPeventId = -1;                                          // ID of last received HTTP event.
 RestartReason currentRestartReason = RestartReason::NotApplicable; // Tracks current restart state (e.g. Watchdog, Manual, Error etc.).
 
 // Taskhandles
 TaskHandle_t nukiTaskHandle = nullptr;    // Handle for BLE/Nuki lock task.
 TaskHandle_t networkTaskHandle = nullptr; // Handle for network-related task.
 TaskHandle_t webCfgTaskHandle = nullptr;  // Handle for web config server task.
-
-/**
- * @brief Callback function invoked by SNTP when the time is synchronized.
- * @param tv Pointer to timeval struct (unused).
- */
-void cbSyncTime(struct timeval *tv)
-{
-  Log->println(F("[INFO] NTP time synced"));
-  timeSynced = true;
-}
 
 #ifdef DEBUG_NUKIBRIDGE
 /**
@@ -237,7 +225,7 @@ void networkTask(void *parameter)
       if (bootloopCounter > 0)
       {
         bootloopCounter = (int8_t)0;
-        Log->println("Bootloop counter reset");
+        Log->println(F("[DEBUG] Bootloop counter reset"));
       }
     }
 
@@ -248,7 +236,29 @@ void networkTask(void *parameter)
     {
       if (preferences->getBool(preference_update_time, false))
       {
-        esp_netif_sntp_start();
+        String timeserver = preferences->getString(preference_time_server, "pool.ntp.org");
+        String timezone = preferences->getString(preference_timezone, "");
+        Log->println(F("[INFO] Start NTP Time sync"));
+        if (timezone.length() >= 3)
+        {
+          configTzTime(timezone.c_str(), timeserver.c_str());
+        }
+        else
+        {
+          configTime(0, 0, timeserver.c_str());
+        }
+
+        struct tm timeinfo;
+        if (getLocalTime(&timeinfo))
+        {
+          Log->println(F("[INFO] NTP time synced"));
+          timeSynced = true;
+        }
+        else
+        {
+          Log->println(F("[INFO] NTP sync failed"));
+          timeSynced = false;
+        }
       }
       updateTime = false;
     }
@@ -326,7 +336,7 @@ void printTaskInfo()
     Log->println(F("Name\t\tState\tPrio\tStack\tTask Number"));
     for (UBaseType_t i = 0; i < numTasksRecorded; i++)
     {
-      Log->printf(F("%s\t\t%d\t%d\t%d\t%d\n"),
+      Log->printf(F("%s\t\t%d\t%d\t%d\t%d\r\n"),
                   taskArray[i].pcTaskName,
                   taskArray[i].eCurrentState,
                   taskArray[i].uxCurrentPriority,
@@ -365,7 +375,7 @@ void setupTasks()
 
   if (err != ESP_OK)
   {
-    Log->printf(F("[ERROR] esp_task_wdt_reconfigure failed: %d\n"), err);
+    Log->printf(F("[ERROR] esp_task_wdt_reconfigure failed: %d\r\n"), err);
   }
   else
   {
@@ -377,7 +387,7 @@ void setupTasks()
   {
     Log->println(F("[ERROR] webCfgTask could not be started!"));
   }
-  Log->printf(F("[DEBUG] Created webCfgTaskHandle: %p\n"), webCfgTaskHandle);
+  Log->printf(F("[DEBUG] Created webCfgTaskHandle: %p\r\n"), webCfgTaskHandle);
 
   Log->println(F("[DEBUG] Adding webCfgTask to Watchdog..."));
   if (webCfgTaskHandle != NULL)
@@ -385,7 +395,7 @@ void setupTasks()
     esp_err_t err = esp_task_wdt_add(webCfgTaskHandle);
     if (err != ESP_OK)
     {
-      Log->printf(F("[ERROR] esp_task_wdt_add failed for webCfgTask: %d\n"), err);
+      Log->printf(F("[ERROR] esp_task_wdt_add failed for webCfgTask: %d\r\n"), err);
     }
     else
     {
@@ -658,32 +668,14 @@ void setup()
     webCfgServer->initialize();
   }
 
-  String timeserver = preferences->getString(preference_time_server, "pool.ntp.org");
-  esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(timeserver.c_str());
-  config.start = false;
-  config.server_from_dhcp = true;
-  config.renew_servers_after_new_IP = true;
-  config.index_of_first_server = 1;
-
-  if (network->networkDeviceType() == NetworkDeviceType::WiFi)
-  {
-    config.ip_event_to_renew = IP_EVENT_STA_GOT_IP;
-  }
-  else
-  {
-    config.ip_event_to_renew = IP_EVENT_ETH_GOT_IP;
-  }
-  config.sync_cb = cbSyncTime;
-  esp_netif_sntp_init(&config);
-
 #ifdef DEBUG_NUKIBRIDGE
-  Log->printf("[DEBUG] Heap before setupTasks: %d bytes\n", ESP.getFreeHeap());
+  Log->printf("[DEBUG] Heap before setupTasks: %d bytes\r\n", ESP.getFreeHeap());
 #endif
 
   setupTasks();
 
 #ifdef DEBUG_NUKIBRIDGE
-  Log->printf("[DEBUG] Heap after setupTasks: %d bytes\n", ESP.getFreeHeap());
+  Log->printf("[DEBUG] Heap after setupTasks: %d bytes\r\n", ESP.getFreeHeap());
   printTaskInfo();
 #endif
 }

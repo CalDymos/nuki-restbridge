@@ -155,7 +155,7 @@ private:
     bool _fileWriteEnabled;                       // Flag to enable writing to Log file
     std::atomic<bool> _logFallBack{false};        // LittleFS failure fallback flag
     std::atomic<bool> _logBackupIsRunning{false}; // FTP backup activity flag
-    SemaphoreHandle_t _bufferMutex;               // 
+    SemaphoreHandle_t _bufferMutex;               // FreeRTOS semaphore for _buffer protection
     msgtype _currentLogLevel;                     // Active log level
 
     /**

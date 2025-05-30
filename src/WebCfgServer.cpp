@@ -812,6 +812,7 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
 
     appendCheckBoxRow(response, "UPTIME", "Update Nuki Bridge and Lock time using NTP", _preferences->getBool(preference_update_time, false));
     appendInputFieldRow(response, "TIMESRV", "NTP server", _preferences->getString(preference_time_server, "pool.ntp.org").c_str(), 255);
+    appendInputFieldRow(response, "TIMEZONE", "Timezone (e.g. 'CET-1CEST,M3.5.0,M10.5.0/3')", _preferences->getString(preference_timezone, "").c_str(), 64);
 
     if ((_nuki && _nuki->hasKeypad()))
     {
@@ -2888,6 +2889,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             }
         }
         HANDLE_STRING_PREF_ARG("TIMESRV", preference_time_server, true)
+        HANDLE_STRING_PREF_ARG("TIMEZONE", preference_timezone, true)
         else if (key == "NWHW")
         {
             if (_preferences->getInt(preference_network_hardware, 0) != value.toInt())

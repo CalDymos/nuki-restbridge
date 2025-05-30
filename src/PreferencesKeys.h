@@ -37,6 +37,7 @@
 #define preference_find_best_rssi (char *)"nwbestrssi"
 #define preference_rssi_send_interval (char *)"rssipb"
 #define preference_time_server (char *)"timeServer"
+#define preference_timezone (char *)"timeZone"
 #define preference_network_hardware (char *)"nwhw"
 #define preference_network_custom_phy (char *)"ntwPHY"
 #define preference_network_custom_addr (char *)"ntwADDR"
