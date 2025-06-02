@@ -1016,7 +1016,7 @@ void NukiNetwork::startNetworkServices()
             _udpClient = new NetworkUDP();
     }
 
-    if (_apiEnabled)
+    if (_apiEnabled && localIP() != "0.0.0.0")
     {
         Log->println(F("[INFO] start REST API Server"));
         _server = new WebServer(_apiPort);
@@ -1025,6 +1025,7 @@ void NukiNetwork::startNetworkServices()
             _server->onNotFound([this]()
                                 { onRestDataReceivedCallback(this->_server->uri().c_str(), *this->_server); });
             _server->begin();
+            Log->println("[INFO] REST WebServer started on http://" + localIP() + ":" + String(_apiPort));
         }
     }
 }
@@ -1328,19 +1329,19 @@ NetworkServiceState NukiNetwork::testNetworkServices()
     bool haClientOk = true;
     bool apiServerOk = true;
 
-    // 1. check whether _httpClient exists
     if (_homeAutomationEnabled)
     {
+        // 1. check whether _httpClient exists
         if (_homeAutomationMode == 1) // REST
         {
             if (_httpClient == nullptr)
             {
-                Log->println(F("[ERROR] _httpClient is NULL!"));
+                Log->println(F("[DEBUG] _httpClient is NULL!"));
                 haClientOk = false;
             }
 
             // 2. ping test for _homeAutomationAdress
-            if (!_homeAutomationAdress.isEmpty() && haClientOk)
+            if (haClientOk && !_homeAutomationAdress.isEmpty())
             {
                 if (!Ping.ping(_homeAutomationAdress.c_str()))
                 {
@@ -1355,7 +1356,7 @@ NetworkServiceState NukiNetwork::testNetworkServices()
 
             // 3. if Home Automation state API path exists, execute GET request
             String strPath = _preferences->getString(preference_har_key_state, "");
-            if (!strPath.isEmpty() && haClientOk)
+            if (haClientOk && !strPath.isEmpty())
             {
                 String url = "http://" + _homeAutomationAdress + ":" + String(_homeAutomationPort) + "/" + strPath;
                 Log->println("[DEBUG] Performing GET request to: " + url);
@@ -1380,11 +1381,11 @@ NetworkServiceState NukiNetwork::testNetworkServices()
         {
             if (_udpClient == nullptr)
             {
-                Log->println(F("[ERROR] _udpClient is NULL!"));
+                Log->println(F("[DEBUG] _udpClient is NULL!"));
                 haClientOk = false;
             }
 
-            if (!_homeAutomationAdress.isEmpty())
+            if (_udpClient && !_homeAutomationAdress.isEmpty())
             {
                 if (!Ping.ping(_homeAutomationAdress.c_str()))
                 {
@@ -1399,28 +1400,45 @@ NetworkServiceState NukiNetwork::testNetworkServices()
         }
     }
 
-    // 4. check whether Rest Server (_server) exists
     if (_apiEnabled)
     {
+        // 4. check whether Rest Server (_server) exists
         if (_server == nullptr)
         {
-            Log->println(F("[ERROR] _server is NULL!"));
+            Log->println(F("[DEBUG] _server is NULL!"));
             apiServerOk = false;
         }
 
-        // 5. test whether the local REST web server can be reached on the port
-        WiFiClient client;
-        if (!client.connect(WiFi.localIP(), _apiPort))
+        if (apiServerOk)
         {
-            Log->println(F("[ERROR] WebServer is not responding!"));
-            apiServerOk = false;
-        }
-        else
-        {
-            Log->println(F("[DEBUG] WebServer is responding."));
-            client.stop();
+            WiFiClient client;
+            IPAddress ip;
+            // 5. test whether the local REST web server can be reached on the port
+            if (localIP() == "0.0.0.0" || !ip.fromString(localIP()))
+            {
+                Log->printf(F("[ERROR] Invalid IP address for REST WebServer: %s\r\n"), localIP().c_str());
+                apiServerOk = false;
+            }
+            //
+            // The following block attempts to verify if the internal REST WebServer is responsive
+            // by connecting a local HTTP client to the Ethernet interface using the device's own IP.
+            // This typically fails on ESP32 due to missing loopback routing in LWIP,
+            // unless special loopback flags are enabled (e.g., LWIP_NETIF_LOOPBACK).
+            // As such, this check is disabled to avoid false negatives.
+            //
+            /*             else if (!client.connect(ip, _apiPort))
+                        {
+                            Log->printf(F("[ERROR] REST WebServer is not responding (%s:%d)!\r\n"), localIP().c_str(), _apiPort);
+                            apiServerOk = false;
+                        }
+                        else
+                        {
+                            Log->println(F("[DEBUG] REST WebServer is responding."));
+                            client.stop();
+                        } */
         }
     }
+
     // 6. return error code
     if (apiServerOk && haClientOk)
         return NetworkServiceState::OK; // all OK
@@ -1490,12 +1508,16 @@ void NukiNetwork::restartNetworkServices(NetworkServiceState status)
     {
         if (status == NetworkServiceState::ERROR_REST_API_SERVER || status == NetworkServiceState::ERROR_BOTH)
         {
-            Log->println(F("[INFO] Restarting the REST WebServer..."));
             if (_server)
             {
+                Log->println(F("[INFO] Restarting the REST WebServer..."));
                 _server->stop();
                 delete _server;
                 _server = nullptr;
+            }
+            else
+            {
+                Log->println(F("[INFO] start REST API Server"));
             }
             _server = new WebServer(_apiPort);
             if (_server)
@@ -1503,7 +1525,7 @@ void NukiNetwork::restartNetworkServices(NetworkServiceState status)
                 _server->onNotFound([this]()
                                     { onRestDataReceivedCallback(this->_server->uri().c_str(), *this->_server); });
                 _server->begin();
-                Log->println(F("[INFO] REST WebServer successfully restarted."));
+                Log->println("[INFO] REST WebServer started on http://" + localIP() + ":" + String(_apiPort));
             }
             else
             {
@@ -1516,7 +1538,7 @@ void NukiNetwork::restartNetworkServices(NetworkServiceState status)
 
 void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t info)
 {
-    Log->printf("[DEBUG] (LAN Event) event: %d\n", event);
+    Log->printf("[DEBUG] (LAN Event) event: %d\r\n", event);
 
     switch (event)
     {
@@ -1532,8 +1554,7 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
         break;
 
     case ARDUINO_EVENT_ETH_GOT_IP:
-        Log->printf("[DEBUG] ETH Got IP: '%s'\n", esp_netif_get_desc(info.got_ip.esp_netif));
-        Log->println(ETH.localIP().toString());
+        Log->printf("[DEBUG] ETH Got IP: '%s'\r\n", ETH.localIP().toString());
 
         _connected = true;
         if (_preferences->getBool(preference_ntw_reconfigure, false))
@@ -1544,8 +1565,7 @@ void NukiNetwork::onNetworkEvent(arduino_event_id_t event, arduino_event_info_t 
     case ARDUINO_EVENT_ETH_GOT_IP6:
         if (!_connected)
         {
-            Log->printf("[DEBUG] ETH Got IP: '%s'\n", esp_netif_get_desc(info.got_ip.esp_netif));
-            Log->println(ETH.localIP().toString());
+            Log->printf("[DEBUG] ETH Got IP: '%s'\r\n", ETH.localIP().toString());
 
             _connected = true;
             if (_preferences->getBool(preference_ntw_reconfigure, false))

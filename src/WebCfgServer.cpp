@@ -1609,8 +1609,21 @@ void WebCfgServer::buildHtml(WebServer *server)
 
     response += F("<h3>Info</h3><br><table>");
     appendParameterRow(response, "Hostname", _hostname.c_str(), "", "hostname");
-    appendParameterRow(response, "REST API active", (_network->networkServicesState() == NetworkServiceState::OK || _network->networkServicesState() == NetworkServiceState::ERROR_REST_API_SERVER) ? "Yes" : "No", "", "APIState");
-    appendParameterRow(response, "HAR active", (_network->networkServicesState() == NetworkServiceState::OK || _network->networkServicesState() == NetworkServiceState::ERROR_HAR_CLIENT) ? "Yes" : "No", "", "HARState");
+    appendParameterRow(response, "REST API active",
+                       (_preferences->getBool(preference_api_enabled) &&
+                        (_network->networkServicesState() == NetworkServiceState::OK ||
+                         _network->networkServicesState() == NetworkServiceState::ERROR_HAR_CLIENT))
+                           ? "Yes"
+                           : "No",
+                       "", "APIState");
+
+    appendParameterRow(response, "HAR active",
+                       (_preferences->getBool(preference_har_enabled) &&
+                        (_network->networkServicesState() == NetworkServiceState::OK ||
+                         _network->networkServicesState() == NetworkServiceState::ERROR_REST_API_SERVER))
+                           ? "Yes"
+                           : "No",
+                       "", "HARState");
 
     if (_nuki != nullptr)
     {
@@ -2307,20 +2320,20 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
     json[F("stop")] = 0;
 
     // API
-    if (_network->networkServicesState() == NetworkServiceState::OK)
+    if (_preferences->getBool(preference_har_enabled) && _preferences->getBool(preference_api_enabled) && _network->networkServicesState() == NetworkServiceState::OK)
     {
         json[F("APIState")] = F("Yes");
         APIDone = true;
         json[F("HARState")] = F("Yes");
         HARDone = true;
     }
-    else if (_network->networkServicesState() == NetworkServiceState::ERROR_HAR_CLIENT)
+    else if (_preferences->getBool(preference_api_enabled) && _network->networkServicesState() == NetworkServiceState::ERROR_HAR_CLIENT)
     {
         json[F("APIState")] = F("Yes");
         APIDone = true;
         json[F("HARState")] = F("No");
     }
-    else if (_network->networkServicesState() == NetworkServiceState::ERROR_REST_API_SERVER)
+    else if (_preferences->getBool(preference_har_enabled) && _network->networkServicesState() == NetworkServiceState::ERROR_REST_API_SERVER)
     {
         json[F("APIState")] = F("No");
         json[F("HARState")] = F("Yes");

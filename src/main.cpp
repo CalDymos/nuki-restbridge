@@ -534,7 +534,7 @@ void logCoreDump()
 
         for (int16_t j = 0; j < 256; j++)
         {
-          char str_tmp[2];
+          char str_tmp[3];
           if (bf[j] <= 0x0F)
           {
             sprintf(str_tmp, "0%x", bf[j]);
