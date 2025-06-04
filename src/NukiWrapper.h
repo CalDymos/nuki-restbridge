@@ -253,7 +253,7 @@ private:
     /**
      * @brief Reads basic lock configuration from the device.
      */
-    void readConfig();
+    bool readConfig();
 
     /**
      * @brief Reads advanced lock configuration from the device.

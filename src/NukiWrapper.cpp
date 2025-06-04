@@ -644,7 +644,9 @@ bool NukiWrapper::updateConfig()
 {
     bool expectedConfig = true;
 
-    readConfig();
+    if (!readConfig()){
+        return false;
+    }
 
     if (_nukiConfigValid)
     {
@@ -3456,7 +3458,7 @@ void NukiWrapper::notify(Nuki::EventType eventType)
     }
 }
 
-void NukiWrapper::readConfig()
+bool NukiWrapper::readConfig()
 {
     Nuki::CmdResult result = (Nuki::CmdResult)-1;
     int retryCount = 0;
@@ -3473,15 +3475,20 @@ void NukiWrapper::readConfig()
 
         if (result != Nuki::CmdResult::Success)
         {
+            if (retryCount == 0)
+                Log->println(F("[WARNING] Failed to retrieve lock config, retrying..."));
+            else
+                Log->println(F("[DEBUG] Failed to retrieve lock config, retrying in 1s"));
             ++retryCount;
-            Log->println(F("[WARNING] Failed to retrieve lock config, retrying in 1s"));
             delay(1000);
         }
         else
         {
-            break;
+            return true;
         }
     }
+    Log->printf("[ERROR] Could not retrieve lock config after %d retries\n", retryCount);
+    return false;
 }
 
 uint32_t NukiWrapper::calcKeypadCodeInverse()
