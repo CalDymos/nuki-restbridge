@@ -143,6 +143,15 @@ void NukiNetwork::initialize()
 
         readSettings();
 
+        // Give the network time to get an IP
+        unsigned long startMillis;
+        startMillis = millis();
+        // Wait until there is a connection or 3 seconds have elapsed
+        while (!isConnected() && (millis() - startMillis < 3000))
+        {
+            yield();
+        }
+
         startNetworkServices();
     }
 }

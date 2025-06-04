@@ -663,15 +663,6 @@ void setup()
   network = new NukiNetwork(preferences, CharBuffer::get(), buffer_size);
   network->initialize();
 
-  // Give the network time to get an IP
-  unsigned long startMillis;
-  startMillis = millis();
-  // Wait until there is a connection or 3 seconds have elapsed
-  while (!network->isConnected() && (millis() - startMillis < 3000))
-  {
-    yield();
-  }
-
   lockEnabled = preferences->getBool(preference_lock_enabled);
 
   if (network->isApOpen())
