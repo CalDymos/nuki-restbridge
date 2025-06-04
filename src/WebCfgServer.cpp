@@ -275,6 +275,7 @@ void WebCfgServer::initialize()
                                    buildConfirmHtml(this->_webServer, "Rebooting...", 2, true);
                                    Log->disableFileLog();
                                    waitAndProcess(true, 1000);
+                                   _preferences->end();
                                    restartEsp(RestartReason::RequestedViaWebCfgServer);
                                    return; });
     }
@@ -387,6 +388,7 @@ void WebCfgServer::initialize()
                 _network->disableAPI();
                 _preferences->end();
                 waitAndProcess(true, 1000);
+                _preferences->end();
                 return safeShutdownESP(RestartReason::SafeShutdownRequestViaWebCfgServer);   
             }
             else if (value == "info")
@@ -1027,7 +1029,7 @@ void WebCfgServer::buildGetLogFileHtml(WebServer *server)
 {
     if (!LittleFS.begin(true))
     {
-        Log->println(F("LittleFS Mount Failed"));
+        Log->println(F("[ERROR] LittleFS Mount Failed"));
         server->send(500, F("text/plain"), F("LittleFS mount failed."));
         return;
     }
@@ -1051,7 +1053,7 @@ void WebCfgServer::buildGetCoredumpFileHtml(WebServer *server)
 {
     if (!LittleFS.begin(true))
     {
-        Log->println(F("LittleFS Mount Failed"));
+        Log->println(F("[ERROR] LittleFS Mount Failed"));
         server->send(500, F("text/plain"), F("LittleFS mount failed."));
         return;
     }
@@ -2319,31 +2321,22 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
 
     json[F("stop")] = 0;
 
-    // API
-    if (_preferences->getBool(preference_har_enabled) && _preferences->getBool(preference_api_enabled) && _network->networkServicesState() == NetworkServiceState::OK)
-    {
+    // API / HAR
+    if (_preferences->getBool(preference_api_enabled) &&
+        (_network->networkServicesState() == NetworkServiceState::OK ||
+         _network->networkServicesState() == NetworkServiceState::ERROR_HAR_CLIENT))
         json[F("APIState")] = F("Yes");
-        APIDone = true;
-        json[F("HARState")] = F("Yes");
-        HARDone = true;
-    }
-    else if (_preferences->getBool(preference_api_enabled) && _network->networkServicesState() == NetworkServiceState::ERROR_HAR_CLIENT)
-    {
-        json[F("APIState")] = F("Yes");
-        APIDone = true;
-        json[F("HARState")] = F("No");
-    }
-    else if (_preferences->getBool(preference_har_enabled) && _network->networkServicesState() == NetworkServiceState::ERROR_REST_API_SERVER)
-    {
+    else
         json[F("APIState")] = F("No");
+    APIDone = true;
+
+    if (_preferences->getBool(preference_har_enabled) &&
+        (_network->networkServicesState() == NetworkServiceState::OK ||
+         _network->networkServicesState() == NetworkServiceState::ERROR_REST_API_SERVER))
         json[F("HARState")] = F("Yes");
-        HARDone = true;
-    }
-    else if (_network->networkServicesState() == NetworkServiceState::ERROR_BOTH)
-    {
-        json[F("APIState")] = F("No");
+    else
         json[F("HARState")] = F("No");
-    }
+    HARDone = true;
 
     // Nuki Lock
     if (_nuki != nullptr)
@@ -4417,7 +4410,7 @@ void WebCfgServer::logoutSession(WebServer *server)
     }
     else
     {
-        Log->println(F("[INFO] No session cookie found"));
+        Log->println(F("[DEBUG] No session cookie found"));
     }
 
     buildConfirmHtml(server, "Logging out", 3, true, "/");
@@ -4445,7 +4438,7 @@ void WebCfgServer::saveSessions()
     {
         if (!LittleFS.begin(true))
         {
-            Log->println(F("[ERROR]LittleFS Mount Failed"));
+            Log->println(F("[ERROR] LittleFS Mount Failed"));
         }
         else
         {
