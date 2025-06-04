@@ -146,13 +146,14 @@ void NukiNetwork::initialize()
         // Give the network time to get an IP
         unsigned long startMillis;
         startMillis = millis();
-        // Wait until there is a connection or 3 seconds have elapsed
-        while (!isConnected() && (millis() - startMillis < 3000))
+        // Wait until there is a connection or 10 seconds have elapsed
+        while (!isConnected() && (millis() - startMillis < 10000))
         {
             yield();
         }
 
         startNetworkServices();
+        _networkServicesState = testNetworkServices();
     }
 }
 
@@ -255,7 +256,7 @@ bool NukiNetwork::update()
             {
                 forceEnableWebCfgServer = true;
             }
-            Log->println(F("[WARNING] Network timeout has been reached, restarting ..."));
+            Log->println(F("[WARNING] Networkservice timeout has been reached, restarting ..."));
             Log->disableFileLog();
             delay(200);
             restartEsp(RestartReason::NetworkTimeoutWatchdog);
