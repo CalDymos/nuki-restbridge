@@ -1098,7 +1098,7 @@ void NukiBle::saveCredentials() {
       }
     }
   } else {
-    logMessage("ERROR saving credentials", 1);
+    logMessage("[ERROR] error saving credentials", 1);
   }
 }
 
@@ -1141,6 +1141,7 @@ void NukiBle::getMacAddress(char* macAddress) {
 bool NukiBle::retrieveCredentials() {
   //TODO check on empty (invalid) credentials?
   unsigned char buff[6];
+  static uint32_t lastErrorLog = 0;
 
   if (takeNukiBleSemaphore("retr cred")) {
     if ((preferences.getBytes(BLE_ADDRESS_STORE_NAME, buff, 6) > 0)
@@ -1168,24 +1169,29 @@ bool NukiBle::retrieveCredentials() {
         preferences.getBytes(ULTRA_PINCODE_STORE_NAME, &ultraPinCode, 4);
 
         if (ultraPinCode == 0) {
-          logMessage("Pincode is 000000, probably not defined", 2);
+          logMessage("[DEBUG] Pincode is 000000, probably not defined", 2);
         }
       } else {
         preferences.getBytes(SECURITY_PINCODE_STORE_NAME, &pinCode, 2);
 
         if (pinCode == 0) {
-          logMessage("Pincode is 000000, probably not defined", 2);
+          logMessage("[DEBUG] Pincode is 000000, probably not defined", 2);
         }
       }
 
     } else {
-      logMessage("Error getting 'Credential' data from NVS", 1);
+      uint32_t now = millis();
+      if (now - lastErrorLog > 10000) // 10 sec interval
+      {
+        logMessage("[ERROR] Error getting 'Credential' data from NVS", 1);
+        lastErrorLog = now;
+      }
       giveNukiBleSemaphore();
       return false;
     }
     giveNukiBleSemaphore();
   }
-
+  lastErrorLog = 0;
   return true;
 }
 
@@ -1475,18 +1481,18 @@ bool NukiBle::sendEncryptedMessage(Command commandIdentifier, const unsigned cha
         recieveEncrypted = true;
         return pGdioCharacteristic->writeValue((uint8_t*)dataToSend, sizeof(dataToSend), true);
       } else {
-        logMessage("Send encr msg failed due to unable to connect", 2);
+        logMessage("[DEBUG] Send encr msg failed due to unable to connect", 2);
       }
     } else {
       if (connectBle(bleAddress, false)) {
         printBuffer((byte*)dataToSend, sizeof(dataToSend), false, "Sending encrypted message", debugNukiHexData, logger);
         return pUsdioCharacteristic->writeValue((uint8_t*)dataToSend, sizeof(dataToSend), true);
       } else {
-        logMessage("Send encr msg failed due to unable to connect", 2);
+        logMessage("[DEBUG] Send encr msg failed due to unable to connect", 2);
       }
     }
   } else {
-    logMessage("Send msg failed due to encryption fail", 2);
+    logMessage("[DEBUG] Send msg failed due to encryption fail", 2);
   }
   return false;
 }
