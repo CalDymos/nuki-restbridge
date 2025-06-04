@@ -26,7 +26,8 @@ enum class RestartReason
     DisableNetworkIfNotConnected,
     SafeShutdownRequestViaApi,
     SafeShutdownRequestViaWebCfgServer,
-    NotApplicable
+    NotApplicable,
+    EraseInvalidCoreDump
 };
 
 /// @brief Magic value to indicate a valid restart reason
