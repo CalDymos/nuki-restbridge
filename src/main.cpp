@@ -611,6 +611,16 @@ void logCoreDump()
 
 void setup()
 {
+
+#ifdef DEBUG_NUKIBRIDGE
+  esp_log_level_set("*", ESP_LOG_DEBUG);
+  esp_log_level_set("nvs", ESP_LOG_INFO);
+  esp_log_level_set("wifi", ESP_LOG_INFO);
+#else
+  // Set Log level to error for all TAGS
+  esp_log_level_set("*", ESP_LOG_ERROR);
+#endif
+
   initPreferences(preferences);
 
   Serial.begin(115200);
