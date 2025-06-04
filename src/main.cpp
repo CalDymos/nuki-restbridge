@@ -660,9 +660,9 @@ void setup()
     bootloopDetection();
   }
 
-  Log->print("[DEBUG] Nuki Bridge version: ");
+  Log->print("[INFO] Nuki Bridge version: ");
   Log->println(NUKI_REST_BRIDGE_VERSION);
-  Log->print("[DEBUG] Nuki Bridge build date: ");
+  Log->print("[INFO] Nuki Bridge build date: ");
   Log->println(NUKI_REST_BRIDGE_DATE);
 
   deviceIdLock = new NukiDeviceId(preferences, preference_device_id_lock);
@@ -690,7 +690,7 @@ void setup()
     bleScanner->setScanDuration(0);
   }
 
-  Log->println(lockEnabled ? F("[DEBUG] Nuki Lock enabled") : F("[DEBUG] Nuki Lock disabled"));
+  Log->println(lockEnabled ? F("[INFO] Nuki Lock enabled") : F("[INFO] Nuki Lock disabled"));
   if (lockEnabled)
   {
     nuki = new NukiWrapper("NukiBridge", deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
@@ -700,7 +700,7 @@ void setup()
   if (!disableNetwork && (forceEnableWebCfgServer || preferences->getBool(preference_webcfgserver_enabled, true)))
   {
     webCfgServer = new WebCfgServer(nuki, network, preferences);
-    Log->println("[DEBUG] Start to initialize WebCfgServer...");
+    Log->println("[INFO] Start to initialize WebCfgServer...");
     webCfgServer->initialize();
   }
 
