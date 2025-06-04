@@ -111,12 +111,6 @@ private:
     void buildLoginHtml(WebServer *server);
 
     /**
-     * @brief Builds the bypass configuration page (used for enabling/disabling config access).
-     * @param server Pointer to the active WebServer instance.
-     */
-    void buildBypassHtml(WebServer *server);
-
-    /**
      * @brief Builds the confirmation page after applying settings.
      * @param server Pointer to the active WebServer instance.
      * @param message Message to display on the page.
@@ -240,13 +234,6 @@ private:
      * @return         true for success, false for error.
      */
     bool processArgs(WebServer *server, String &message);
-
-    /**
-     * @brief Processes the current bypass request from the web UI.
-     * @param server Pointer to the WebServer instance.
-     * @return True if bypass settings were updated successfully.
-     */
-    bool processBypass(WebServer *server);
 
     /**
      * @brief Processes user login credentials submitted via HTML form.
