@@ -473,8 +473,33 @@ void logCoreDump()
   delay(500);
   Log->println(F("[INFO] Printing coredump and saving to coredump.hex on LittleFS"));
   delay(5);
+
   size_t size = 0;
   size_t address = 0;
+
+  // Verify integrity of the core dump image
+  esp_err_t verifyErr = esp_core_dump_image_check();
+  if (verifyErr != ESP_OK)
+  {
+    Log->printf(F("[ERROR] Core dump integrity check failed: %d\n"), verifyErr);
+
+    // Attempt to erase the invalid core dump
+    if (esp_core_dump_image_erase() == ESP_OK)
+    {
+      Log->println(F("[INFO] Invalid core dump erased"));
+    }
+    else
+    {
+      Log->println(F("[WARNING] Failed to erase invalid core dump"));
+    }
+
+    // Restart to allow a fresh core dump to be written if needed
+    delay(200);
+    restartEsp(RestartReason::EraseInvalidCoreDump);
+
+    return;
+  }
+
   if (esp_core_dump_image_get(&address, &size) == ESP_OK)
   {
     if (size == 0 || size > 65536) // Safety for maximum partition size
@@ -559,6 +584,17 @@ void logCoreDump()
       {
         file.println("");
         file.close();
+        Log->println(F("[INFO] Core dump successfully saved to /coredump.hex"));
+
+        // Erase core dump after successful extraction
+        if (esp_core_dump_image_erase() == ESP_OK)
+        {
+          Log->println(F("[INFO] Core dump erased from flash"));
+        }
+        else
+        {
+          Log->println(F("[WARNING] Failed to erase core dump after export"));
+        }
       }
     }
     else
@@ -575,11 +611,10 @@ void logCoreDump()
 
 void setup()
 {
-  preferences = new Preferences();
-  preferences->begin("nukibridge", false);
   initPreferences(preferences);
 
   Serial.begin(115200);
+
   Log = new Logger(&Serial, preferences);
   Log->setLevel((Logger::msgtype)preferences->getInt(preference_log_level, Logger::MSG_INFO));
 
