@@ -156,43 +156,43 @@ void NukiWrapper::readSettings()
 
     if (_nrOfRetries < 0 || _nrOfRetries == 200)
     {
-        Log->println(F("[DEBUG] Invalid nrOfRetries, revert to default (3)"));
+        Log->println(F("[WARNING] Invalid nrOfRetries, revert to default (3)"));
         _nrOfRetries = 3;
         _preferences->putInt(preference_command_nr_of_retries, _nrOfRetries);
     }
     if (_retryDelay < 100)
     {
-        Log->println(F("[DEBUG] Invalid retryDelay, revert to default (100)"));
+        Log->println(F("[WARNING] Invalid retryDelay, revert to default (100)"));
         _retryDelay = 100;
         _preferences->putInt(preference_command_retry_delay, _retryDelay);
     }
     if (_intervalLockstate == 0)
     {
-        Log->println(F("[DEBUG] Invalid intervalLockstate, revert to default (1800)"));
+        Log->println(F("[WARNING] Invalid intervalLockstate, revert to default (1800)"));
         _intervalLockstate = 60 * 30;
         _preferences->putInt(preference_query_interval_lockstate, _intervalLockstate);
     }
     if (_intervalConfig == 0)
     {
-        Log->println(F("[DEBUG] Invalid intervalConfig, revert to default (3600)"));
+        Log->println(F("[WARNING] Invalid intervalConfig, revert to default (3600)"));
         _intervalConfig = 60 * 60;
         _preferences->putInt(preference_query_interval_configuration, _intervalConfig);
     }
     if (_intervalBattery == 0)
     {
-        Log->println(F("[DEBUG] Invalid intervalBattery, revert to default (1800)"));
+        Log->println(F("[WARNING] Invalid intervalBattery, revert to default (1800)"));
         _intervalBattery = 60 * 30;
         _preferences->putInt(preference_query_interval_battery, _intervalBattery);
     }
     if (_intervalKeypad == 0)
     {
-        Log->println(F("[DEBUG] Invalid intervalKeypad, revert to default (1800)"));
+        Log->println(F("WARNING] Invalid intervalKeypad, revert to default (1800)"));
         _intervalKeypad = 60 * 30;
         _preferences->putInt(preference_query_interval_keypad, _intervalKeypad);
     }
     if (_restartBeaconTimeout != -1 && _restartBeaconTimeout < 10)
     {
-        Log->println(F("[DEBUG] Invalid restartBeaconTimeout, revert to default (-1)"));
+        Log->println(F("[WARNING] Invalid restartBeaconTimeout, revert to default (-1)"));
         _restartBeaconTimeout = -1;
         _preferences->putInt(preference_restart_ble_beacon_lost, _restartBeaconTimeout);
     }
@@ -215,7 +215,7 @@ void NukiWrapper::update(bool reboot)
         // first pairing log msg
         if (!_pairingMsgShown)
         {
-            Log->println(F("[INFO] Nuki lock start pairing"));
+            Log->println(F("[DEBUG] Nuki lock start pairing"));
             _pairingMsgShown = true;
             _lastPairingLogTs = espMillis();
         }
@@ -223,7 +223,7 @@ void NukiWrapper::update(bool reboot)
         // log pairing msg again every 60 seconds (only if pairing still fails)
         else if (espMillis() - _lastPairingLogTs > 60000)
         {
-            Log->println(F("[INFO] Nuki lock start pairing (retrying...)"));
+            Log->println(F("[DEBUG] Nuki lock start pairing (retrying...)"));
             _lastPairingLogTs = espMillis();
         }
 
@@ -254,7 +254,7 @@ void NukiWrapper::update(bool reboot)
         _disableBleWatchdogTs < ts &&
         (ts - lastReceivedBeaconTs > _restartBeaconTimeout * 1000))
     {
-        Log->print(F("[INFO] No BLE beacon received from the lock for "));
+        Log->print(F("[ERROR] No BLE beacon received from the lock for "));
         Log->print((ts - lastReceivedBeaconTs) / 1000);
         Log->println(F(" seconds, restarting device."));
         Log->disableFileLog();
@@ -318,7 +318,7 @@ void NukiWrapper::update(bool reboot)
     }
     if (_statusUpdated || _nextLockStateUpdateTs == 0 || ts >= _nextLockStateUpdateTs || (queryCommands & QUERY_COMMAND_LOCKSTATE) > 0)
     {
-        Log->println(F("[INFO] Updating Lock state based on status, timer or query"));
+        Log->println(F("[DEBUG] Updating Lock state based on status, timer or query"));
         _statusUpdated = updateKeyTurnerState();
         _nextLockStateUpdateTs = ts + _intervalLockstate * 1000;
     }
@@ -328,13 +328,13 @@ void NukiWrapper::update(bool reboot)
         {
             if (_nextBatteryReportTs == 0 || ts > _nextBatteryReportTs || (queryCommands & QUERY_COMMAND_BATTERY) > 0)
             {
-                Log->println(F("[INFO] Updating Lock battery state based on timer or query"));
+                Log->println(F("[DEBUG] Updating Lock battery state based on timer or query"));
                 _nextBatteryReportTs = ts + _intervalBattery * 1000;
                 updateBatteryState();
             }
             if (_nextConfigUpdateTs == 0 || ts > _nextConfigUpdateTs || (queryCommands & QUERY_COMMAND_CONFIG) > 0)
             {
-                Log->println(F("[[INFO] Updating Lock config based on timer or query"));
+                Log->println(F("[DEBUG] Updating Lock config based on timer or query"));
                 _nextConfigUpdateTs = ts + _intervalConfig * 1000;
                 updateConfig();
             }
@@ -469,7 +469,7 @@ void NukiWrapper::updateAuthData(bool retrieved)
 
         while (retryCount < _nrOfRetries + 1)
         {
-            Log->print(F("[DEBUG] Retrieve log entries: "));
+            Log->print(F("[TRACE] Retrieve log entries: "));
             result = _nukiLock.retrieveLogEntries(0, _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG), 1, false);
             if (result != Nuki::CmdResult::Success)
             {
@@ -537,18 +537,18 @@ bool NukiWrapper::updateKeyTurnerState()
 
     Log->println(F("[TRACE] Querying lock state"));
 
+    char resultStr[15];
     while (result != Nuki::CmdResult::Success && retryCount < _nrOfRetries + 1)
     {
         Log->print(F("[DEBUG] Result (attempt "));
         Log->print(retryCount + 1);
         Log->print("): ");
         result = _nukiLock.requestKeyTurnerState(&_keyTurnerState);
+        memset(&resultStr, 0, sizeof(resultStr));
+        NukiLock::cmdResultToString(result, resultStr);
+        Log->println(resultStr);
         ++retryCount;
     }
-
-    char resultStr[15];
-    memset(&resultStr, 0, sizeof(resultStr));
-    NukiLock::cmdResultToString(result, resultStr);
 
     if (result != Nuki::CmdResult::Success)
     {
@@ -598,6 +598,7 @@ bool NukiWrapper::updateKeyTurnerState()
 
     char lockStateStr[20];
     lockstateToString(lockState, lockStateStr);
+    Log->print(F("[INFO] LockState: "));
     Log->println(lockStateStr);
 
     postponeBleWatchdog();
@@ -635,6 +636,10 @@ bool NukiWrapper::updateBatteryState()
     {
         _network->sendToHABatteryReport(_batteryReport);
     }
+    else
+    {
+        Log->println(F("[WARNING] Query battery state failed"));
+    }
     postponeBleWatchdog();
     Log->println("[TRACE] Done querying lock battery state");
     return true;
@@ -644,7 +649,8 @@ bool NukiWrapper::updateConfig()
 {
     bool expectedConfig = true;
 
-    if (!readConfig()){
+    if (!readConfig())
+    {
         return false;
     }
 
@@ -697,7 +703,7 @@ bool NukiWrapper::updateConfig()
 
             if (result != Nuki::CmdResult::Success)
             {
-                Log->println(F("[DEBUG] Nuki Lock PIN is invalid or not set"));
+                Log->println(F("[INFO] Nuki Lock PIN is invalid or not set"));
                 if (pinStatus != 2)
                 {
                     _preferences->putInt(preference_lock_pin_status, (int)NukiPinState::Invalid);
@@ -705,7 +711,7 @@ bool NukiWrapper::updateConfig()
             }
             else
             {
-                Log->println(F("[DEBUG] Nuki Lock PIN is valid"));
+                Log->println(F("[INFO] Nuki Lock PIN is valid"));
                 if (pinStatus != 1)
                 {
                     _preferences->putInt(preference_lock_pin_status, (int)NukiPinState::Valid);
@@ -773,7 +779,7 @@ void NukiWrapper::updateTimeControl(bool retrieved)
 
         while (retryCount < _nrOfRetries + 1)
         {
-            Log->print(F("[DEBUG] Querying lock timecontrol: "));
+            Log->print(F("[TRACE] Querying lock timecontrol: "));
             result = _nukiLock.retrieveTimeControlEntries();
             if (result != Nuki::CmdResult::Success)
             {
@@ -790,13 +796,17 @@ void NukiWrapper::updateTimeControl(bool retrieved)
         {
             _waitTimeControlUpdateTs = espMillis() + 5000;
         }
+        else
+        {
+            Log->println(F("[WARNING] Query time control entries failed"));
+        }
     }
     else
     {
         std::list<NukiLock::TimeControlEntry> timeControlEntries;
         _nukiLock.getTimeControlEntries(&timeControlEntries);
 
-        Log->print(F("[DEBUG] Lock timecontrol entries: "));
+        Log->print(F("[INFO] Lock timecontrol entries: "));
         Log->println(timeControlEntries.size());
 
         timeControlEntries.sort([](const NukiLock::TimeControlEntry &a, const NukiLock::TimeControlEntry &b)
@@ -847,7 +857,7 @@ void NukiWrapper::updateAuth(bool retrieved)
 
         while (retryCount < _nrOfRetries)
         {
-            Log->println(F("[DEBUG] Querying lock authorization: "));
+            Log->println(F("[TRACE] Querying lock authorization: "));
             result = _nukiLock.retrieveAuthorizationEntries(0, _preferences->getInt(preference_auth_max_entries, MAX_AUTH));
             delay(250);
             if (result != Nuki::CmdResult::Success)
@@ -865,13 +875,17 @@ void NukiWrapper::updateAuth(bool retrieved)
         {
             _waitAuthUpdateTs = millis() + 5000;
         }
+        else
+        {
+            Log->println(F("[WARNING] Query authorization entries failed"));
+        }
     }
     else
     {
         std::list<NukiLock::AuthorizationEntry> authEntries;
         _nukiLock.getAuthorizationEntries(&authEntries);
 
-        Log->print(F("[DEBUG] Lock authorization entries: "));
+        Log->print(F("[INFO] Lock authorization entries: "));
         Log->println(authEntries.size());
 
         authEntries.sort([](const NukiLock::AuthorizationEntry &a, const NukiLock::AuthorizationEntry &b)
@@ -922,7 +936,7 @@ void NukiWrapper::updateKeypad(bool retrieved)
 
         while (retryCount < _nrOfRetries + 1)
         {
-            Log->println(F("[DEBUG] Querying lock keypad: "));
+            Log->println(F("[TRACE] Querying lock keypad: "));
             result = _nukiLock.retrieveKeypadEntries(0, _preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD));
             if (result != Nuki::CmdResult::Success)
             {
@@ -939,13 +953,17 @@ void NukiWrapper::updateKeypad(bool retrieved)
         {
             _waitKeypadUpdateTs = espMillis() + 5000;
         }
+        else
+        {
+            Log->println(F("[WARNING] Query keypad entries failed"));
+        }
     }
     else
     {
         std::list<NukiLock::KeypadEntry> entries;
         _nukiLock.getKeypadEntries(&entries);
 
-        Log->print(F("[DEBUG] Lock keypad codes: "));
+        Log->print(F("[INFO] Lock keypad codes: "));
         Log->println(entries.size());
 
         entries.sort([](const NukiLock::KeypadEntry &a, const NukiLock::KeypadEntry &b)
@@ -1011,7 +1029,7 @@ void NukiWrapper::updateTime()
     char resultStr[15] = {0};
     NukiLock::cmdResultToString(cmdResult, resultStr);
 
-    Log->print(F("[DEBUG] Lock time update result: "));
+    Log->print(F("[INFO] Lock time update result: "));
     Log->println(resultStr);
 }
 
@@ -2169,6 +2187,7 @@ void NukiWrapper::onKeypadCommandReceivedCallback(const char *command, const uin
 void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, const String &name, const String &code, const int &enabled)
 {
     JsonDocument jsonResult;
+    char resultStr[15] = {0};
 
     if (!_preferences->getBool(preference_keypad_control_enabled))
     {
@@ -2194,6 +2213,8 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
     bool codeValid = codeInt > 100000 && codeInt < 1000000 && (code.indexOf('0') == -1);
     Nuki::CmdResult result = (Nuki::CmdResult)-1;
     int retryCount = 0;
+
+    Log->printf(F("[INFO] Keypad command received: %s\r\n"), command);
 
     while (retryCount < _nrOfRetries + 1)
     {
@@ -2221,8 +2242,9 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
             memcpy(&entry.name, name.c_str(), nameLen > 20 ? 20 : nameLen);
             entry.code = codeInt;
             result = _nukiLock.addKeypadEntry(entry);
+            NukiLock::cmdResultToString(result, resultStr);
             Log->print("[INFO] Add keypad code: ");
-            Log->println((int)result);
+            Log->println(resultStr);
             updateKeypad(false);
         }
         else if (strcmp(command, "delete") == 0)
@@ -2234,8 +2256,9 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
             }
 
             result = _nukiLock.deleteKeypadEntry(id);
+            NukiLock::cmdResultToString(result, resultStr);
             Log->print("[INFO] Delete keypad code: ");
-            Log->println((int)result);
+            Log->println(resultStr);
             updateKeypad(false);
         }
         else if (strcmp(command, "update") == 0)
@@ -2269,8 +2292,9 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
             entry.code = codeInt;
             entry.enabled = enabled == 0 ? 0 : 1;
             result = _nukiLock.updateKeypadEntry(entry);
+            NukiLock::cmdResultToString(result, resultStr);
             Log->print("[INFO] Update keypad code: ");
-            Log->println((int)result);
+            Log->println(resultStr);
             updateKeypad(false);
         }
         else if (strcmp(command, "") != 0)
@@ -2285,6 +2309,7 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
 
         if (result != Nuki::CmdResult::Success)
         {
+            Log->printf(F("[WARNING] Keypad command failed: %s\r\n"), resultStr);
             ++retryCount;
         }
         else
@@ -2295,9 +2320,6 @@ void NukiWrapper::onKeypadCommandReceived(const char *command, const uint &id, c
 
     if ((int)result != -1)
     {
-        char resultStr[15];
-        memset(&resultStr, 0, sizeof(resultStr));
-        NukiLock::cmdResultToString(result, resultStr);
         _network->sendResponse(jsonResult, resultStr, 200);
     }
 }
@@ -2310,19 +2332,21 @@ void NukiWrapper::onTimeControlCommandReceivedCallback(const char *value)
 void NukiWrapper::onTimeControlCommandReceived(const char *value)
 {
     JsonDocument jsonResult;
-    if(!_nukiConfigValid)
+    char resultStr[15] = {0};
+
+    if (!_nukiConfigValid)
     {
         _network->sendResponse(jsonResult, "configNotReady", 503);
         return;
     }
 
-    if(!isPinValid())
+    if (!isPinValid())
     {
         _network->sendResponse(jsonResult, "noValidPinSet", 400);
         return;
     }
 
-    if(!_preferences->getBool(preference_timecontrol_control_enabled))
+    if (!_preferences->getBool(preference_timecontrol_control_enabled))
     {
         _network->sendResponse(jsonResult, "timeControlControlDisabled", 403);
         return;
@@ -2331,13 +2355,13 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
     JsonDocument json;
     DeserializationError jsonError = deserializeJson(json, value);
 
-    if(jsonError)
+    if (jsonError)
     {
         _network->sendResponse(jsonResult, "invalidJson", 400);
         return;
     }
 
-    const char *action = json["action"].as<const char*>();
+    const char *action = json["action"].as<const char *>();
     uint8_t entryId = json["entryId"].as<unsigned int>();
     uint8_t enabled;
     String weekdays;
@@ -2345,7 +2369,7 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
     String lockAction;
     NukiLock::LockAction timeControlLockAction;
 
-    if(json["enabled"].is<JsonVariant>())
+    if (json["enabled"].is<JsonVariant>())
     {
         enabled = json["enabled"].as<unsigned int>();
     }
@@ -2354,35 +2378,37 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
         enabled = 2;
     }
 
-    if(json["weekdays"].is<JsonVariant>())
+    if (json["weekdays"].is<JsonVariant>())
     {
         weekdays = json["weekdays"].as<String>();
     }
-    if(json["time"].is<JsonVariant>())
+    if (json["time"].is<JsonVariant>())
     {
         time = json["time"].as<String>();
     }
-    if(json["lockAction"].is<JsonVariant>())
+    if (json["lockAction"].is<JsonVariant>())
     {
         lockAction = json["lockAction"].as<String>();
     }
 
-    if(lockAction.length() > 0)
+    if (lockAction.length() > 0)
     {
         timeControlLockAction = nukiInst->lockActionToEnum(lockAction.c_str());
 
-        if((int)timeControlLockAction == 0xff)
+        if ((int)timeControlLockAction == 0xff)
         {
             _network->sendResponse(jsonResult, "invalidLockAction", 400);
             return;
         }
     }
 
-    if(action)
+    if (action)
     {
         bool idExists = false;
 
-        if(entryId)
+        Log->printf(F("[INFO] TimeControl command received: %s\r\n"), action);
+
+        if (entryId)
         {
             idExists = std::find(_timeControlIds.begin(), _timeControlIds.end(), entryId) != _timeControlIds.end();
         }
@@ -2390,15 +2416,16 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
         Nuki::CmdResult result = (Nuki::CmdResult)-1;
         int retryCount = 0;
 
-        while(retryCount < _nrOfRetries + 1)
+        while (retryCount < _nrOfRetries + 1)
         {
-            if(strcmp(action, "delete") == 0)
+            if (strcmp(action, "delete") == 0)
             {
-                if(idExists)
+                if (idExists)
                 {
                     result = _nukiLock.removeTimeControlEntry(entryId);
+                    NukiLock::cmdResultToString(result, resultStr);
                     Log->print("[INFO] Delete timecontrol: ");
-                    Log->println((int)result);
+                    Log->println(resultStr);
                 }
                 else
                 {
@@ -2406,21 +2433,21 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
                     return;
                 }
             }
-            else if(strcmp(action, "add") == 0 || strcmp(action, "update") == 0)
+            else if (strcmp(action, "add") == 0 || strcmp(action, "update") == 0)
             {
                 uint8_t timeHour;
                 uint8_t timeMin;
                 uint8_t weekdaysInt = 0;
                 unsigned int timeAr[2];
 
-                if(time.length() > 0)
+                if (time.length() > 0)
                 {
-                    if(time.length() == 5)
+                    if (time.length() == 5)
                     {
                         timeAr[0] = (uint8_t)time.substring(0, 2).toInt();
                         timeAr[1] = (uint8_t)time.substring(3, 5).toInt();
 
-                        if(timeAr[0] < 0 || timeAr[0] > 23 || timeAr[1] < 0 || timeAr[1] > 59)
+                        if (timeAr[0] < 0 || timeAr[0] > 23 || timeAr[1] < 0 || timeAr[1] > 59)
                         {
                             _network->sendResponse(jsonResult, "invalidTime", 400);
                             return;
@@ -2433,42 +2460,42 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
                     }
                 }
 
-                if(weekdays.indexOf("mon") >= 0)
+                if (weekdays.indexOf("mon") >= 0)
                 {
                     weekdaysInt += 64;
                 }
-                if(weekdays.indexOf("tue") >= 0)
+                if (weekdays.indexOf("tue") >= 0)
                 {
                     weekdaysInt += 32;
                 }
-                if(weekdays.indexOf("wed") >= 0)
+                if (weekdays.indexOf("wed") >= 0)
                 {
                     weekdaysInt += 16;
                 }
-                if(weekdays.indexOf("thu") >= 0)
+                if (weekdays.indexOf("thu") >= 0)
                 {
                     weekdaysInt += 8;
                 }
-                if(weekdays.indexOf("fri") >= 0)
+                if (weekdays.indexOf("fri") >= 0)
                 {
                     weekdaysInt += 4;
                 }
-                if(weekdays.indexOf("sat") >= 0)
+                if (weekdays.indexOf("sat") >= 0)
                 {
                     weekdaysInt += 2;
                 }
-                if(weekdays.indexOf("sun") >= 0)
+                if (weekdays.indexOf("sun") >= 0)
                 {
                     weekdaysInt += 1;
                 }
 
-                if(strcmp(action, "add") == 0)
+                if (strcmp(action, "add") == 0)
                 {
                     NukiLock::NewTimeControlEntry entry;
                     memset(&entry, 0, sizeof(entry));
                     entry.weekdays = weekdaysInt;
 
-                    if(time.length() > 0)
+                    if (time.length() > 0)
                     {
                         entry.timeHour = timeAr[0];
                         entry.timeMin = timeAr[1];
@@ -2477,12 +2504,13 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
                     entry.lockAction = timeControlLockAction;
 
                     result = _nukiLock.addTimeControlEntry(entry);
+                    NukiLock::cmdResultToString(result, resultStr);
                     Log->print("[INFO] Add timecontrol: ");
-                    Log->println((int)result);
+                    Log->println(resultStr);
                 }
                 else if (strcmp(action, "update") == 0)
                 {
-                    if(!idExists)
+                    if (!idExists)
                     {
                         _network->sendResponse(jsonResult, "noExistingEntryIdSet"), 404;
                         return;
@@ -2491,13 +2519,13 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
                     Nuki::CmdResult resultTc = _nukiLock.retrieveTimeControlEntries();
                     bool foundExisting = false;
 
-                    if(resultTc == Nuki::CmdResult::Success)
+                    if (resultTc == Nuki::CmdResult::Success)
                     {
                         delay(5000);
                         std::list<NukiLock::TimeControlEntry> timeControlEntries;
                         _nukiLock.getTimeControlEntries(&timeControlEntries);
 
-                        for(const auto& entry : timeControlEntries)
+                        for (const auto &entry : timeControlEntries)
                         {
                             if (entryId != entry.entryId)
                             {
@@ -2508,27 +2536,27 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
                                 foundExisting = true;
                             }
 
-                            if(enabled == 2)
+                            if (enabled == 2)
                             {
                                 enabled = entry.enabled;
                             }
-                            if(weekdays.length() < 1)
+                            if (weekdays.length() < 1)
                             {
                                 weekdaysInt = entry.weekdays;
                             }
-                            if(time.length() < 1)
+                            if (time.length() < 1)
                             {
                                 time = "old";
                                 timeAr[0] = entry.timeHour;
                                 timeAr[1] = entry.timeMin;
                             }
-                            if(lockAction.length() < 1)
+                            if (lockAction.length() < 1)
                             {
                                 timeControlLockAction = entry.lockAction;
                             }
                         }
 
-                        if(!foundExisting)
+                        if (!foundExisting)
                         {
                             _network->sendResponse(jsonResult, "failedToRetrieveExistingTimeControlEntry", 500);
                             return;
@@ -2546,7 +2574,7 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
                     entry.enabled = enabled;
                     entry.weekdays = weekdaysInt;
 
-                    if(time.length() > 0)
+                    if (time.length() > 0)
                     {
                         entry.timeHour = timeAr[0];
                         entry.timeMin = timeAr[1];
@@ -2555,8 +2583,9 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
                     entry.lockAction = timeControlLockAction;
 
                     result = _nukiLock.updateTimeControlEntry(entry);
+                    NukiLock::cmdResultToString(result, resultStr);
                     Log->print("[INFO] Update timecontrol: ");
-                    Log->println((int)result);
+                    Log->println(resultStr);
                 }
             }
             else
@@ -2565,8 +2594,9 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
                 return;
             }
 
-            if(result != Nuki::CmdResult::Success)
+            if (result != Nuki::CmdResult::Success)
             {
+                Log->printf(F("[WARNING] TimeControl command failed: %s\r\n"), resultStr);
                 ++retryCount;
             }
             else
@@ -2575,11 +2605,8 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
             }
         }
 
-        if((int)result != -1)
+        if ((int)result != -1)
         {
-            char resultStr[15];
-            memset(&resultStr, 0, sizeof(resultStr));
-            NukiLock::cmdResultToString(result, resultStr);
             _network->sendResponse(jsonResult, resultStr);
         }
 
@@ -2600,19 +2627,21 @@ void NukiWrapper::onAuthCommandReceivedCallback(const char *value)
 void NukiWrapper::onAuthCommandReceived(const char *value)
 {
     JsonDocument jsonResult;
-    if(!_nukiConfigValid)
+    char resultStr[15] = {0};
+
+    if (!_nukiConfigValid)
     {
         _network->sendResponse(jsonResult, "configNotReady", 503);
         return;
     }
 
-    if(!isPinValid())
+    if (!isPinValid())
     {
         _network->sendResponse(jsonResult, "noValidPinSet", 401);
         return;
     }
 
-    if(!_preferences->getBool(preference_auth_control_enabled))
+    if (!_preferences->getBool(preference_auth_control_enabled))
     {
         _network->sendResponse(jsonResult, "keypadControlDisabled", 403);
         return;
@@ -2621,29 +2650,29 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
     JsonDocument json;
     DeserializationError jsonError = deserializeJson(json, value);
 
-    if(jsonError)
+    if (jsonError)
     {
         _network->sendResponse(jsonResult, "invalidJson", 400);
         return;
     }
 
     char oldName[33];
-    const char *action = json["action"].as<const char*>();
+    const char *action = json["action"].as<const char *>();
     uint32_t authId = json["authId"].as<unsigned int>();
-    //uint8_t idType = json["idType"].as<unsigned int>();
-    //unsigned char secretKeyK[32] = {0x00};
+    // uint8_t idType = json["idType"].as<unsigned int>();
+    // unsigned char secretKeyK[32] = {0x00};
     uint8_t remoteAllowed;
     uint8_t enabled;
     uint8_t timeLimited;
     String name;
-    //String sharedKey;
+    // String sharedKey;
     String allowedFrom;
     String allowedUntil;
     String allowedWeekdays;
     String allowedFromTime;
     String allowedUntilTime;
 
-    if(json["remoteAllowed"].is<JsonVariant>())
+    if (json["remoteAllowed"].is<JsonVariant>())
     {
         remoteAllowed = json["remoteAllowed"].as<unsigned int>();
     }
@@ -2652,7 +2681,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
         remoteAllowed = 2;
     }
 
-    if(json["enabled"].is<JsonVariant>())
+    if (json["enabled"].is<JsonVariant>())
     {
         enabled = json["enabled"].as<unsigned int>();
     }
@@ -2661,7 +2690,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
         enabled = 2;
     }
 
-    if(json["timeLimited"].is<JsonVariant>())
+    if (json["timeLimited"].is<JsonVariant>())
     {
         timeLimited = json["timeLimited"].as<unsigned int>();
     }
@@ -2670,37 +2699,39 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
         timeLimited = 2;
     }
 
-    if(json["name"].is<JsonVariant>())
+    if (json["name"].is<JsonVariant>())
     {
         name = json["name"].as<String>();
     }
-    //if(json["sharedKey"].is<JsonVariant>()) sharedKey = json["sharedKey"].as<String>();
-    if(json["allowedFrom"].is<JsonVariant>())
+    // if(json["sharedKey"].is<JsonVariant>()) sharedKey = json["sharedKey"].as<String>();
+    if (json["allowedFrom"].is<JsonVariant>())
     {
         allowedFrom = json["allowedFrom"].as<String>();
     }
-    if(json["allowedUntil"].is<JsonVariant>())
+    if (json["allowedUntil"].is<JsonVariant>())
     {
         allowedUntil = json["allowedUntil"].as<String>();
     }
-    if(json["allowedWeekdays"].is<JsonVariant>())
+    if (json["allowedWeekdays"].is<JsonVariant>())
     {
         allowedWeekdays = json["allowedWeekdays"].as<String>();
     }
-    if(json["allowedFromTime"].is<JsonVariant>())
+    if (json["allowedFromTime"].is<JsonVariant>())
     {
         allowedFromTime = json["allowedFromTime"].as<String>();
     }
-    if(json["allowedUntilTime"].is<JsonVariant>())
+    if (json["allowedUntilTime"].is<JsonVariant>())
     {
         allowedUntilTime = json["allowedUntilTime"].as<String>();
     }
 
-    if(action)
+    if (action)
     {
         bool idExists = false;
 
-        if(authId)
+        Log->printf(F("[INFO] Authorization command received: %s\r\n"), action);
+
+        if (authId)
         {
             idExists = std::find(_authIds.begin(), _authIds.end(), authId) != _authIds.end();
         }
@@ -2708,16 +2739,17 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
         Nuki::CmdResult result = (Nuki::CmdResult)-1;
         int retryCount = 0;
 
-        while(retryCount < _nrOfRetries)
+        while (retryCount < _nrOfRetries)
         {
-            if(strcmp(action, "delete") == 0)
+            if (strcmp(action, "delete") == 0)
             {
-                if(idExists)
+                if (idExists)
                 {
                     result = _nukiLock.deleteAuthorizationEntry(authId);
+                    NukiLock::cmdResultToString(result, resultStr);
                     delay(250);
                     Log->print("[INFO] Delete authorization: ");
-                    Log->println((int)result);
+                    Log->println(resultStr);
                 }
                 else
                 {
@@ -2725,9 +2757,9 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                     return;
                 }
             }
-            else if(strcmp(action, "add") == 0 || strcmp(action, "update") == 0)
+            else if (strcmp(action, "add") == 0 || strcmp(action, "update") == 0)
             {
-                if(name.length() < 1)
+                if (name.length() < 1)
                 {
                     if (strcmp(action, "update") != 0)
                     {
@@ -2757,11 +2789,11 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                 unsigned int allowedUntilTimeAr[2];
                 uint8_t allowedWeekdaysInt = 0;
 
-                if(timeLimited == 1)
+                if (timeLimited == 1)
                 {
-                    if(allowedFrom.length() > 0)
+                    if (allowedFrom.length() > 0)
                     {
-                        if(allowedFrom.length() == 19)
+                        if (allowedFrom.length() == 19)
                         {
                             allowedFromAr[0] = (uint16_t)allowedFrom.substring(0, 4).toInt();
                             allowedFromAr[1] = (uint8_t)allowedFrom.substring(5, 7).toInt();
@@ -2770,7 +2802,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                             allowedFromAr[4] = (uint8_t)allowedFrom.substring(14, 16).toInt();
                             allowedFromAr[5] = (uint8_t)allowedFrom.substring(17, 19).toInt();
 
-                            if(allowedFromAr[0] < 2000 || allowedFromAr[0] > 3000 || allowedFromAr[1] < 1 || allowedFromAr[1] > 12 || allowedFromAr[2] < 1 || allowedFromAr[2] > 31 || allowedFromAr[3] < 0 || allowedFromAr[3] > 23 || allowedFromAr[4] < 0 || allowedFromAr[4] > 59 || allowedFromAr[5] < 0 || allowedFromAr[5] > 59)
+                            if (allowedFromAr[0] < 2000 || allowedFromAr[0] > 3000 || allowedFromAr[1] < 1 || allowedFromAr[1] > 12 || allowedFromAr[2] < 1 || allowedFromAr[2] > 31 || allowedFromAr[3] < 0 || allowedFromAr[3] > 23 || allowedFromAr[4] < 0 || allowedFromAr[4] > 59 || allowedFromAr[5] < 0 || allowedFromAr[5] > 59)
                             {
                                 _network->sendResponse(jsonResult, "invalidAllowedFrom", 422);
                                 return;
@@ -2783,9 +2815,9 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                         }
                     }
 
-                    if(allowedUntil.length() > 0)
+                    if (allowedUntil.length() > 0)
                     {
-                        if(allowedUntil.length() == 19)
+                        if (allowedUntil.length() == 19)
                         {
                             allowedUntilAr[0] = (uint16_t)allowedUntil.substring(0, 4).toInt();
                             allowedUntilAr[1] = (uint8_t)allowedUntil.substring(5, 7).toInt();
@@ -2794,7 +2826,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                             allowedUntilAr[4] = (uint8_t)allowedUntil.substring(14, 16).toInt();
                             allowedUntilAr[5] = (uint8_t)allowedUntil.substring(17, 19).toInt();
 
-                            if(allowedUntilAr[0] < 2000 || allowedUntilAr[0] > 3000 || allowedUntilAr[1] < 1 || allowedUntilAr[1] > 12 || allowedUntilAr[2] < 1 || allowedUntilAr[2] > 31 || allowedUntilAr[3] < 0 || allowedUntilAr[3] > 23 || allowedUntilAr[4] < 0 || allowedUntilAr[4] > 59 || allowedUntilAr[5] < 0 || allowedUntilAr[5] > 59)
+                            if (allowedUntilAr[0] < 2000 || allowedUntilAr[0] > 3000 || allowedUntilAr[1] < 1 || allowedUntilAr[1] > 12 || allowedUntilAr[2] < 1 || allowedUntilAr[2] > 31 || allowedUntilAr[3] < 0 || allowedUntilAr[3] > 23 || allowedUntilAr[4] < 0 || allowedUntilAr[4] > 59 || allowedUntilAr[5] < 0 || allowedUntilAr[5] > 59)
                             {
                                 _network->sendResponse(jsonResult, "invalidAllowedUntil", 422);
                                 return;
@@ -2807,14 +2839,14 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                         }
                     }
 
-                    if(allowedFromTime.length() > 0)
+                    if (allowedFromTime.length() > 0)
                     {
-                        if(allowedFromTime.length() == 5)
+                        if (allowedFromTime.length() == 5)
                         {
                             allowedFromTimeAr[0] = (uint8_t)allowedFromTime.substring(0, 2).toInt();
                             allowedFromTimeAr[1] = (uint8_t)allowedFromTime.substring(3, 5).toInt();
 
-                            if(allowedFromTimeAr[0] < 0 || allowedFromTimeAr[0] > 23 || allowedFromTimeAr[1] < 0 || allowedFromTimeAr[1] > 59)
+                            if (allowedFromTimeAr[0] < 0 || allowedFromTimeAr[0] > 23 || allowedFromTimeAr[1] < 0 || allowedFromTimeAr[1] > 59)
                             {
                                 _network->sendResponse(jsonResult, "invalidAllowedFromTime", 422);
                                 return;
@@ -2827,14 +2859,14 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                         }
                     }
 
-                    if(allowedUntilTime.length() > 0)
+                    if (allowedUntilTime.length() > 0)
                     {
-                        if(allowedUntilTime.length() == 5)
+                        if (allowedUntilTime.length() == 5)
                         {
                             allowedUntilTimeAr[0] = (uint8_t)allowedUntilTime.substring(0, 2).toInt();
                             allowedUntilTimeAr[1] = (uint8_t)allowedUntilTime.substring(3, 5).toInt();
 
-                            if(allowedUntilTimeAr[0] < 0 || allowedUntilTimeAr[0] > 23 || allowedUntilTimeAr[1] < 0 || allowedUntilTimeAr[1] > 59)
+                            if (allowedUntilTimeAr[0] < 0 || allowedUntilTimeAr[0] > 23 || allowedUntilTimeAr[1] < 0 || allowedUntilTimeAr[1] > 59)
                             {
                                 _network->sendResponse(jsonResult, "invalidAllowedUntilTime", 422);
                                 return;
@@ -2847,37 +2879,37 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                         }
                     }
 
-                    if(allowedWeekdays.indexOf("mon") >= 0)
+                    if (allowedWeekdays.indexOf("mon") >= 0)
                     {
                         allowedWeekdaysInt += 64;
                     }
-                    if(allowedWeekdays.indexOf("tue") >= 0)
+                    if (allowedWeekdays.indexOf("tue") >= 0)
                     {
                         allowedWeekdaysInt += 32;
                     }
-                    if(allowedWeekdays.indexOf("wed") >= 0)
+                    if (allowedWeekdays.indexOf("wed") >= 0)
                     {
                         allowedWeekdaysInt += 16;
                     }
-                    if(allowedWeekdays.indexOf("thu") >= 0)
+                    if (allowedWeekdays.indexOf("thu") >= 0)
                     {
                         allowedWeekdaysInt += 8;
                     }
-                    if(allowedWeekdays.indexOf("fri") >= 0)
+                    if (allowedWeekdays.indexOf("fri") >= 0)
                     {
                         allowedWeekdaysInt += 4;
                     }
-                    if(allowedWeekdays.indexOf("sat") >= 0)
+                    if (allowedWeekdays.indexOf("sat") >= 0)
                     {
                         allowedWeekdaysInt += 2;
                     }
-                    if(allowedWeekdays.indexOf("sun") >= 0)
+                    if (allowedWeekdays.indexOf("sun") >= 0)
                     {
                         allowedWeekdaysInt += 1;
                     }
                 }
 
-                if(strcmp(action, "add") == 0)
+                if (strcmp(action, "add") == 0)
                 {
                     _network->sendResponse(jsonResult, "addActionNotSupported", 501);
                     return;
@@ -2900,7 +2932,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                     entry.remoteAllowed = remoteAllowed == 1 ? 1 : 0;
                     entry.timeLimited = timeLimited == 1 ? 1 : 0;
 
-                    if(allowedFrom.length() > 0)
+                    if (allowedFrom.length() > 0)
                     {
                         entry.allowedFromYear = allowedFromAr[0];
                         entry.allowedFromMonth = allowedFromAr[1];
@@ -2910,7 +2942,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                         entry.allowedFromSecond = allowedFromAr[5];
                     }
 
-                    if(allowedUntil.length() > 0)
+                    if (allowedUntil.length() > 0)
                     {
                         entry.allowedUntilYear = allowedUntilAr[0];
                         entry.allowedUntilMonth = allowedUntilAr[1];
@@ -2922,32 +2954,33 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
 
                     entry.allowedWeekdays = allowedWeekdaysInt;
 
-                    if(allowedFromTime.length() > 0)
+                    if (allowedFromTime.length() > 0)
                     {
                         entry.allowedFromTimeHour = allowedFromTimeAr[0];
                         entry.allowedFromTimeMin = allowedFromTimeAr[1];
                     }
 
-                    if(allowedUntilTime.length() > 0)
+                    if (allowedUntilTime.length() > 0)
                     {
                         entry.allowedUntilTimeHour = allowedUntilTimeAr[0];
                         entry.allowedUntilTimeMin = allowedUntilTimeAr[1];
                     }
 
                     result = _nukiLock.addAuthorizationEntry(entry);
+                    NukiLock::cmdResultToString(result, resultStr);
                     delay(250);
                     Log->print("[INFO] Add authorization: ");
-                    Log->println((int)result);
+                    Log->println(resultStr);
                 }
                 else if (strcmp(action, "update") == 0)
                 {
-                    if(!authId)
+                    if (!authId)
                     {
                         _network->sendResponse(jsonResult, "noAuthIdSet", 400);
                         return;
                     }
 
-                    if(!idExists)
+                    if (!idExists)
                     {
                         _network->sendResponse(jsonResult, "noExistingAuthIdSet", 404);
                         return;
@@ -2956,13 +2989,13 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                     Nuki::CmdResult resultAuth = _nukiLock.retrieveAuthorizationEntries(0, _preferences->getInt(preference_auth_max_entries, MAX_AUTH));
                     bool foundExisting = false;
 
-                    if(resultAuth == Nuki::CmdResult::Success)
+                    if (resultAuth == Nuki::CmdResult::Success)
                     {
                         delay(5000);
                         std::list<NukiLock::AuthorizationEntry> entries;
                         _nukiLock.getAuthorizationEntries(&entries);
 
-                        for(const auto& entry : entries)
+                        for (const auto &entry : entries)
                         {
                             if (authId != entry.authId)
                             {
@@ -2973,24 +3006,24 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                                 foundExisting = true;
                             }
 
-                            if(name.length() < 1)
+                            if (name.length() < 1)
                             {
                                 memset(oldName, 0, sizeof(oldName));
                                 memcpy(oldName, entry.name, sizeof(entry.name));
                             }
-                            if(remoteAllowed == 2)
+                            if (remoteAllowed == 2)
                             {
                                 remoteAllowed = entry.remoteAllowed;
                             }
-                            if(enabled == 2)
+                            if (enabled == 2)
                             {
                                 enabled = entry.enabled;
                             }
-                            if(timeLimited == 2)
+                            if (timeLimited == 2)
                             {
                                 timeLimited = entry.timeLimited;
                             }
-                            if(allowedFrom.length() < 1)
+                            if (allowedFrom.length() < 1)
                             {
                                 allowedFrom = "old";
                                 allowedFromAr[0] = entry.allowedFromYear;
@@ -3000,7 +3033,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                                 allowedFromAr[4] = entry.allowedFromMinute;
                                 allowedFromAr[5] = entry.allowedFromSecond;
                             }
-                            if(allowedUntil.length() < 1)
+                            if (allowedUntil.length() < 1)
                             {
                                 allowedUntil = "old";
                                 allowedUntilAr[0] = entry.allowedUntilYear;
@@ -3010,18 +3043,18 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                                 allowedUntilAr[4] = entry.allowedUntilMinute;
                                 allowedUntilAr[5] = entry.allowedUntilSecond;
                             }
-                            if(allowedWeekdays.length() < 1)
+                            if (allowedWeekdays.length() < 1)
                             {
                                 allowedWeekdaysInt = entry.allowedWeekdays;
                             }
-                            if(allowedFromTime.length() < 1)
+                            if (allowedFromTime.length() < 1)
                             {
                                 allowedFromTime = "old";
                                 allowedFromTimeAr[0] = entry.allowedFromTimeHour;
                                 allowedFromTimeAr[1] = entry.allowedFromTimeMin;
                             }
 
-                            if(allowedUntilTime.length() < 1)
+                            if (allowedUntilTime.length() < 1)
                             {
                                 allowedUntilTime = "old";
                                 allowedUntilTimeAr[0] = entry.allowedUntilTimeHour;
@@ -3029,7 +3062,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                             }
                         }
 
-                        if(!foundExisting)
+                        if (!foundExisting)
                         {
                             _network->sendResponse(jsonResult, "failedToRetrieveExistingAuthorizationEntry", 500);
                             return;
@@ -3046,7 +3079,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                     memset(&entry, 0, sizeof(entry));
                     entry.authId = authId;
 
-                    if(name.length() < 1)
+                    if (name.length() < 1)
                     {
                         size_t nameLen = strlen(oldName);
                         memcpy(&entry.name, oldName, nameLen > 20 ? 20 : nameLen);
@@ -3060,11 +3093,11 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                     entry.enabled = enabled;
                     entry.timeLimited = timeLimited;
 
-                    if(enabled == 1)
+                    if (enabled == 1)
                     {
-                        if(timeLimited == 1)
+                        if (timeLimited == 1)
                         {
-                            if(allowedFrom.length() > 0)
+                            if (allowedFrom.length() > 0)
                             {
                                 entry.allowedFromYear = allowedFromAr[0];
                                 entry.allowedFromMonth = allowedFromAr[1];
@@ -3074,7 +3107,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                                 entry.allowedFromSecond = allowedFromAr[5];
                             }
 
-                            if(allowedUntil.length() > 0)
+                            if (allowedUntil.length() > 0)
                             {
                                 entry.allowedUntilYear = allowedUntilAr[0];
                                 entry.allowedUntilMonth = allowedUntilAr[1];
@@ -3086,13 +3119,13 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
 
                             entry.allowedWeekdays = allowedWeekdaysInt;
 
-                            if(allowedFromTime.length() > 0)
+                            if (allowedFromTime.length() > 0)
                             {
                                 entry.allowedFromTimeHour = allowedFromTimeAr[0];
                                 entry.allowedFromTimeMin = allowedFromTimeAr[1];
                             }
 
-                            if(allowedUntilTime.length() > 0)
+                            if (allowedUntilTime.length() > 0)
                             {
                                 entry.allowedUntilTimeHour = allowedUntilTimeAr[0];
                                 entry.allowedUntilTimeMin = allowedUntilTimeAr[1];
@@ -3101,9 +3134,10 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                     }
 
                     result = _nukiLock.updateAuthorizationEntry(entry);
+                    NukiLock::cmdResultToString(result, resultStr);
                     delay(250);
                     Log->print("[INFO] Update authorization: ");
-                    Log->println((int)result);
+                    Log->println(resultStr);
                 }
             }
             else
@@ -3112,8 +3146,9 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                 return;
             }
 
-            if(result != Nuki::CmdResult::Success)
+            if (result != Nuki::CmdResult::Success)
             {
+                Log->printf(F("[WARNING] Authorization command failed: %s\r\n"), resultStr);
                 ++retryCount;
             }
             else
@@ -3124,11 +3159,8 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
 
         updateAuth(false);
 
-        if((int)result != -1)
+        if ((int)result != -1)
         {
-            char resultStr[15];
-            memset(&resultStr, 0, sizeof(resultStr));
-            NukiLock::cmdResultToString(result, resultStr);
             _network->sendResponse(jsonResult, resultStr);
         }
     }
@@ -3487,7 +3519,7 @@ bool NukiWrapper::readConfig()
             return true;
         }
     }
-    Log->printf("[ERROR] Could not retrieve lock config after %d retries\n", retryCount);
+    Log->printf("[ERROR] Could not retrieve lock config after %d retries\n", retryCount - 1);
     return false;
 }
 

@@ -619,7 +619,7 @@ void NukiBle::onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
             }
             else
             {
-              logger->printf("iBeacon ID: %04X Major: %d Minor: %d UUID: %s Power: %d\r\n", oBeacon.getManufacturerId(),
+              logger->printf("[DEBUG] iBeacon ID: %04X Major: %d Minor: %d UUID: %s Power: %d\r\n", oBeacon.getManufacturerId(),
                   ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor()),
                   oBeacon.getProximityUUID().toString().c_str(), oBeacon.getSignalPower());
             }
@@ -656,7 +656,7 @@ void NukiBle::onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
           }
           else
           {
-            logger->printf("Found nuki in pairing state: %s addr: %s\r\n", std::string(advertisedDevice->getName()).c_str(), std::string(advertisedDevice->getAddress()).c_str());
+            logger->printf("[DEBUG] Found nuki in pairing state: %s addr: %s\r\n", std::string(advertisedDevice->getName()).c_str(), std::string(advertisedDevice->getAddress()).c_str());
           }
         }
         bleAddress = advertisedDevice->getAddress();
@@ -674,7 +674,7 @@ void NukiBle::onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
           }
           else
           {
-            logger->printf("Found nuki ultra in pairing state: %s addr: %s\r\n", std::string(advertisedDevice->getName()).c_str(), std::string(advertisedDevice->getAddress()).c_str());
+            logger->printf("[DEBUG] Found nuki ultra in pairing state: %s addr: %s\r\n", std::string(advertisedDevice->getName()).c_str(), std::string(advertisedDevice->getAddress()).c_str());
           }
         }
 
@@ -1020,7 +1020,7 @@ Nuki::CmdResult NukiBle::updateTime(TimeValue time) {
       }
       else
       {
-        logger->printf("Time set: %d-%d-%d %d:%d:%d\r\n", time.year, time.month, time.day, time.hour, time.minute, time.second);
+        logger->printf("[DEBUG] Time set: %d-%d-%d %d:%d:%d\r\n", time.year, time.month, time.day, time.hour, time.minute, time.second);
       }
     }
   }
@@ -1518,7 +1518,7 @@ bool NukiBle::sendPlainMessage(Command commandIdentifier, const unsigned char* p
     }
     else
     {
-      logger->printf("Command identifier: %02x, CRC: %04x\r\n", (uint32_t)commandIdentifier, dataCrc);
+      logger->printf("[DEBUG] Command identifier: %02x, CRC: %04x\r\n", (uint32_t)commandIdentifier, dataCrc);
     }
   }
 
@@ -1647,7 +1647,7 @@ void NukiBle::notifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, 
     }
     else
     {
-      logger->printf("Notify callback for characteristic: %s of length: %d\r\n", pBLERemoteCharacteristic->getUUID().toString().c_str(), length);
+      logger->printf("[DEBUG] Notify callback for characteristic: %s of length: %d\r\n", pBLERemoteCharacteristic->getUUID().toString().c_str(), length);
     }
   }
   printBuffer((byte*)recData, length, false, "Received data", debugNukiHexData, logger);
@@ -1776,7 +1776,7 @@ void NukiBle::handleReturnMessage(Command returnCode, unsigned char* data, uint1
       }
       else
       {
-        logger->printf("Error: %02x for command: %02x:%02x\r\n", data[0], data[2], data[1]);
+        logger->printf("[ERROR] Error: %02x for command: %02x:%02x\r\n", data[0], data[2], data[1]);
       }
       memcpy(&errorCode, &data[0], sizeof(errorCode));
       logErrorCode(data[0]);
