@@ -113,7 +113,7 @@ Logger::~Logger()
 
 size_t Logger::write(uint8_t c)
 {
-  if (!_fileWriteEnabled || _logBackupIsRunning.load() || _logFallBack.load())
+  if (!_fileWriteEnabled || _logBackupIsRunning.load() || _logFallBack.load() || (xPortInIsrContext() || !xPortCanYield()))
     return _serial->write(c);
 
   if (c == '\0')
@@ -136,7 +136,7 @@ size_t Logger::write(uint8_t c)
 
 size_t Logger::write(const uint8_t *buffer, size_t size)
 {
-  if (!_fileWriteEnabled || _logBackupIsRunning.load() || _logFallBack.load())
+  if (!_fileWriteEnabled || _logBackupIsRunning.load() || _logFallBack.load() || (xPortInIsrContext() || !xPortCanYield()))
     return _serial->write(buffer, size);
 
   size_t n = 0;
@@ -754,16 +754,8 @@ void Logger::toFile(String message)
     }
   }
 
-  // Create JSON log entry
-  JsonDocument doc;
   char timeStr[25];
   formatUptime(timeStr, sizeof(timeStr));
-  doc[F("timestamp")] = timeStr;
-  doc[F("Type")] = msgType;
-  doc[F("message")] = message;
-
-  String line;
-  serializeJson(doc, line);
 
   if (!LittleFS.begin(true))
   {
@@ -780,7 +772,7 @@ void Logger::toFile(String message)
     println(F("[ERROR] Failed to open log file for appending"));
     return;
   }
-  f.println(line);
+  f.println(String(timeStr) + " | " + msgType + " | " + message);
   f.close();
 }
 

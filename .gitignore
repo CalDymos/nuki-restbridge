@@ -24,6 +24,7 @@ updater/src/networkDevices/*.h
 /pyvenv.cfg
 /lib64
 /lib/python3*
+/tmp
 sdkconfig
 # NodeJS en pnpm
 .pnpm
