@@ -275,8 +275,7 @@ void NukiWrapper::update(bool reboot)
             char resultStr[15] = {0};
             NukiLock::cmdResultToString(cmdResult, resultStr);
 
-            Log->print(F("[INFO] Lock action result: "));
-            Log->println(resultStr);
+            Log->printf(F("[INFO] Lock action result: %s\r\n"), resultStr);
 
             if (cmdResult != Nuki::CmdResult::Success)
             {
@@ -540,13 +539,10 @@ bool NukiWrapper::updateKeyTurnerState()
     char resultStr[15];
     while (result != Nuki::CmdResult::Success && retryCount < _nrOfRetries + 1)
     {
-        Log->print(F("[DEBUG] Result (attempt "));
-        Log->print(retryCount + 1);
-        Log->print("): ");
         result = _nukiLock.requestKeyTurnerState(&_keyTurnerState);
         memset(&resultStr, 0, sizeof(resultStr));
         NukiLock::cmdResultToString(result, resultStr);
-        Log->println(resultStr);
+        Log->printf(F("[DEBUG] Result (attempt %d): %s"), retryCount + 1, resultStr);
         ++retryCount;
     }
 
