@@ -1043,7 +1043,7 @@ void WebCfgServer::buildGetLogFileHtml(WebServer *server)
         return;
     }
 
-    server->sendHeader(F("Content-Disposition"), F("attachment; filename=\"Log.txt\""));
+    server->sendHeader(F("Content-Disposition"), "attachment; filename=\"" + String(LOGGER_FILENAME) + "\"");
     server->streamFile(file, F("application/octet-stream"));
     file.close();
     return;
