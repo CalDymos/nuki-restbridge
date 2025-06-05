@@ -705,7 +705,7 @@ void Logger::toFile(String message)
   // Trim message if it exceeds max length
   if (message.length() > _maxMsgLen)
   {
-    message = message.substring(0, _maxMsgLen);
+    message.remove(_maxMsgLen);
   }
 
   // Check whether the message begins with [XYZ] and extract the type
@@ -737,7 +737,7 @@ void Logger::toFile(String message)
 
   // additional output on the serial interface in debug or trace mode
   if (_currentLogLevel == MSG_TRACE || _currentLogLevel == MSG_DEBUG)
-    Serial.println(message);
+    _serial->println(message);
 
   // Check file size, clear if too big
   if (isFileTooBig())
@@ -754,7 +754,9 @@ void Logger::toFile(String message)
     }
   }
 
-  char timeStr[25];
+  const size_t timeStrLen = 25;  // Max Länge von timeStr (z. B. "00d 23h 59m 59s")
+  const size_t maxLineLen = timeStrLen + 3 /* sep1 */ + _maxMsgLen + 3 /* sep2 */ + 16 /* msgType max */ + 4 /* \r\n + '\0' */;
+  char timeStr[25] = {0};
   formatUptime(timeStr, sizeof(timeStr));
 
   if (!LittleFS.begin(true))
@@ -772,7 +774,11 @@ void Logger::toFile(String message)
     println(F("[ERROR] Failed to open log file for appending"));
     return;
   }
-  f.println(String(timeStr) + " | " + msgType + " | " + message);
+
+  // 25 (timeStr) + 3 (sep1 " | ") + 16 (max msgType) +3 (sep2 " | ") + _maxMsgLen + 4 (\r\n + \0)                      
+  char logLine[25 + 3 + _maxMsgLen + 3 + 16 + 4];
+  snprintf(logLine, sizeof(logLine), "%s | %s | %s", timeStr, msgType.c_str(), message.c_str());
+  f.write((const uint8_t *)logLine, strlen(logLine));
   f.close();
 }
 
