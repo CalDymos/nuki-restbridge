@@ -38,6 +38,7 @@ bool rebootLock = false;     // Whether to reboot lock logic after failure.
 bool coredumpPrinted = true; // Prevent repeated printing of core dump on each boot.
 bool timeSynced = false;     // Whether NTP time sync was successful.
 bool restartReason_isValid;  // True if restart reason could be determined.
+bool fsReady = false;        // true, if LittleFS was successfully mounted
 
 int64_t restartTs = (pow(2, 63) - (5 * 1000 * 60000)) / 1000; // Time stamp for restarting the ESP to prevent the ESPtimer from overflowing
 
@@ -108,6 +109,26 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
   }
 }
 #endif
+
+/**
+ * @brief Initialize the file system once, if not already mounted.
+ *
+ * @return true if LittleFS was successfully mounted, false otherwise.
+ */
+bool initializeFileSystem()
+{
+  if (fsReady)
+    return true;
+
+  if (LittleFS.begin(true))
+  {
+    fsReady = true;
+    return true;
+  }
+
+  Serial.println(F("[ERROR] LittleFS init failed."));
+  return false;
+}
 
 void bootloopDetection()
 {
@@ -523,7 +544,7 @@ void logCoreDump()
         return;
       }
 
-      if (!LittleFS.begin(true))
+      if (!fsReady)
       {
         Log->println(F("[ERROR] LittleFS Mount Failed"));
         return;
@@ -625,6 +646,8 @@ void setup()
 
   Serial.begin(115200);
 
+  initializeFileSystem();
+
   Log = new Logger(&Serial, preferences);
   Log->setLevel((Logger::msgtype)preferences->getInt(preference_log_level, Logger::MSG_INFO));
 
@@ -639,7 +662,7 @@ void setup()
   }
 
 #ifdef DEBUG_NUKIBRIDGE
-  if (LittleFS.begin(true))
+  if (fsReady)
   {
     listDir(LittleFS, "/", 1);
   }

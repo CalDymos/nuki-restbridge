@@ -101,6 +101,9 @@ Logger::Logger(Print *serial, Preferences *prefs)
   _buffer.reserve(_maxMsgLen + 2); // Reserves memory for up to _maxMsgLen characters
 
   _bufferMutex = xSemaphoreCreateMutex();
+
+  if (!fsReady)
+    _logFallBack.store(true);
 }
 
 Logger::~Logger()
@@ -197,7 +200,7 @@ size_t Logger::printf(const __FlashStringHelper *ifsh, ...)
   va_start(arg, ifsh);
   const char *format = (reinterpret_cast<const char *>(ifsh));
   size_t len = vsnprintf(buf, sizeof(buf), format, arg);
-  buf[sizeof(buf)-1] = '\0'; // For safety reasons
+  buf[sizeof(buf) - 1] = '\0'; // For safety reasons
   va_end(arg);
   if (len > 0)
   {
@@ -212,7 +215,7 @@ size_t Logger::printf(const char *format, ...)
   va_list args;
   va_start(args, format);
   int len = vsnprintf(buf, sizeof(buf), format, args);
-  buf[sizeof(buf)-1] = '\0'; // For safety reasons
+  buf[sizeof(buf) - 1] = '\0'; // For safety reasons
   va_end(args);
   if (len > 0)
   {
@@ -450,9 +453,9 @@ size_t Logger::println(void)
 
 void Logger::clear()
 {
-  if (!LittleFS.begin(true))
+
+  if (!fsReady)
   {
-    _logFallBack.store(true);
     println(F("[ERROR] LittleFS not initialized!"));
     return;
   }
@@ -562,9 +565,8 @@ bool Logger::isFileTooBig()
 
 size_t Logger::getFileSize()
 {
-  if (!LittleFS.begin(true))
+  if (!fsReady)
   {
-    _logFallBack.store(true);
     println(F("[ERROR] LittleFS not initialized!"));
     return 0;
   }
@@ -654,9 +656,8 @@ bool Logger::backupFileToFTPServer()
   ftp.DeleteFile(backupFilename.c_str());
   ftp.NewFile(backupFilename.c_str());
 
-  if (!LittleFS.begin(true))
+  if (!fsReady)
   {
-    _logFallBack.store(true);
     println(F("[ERROR] LittleFS not initialized!"));
     _logBackupIsRunning.store(false);
     return false;
@@ -754,14 +755,13 @@ void Logger::toFile(String message)
     }
   }
 
-  const size_t timeStrLen = 25;  // Max Länge von timeStr (z. B. "00d 23h 59m 59s")
+  const size_t timeStrLen = 25; // Max Länge von timeStr (z. B. "00d 23h 59m 59s")
   const size_t maxLineLen = timeStrLen + 3 /* sep1 */ + _maxMsgLen + 3 /* sep2 */ + 16 /* msgType max */ + 4 /* \r\n + '\0' */;
   char timeStr[25] = {0};
   formatUptime(timeStr, sizeof(timeStr));
 
-  if (!LittleFS.begin(true))
+  if (!fsReady)
   {
-    _logFallBack.store(true);
     println(F("[ERROR] LittleFS not initialized!"));
     return;
   }
@@ -775,9 +775,9 @@ void Logger::toFile(String message)
     return;
   }
 
-  // 25 (timeStr) + 3 (sep1 " | ") + 16 (max msgType) +3 (sep2 " | ") + _maxMsgLen + 4 (\r\n + \0)                      
+  // 25 (timeStr) + 3 (sep1 " | ") + 16 (max msgType) +3 (sep2 " | ") + _maxMsgLen + 4 (\r\n + \0)
   char logLine[25 + 3 + _maxMsgLen + 3 + 16 + 4];
-  snprintf(logLine, sizeof(logLine), "%s | %s | %s", timeStr, msgType.c_str(), message.c_str());
+  snprintf(logLine, sizeof(logLine), "%s | %s | %s\r\n", timeStr, msgType.c_str(), message.c_str());
   f.write((const uint8_t *)logLine, strlen(logLine));
   f.close();
 }

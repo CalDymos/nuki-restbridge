@@ -456,3 +456,9 @@ private:
     void (*_timeControlCommandReceivedReceivedCallback)(const char *value) = nullptr;                                                                          // Time control handler
     void (*_authCommandReceivedReceivedCallback)(const char *value) = nullptr;                                                                                 // Auth command handler
 };
+
+// Globale oder externe Variablen
+extern bool ethCriticalFailure;
+extern bool wifiFallback;
+extern bool disableNetwork;
+extern bool forceEnableWebCfgServer;

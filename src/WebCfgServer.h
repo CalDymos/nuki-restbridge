@@ -8,10 +8,6 @@
 #include "NukiNetwork.h"
 #include <ArduinoJson.h>
 
-extern TaskHandle_t networkTaskHandle;
-extern TaskHandle_t nukiTaskHandle;
-extern TaskHandle_t webCfgTaskHandle;
-
 /**
  * @brief Minimal Web Configuration Server that accepts configuration via `/` and `/save`.
  *
@@ -504,3 +500,12 @@ private:
                                          //
     bool _allowRestartToPortal = false;  // Allows restarting into access point (config portal) mode.
 };
+
+extern TaskHandle_t networkTaskHandle;
+extern TaskHandle_t nukiTaskHandle;
+extern TaskHandle_t webCfgTaskHandle;
+
+/// External flag indicating SNTP synchronization
+extern bool timeSynced;
+/// External flag indicating if LittleFS was successfully mounted
+extern bool fsReady;

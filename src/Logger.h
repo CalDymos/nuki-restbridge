@@ -206,3 +206,5 @@ extern Logger *Log;
 
 /// External flag indicating SNTP synchronization
 extern bool timeSynced;
+/// External flag indicating if LittleFS was successfully mounted
+extern bool fsReady;

@@ -57,8 +57,6 @@ const char css[] PROGMEM = ":root{--nc-font-sans:'Inter',-apple-system,BlinkMacS
                            ".btn-icon:hover{background:var(--nc-lk-2)}"
                            "/* version: " NUKI_REST_BRIDGE_VERSION " */";
 
-extern bool timeSynced;
-
 WebCfgServer::WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences *preferences)
     : _nuki(nuki),
       _network(network),
@@ -1027,7 +1025,7 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
 
 void WebCfgServer::buildGetLogFileHtml(WebServer *server)
 {
-    if (!LittleFS.begin(true))
+    if (!fsReady)
     {
         Log->println(F("[ERROR] LittleFS Mount Failed"));
         server->send(500, F("text/plain"), F("LittleFS mount failed."));
@@ -1051,7 +1049,7 @@ void WebCfgServer::buildGetLogFileHtml(WebServer *server)
 
 void WebCfgServer::buildGetCoredumpFileHtml(WebServer *server)
 {
-    if (!LittleFS.begin(true))
+    if (!fsReady)
     {
         Log->println(F("[ERROR] LittleFS Mount Failed"));
         server->send(500, F("text/plain"), F("LittleFS mount failed."));
@@ -1895,7 +1893,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += F("\nMax backup file index before rollover: 100");
 
     response += F("\n\n------------ LittleFS ------------");
-    if (!LittleFS.begin(true))
+    if (!fsReady)
     {
         response += F("\nLittleFS mount failed");
     }
@@ -4436,7 +4434,7 @@ void WebCfgServer::saveSessions()
 {
     if (_preferences->getBool(preference_update_time, false))
     {
-        if (!LittleFS.begin(true))
+        if (!fsReady)
         {
             Log->println(F("[ERROR] LittleFS Mount Failed"));
         }
@@ -4456,7 +4454,7 @@ void WebCfgServer::loadSessions()
 {
     if (_preferences->getBool(preference_update_time, false))
     {
-        if (!LittleFS.begin(true))
+        if (!fsReady)
         {
             Log->println(F("[ERROR] LittleFS Mount Failed"));
         }
@@ -4482,7 +4480,7 @@ void WebCfgServer::loadSessions()
 
 void WebCfgServer::clearSessions()
 {
-    if (!LittleFS.begin(true))
+    if (!fsReady)
     {
         Log->println(F("[ERROR] LittleFS Mount Failed"));
     }

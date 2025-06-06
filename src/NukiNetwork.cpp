@@ -7,12 +7,6 @@
 
 NukiNetwork *NukiNetwork::_inst = nullptr;
 
-// Globale oder externe Variablen
-extern bool ethCriticalFailure;
-extern bool wifiFallback;
-extern bool disableNetwork;
-extern bool forceEnableWebCfgServer;
-
 NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize)
     : _preferences(preferences),
       _buffer(buffer),
