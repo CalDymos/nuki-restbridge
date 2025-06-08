@@ -12,8 +12,15 @@
 #include <Print.h>
 #include <atomic>
 #include <freertos/semphr.h>
+#include <queue>
+#include <freertos/queue.h>
 
 #define LOGGER_FILENAME (char *)"nukiBridge.log"
+
+struct LogMessage
+{
+    char msg[LOG_MSG_MAX_LEN + 1];
+};
 
 /**
  * @brief Logger class for serial and file-based logging with support for multiple log levels.
@@ -88,9 +95,9 @@ public:
      * @brief Convert log level enum to string.
      *
      * @param level Log level enum value.
-     * @return String Representation as string.
+     * @return String Representation as const char.
      */
-    String levelToString(msgtype level);
+    const char *levelToString(msgtype level);
 
     /**
      * @brief Convert string to log level enum.
@@ -98,12 +105,32 @@ public:
      * @param levelStr Log level string.
      * @return msgtype Enum value.
      */
-    msgtype stringToLevel(const String &levelStr);
+    msgtype stringToLevel(const char *levelStr);
 
     /**
      * @brief disables saving the log file to an FTP server
      */
     void disableBackup();
+
+    /**
+     * @brief Get the task handle for the internal logger queue task.
+     *
+     * @return TaskHandle_t Handle of the logger task (used for monitoring or control).
+     */
+    TaskHandle_t getQueueTaskHandle();
+
+    /**
+     * @brief Acquire the internal buffer mutex for thread-safe access.
+     *
+     * @return true if the lock was successfully acquired.
+     * @return false if the lock could not be acquired.
+     */
+    bool lock();
+
+    /**
+     * @brief Release the internal buffer mutex after thread-safe access.
+     */
+    void unlock();
 
     // -------------------- Print/Write overrides --------------------
 
@@ -149,7 +176,6 @@ private:
     Preferences *_preferences;                    // Preferences for config values
     String _logFile;                              // Path to log file
     String _buffer;                               // Internal buffer for streaming
-    int _maxMsgLen;                               // Maximum message length
     int _maxLogFileSize;                          // Max log file size (KB)
     bool _backupEnabled;                          // Flag to enable backup of log file
     bool _fileWriteEnabled;                       // Flag to enable writing to Log file
@@ -157,13 +183,27 @@ private:
     std::atomic<bool> _logBackupIsRunning{false}; // FTP backup activity flag
     SemaphoreHandle_t _bufferMutex;               // FreeRTOS semaphore for _buffer protection
     msgtype _currentLogLevel;                     // Active log level
+    QueueHandle_t _logQueue = nullptr;            // Queue for buffered log messages
+    TaskHandle_t _queueTaskHandle = nullptr;      // Task handle for queue processing
 
     /**
-     * @brief Write message as JSON to file and optionally to serial.
+     * @brief Task handler that processes the log queue.
+     *
+     * @param param Pointer to the Logger instance.
+     */
+    static void queueTask(void *param); // Static task entry point for processQueue
+
+    /**
+     * @brief Task loop that receives log messages from queue and writes them.
+     */
+    void processQueue();
+
+    /**
+     * @brief Write message into internal log queue.
      *
      * @param message Message to be logged.
      */
-    void toFile(String message);
+    void toQueue(const String &message);
 
     /**
      * @brief Check whether log file exceeds size limit.

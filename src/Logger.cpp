@@ -7,14 +7,14 @@ Logger::Logger(Print *serial, Preferences *prefs)
 
 Logger::~Logger() {}
 
-void Logger::clearLog()
+void Logger::clear()
 {
   _serial->println(F("[TRACE] clearLog() called - no file operations in debug mode"));
 }
 
 void Logger::setLogLevel(msgtype level)
 {
-  _serial->printf(F("[TRACE] setLogLevel() called : %d\n"), logLevelToString(level));
+  _serial->printf(F("[TRACE] setLogLevel() called : %s\n"), levelToString(level));
 }
 
 Logger::msgtype Logger::getLogLevel()
@@ -22,7 +22,7 @@ Logger::msgtype Logger::getLogLevel()
   return MSG_TRACE;
 }
 
-String Logger::logLevelToString(msgtype level)
+const char *Logger::levelToString(msgtype level)
 {
   return "TRACE";
 }
@@ -43,7 +43,7 @@ bool Logger::isLogTooBig()
   return false;
 }
 
-void Logger::toFile(const String &deviceType, String message)
+void Logger::toQueue(const String &message)
 {
   _serial->println(F("Logging message (debug mode):"));
   _serial->println(message);
@@ -64,7 +64,6 @@ Logger::Logger(Print *serial, Preferences *prefs)
   {
     println(F("[ERROR] Preferences not initialized! Using defaults."));
     _logFile = LOGGER_FILENAME;
-    _maxMsgLen = 128;
     _maxLogFileSize = 256;
     _currentLogLevel = MSG_INFO;
     _backupEnabled = false;
@@ -73,14 +72,7 @@ Logger::Logger(Print *serial, Preferences *prefs)
   {
     _backupEnabled = _preferences->getBool(preference_log_backup_enabled, false);
     _logFile = LOGGER_FILENAME;
-    _maxMsgLen = _preferences->getInt(preference_log_max_msg_len);
     _currentLogLevel = (msgtype)_preferences->getInt(preference_log_level);
-
-    if (_maxMsgLen < 1)
-    {
-      _maxMsgLen = 128;
-      _preferences->putInt(preference_log_max_msg_len, _maxMsgLen);
-    }
 
     _maxLogFileSize = _preferences->getInt(preference_log_max_file_size); // in kb
 
@@ -98,12 +90,15 @@ Logger::Logger(Print *serial, Preferences *prefs)
     }
   }
   _fileWriteEnabled = true;
-  _buffer.reserve(_maxMsgLen + 2); // Reserves memory for up to _maxMsgLen characters
+  _buffer.reserve(LOG_MSG_MAX_LEN + 2); // Reserves memory for up to _maxMsgLen characters
 
   _bufferMutex = xSemaphoreCreateMutex();
 
   if (!fsReady)
     _logFallBack.store(true);
+
+  _logQueue = xQueueCreate(LOG_QUEUE_MAX_ENTRYS, sizeof(LogMessage));
+  xTaskCreatePinnedToCore(Logger::queueTask, "LoggerTask", 4096, this, 1, &_queueTaskHandle, 0);
 }
 
 Logger::~Logger()
@@ -129,7 +124,7 @@ size_t Logger::write(uint8_t c)
     {
       _buffer.trim();
       if (!_buffer.isEmpty())
-        toFile(_buffer);
+        toQueue(_buffer);
       _buffer = "";
     }
     xSemaphoreGive(_bufferMutex);
@@ -149,11 +144,11 @@ size_t Logger::write(const uint8_t *buffer, size_t size)
     {
       _buffer.trim();
       if (!_buffer.isEmpty())
-        toFile(_buffer);
+        toQueue(_buffer);
       _buffer = "";
       n = 2;
     }
-    else if (size > 0 && size <= _maxMsgLen && buffer[size - 1] == '\n')
+    else if (size > 0 && size <= LOG_MSG_MAX_LEN && buffer[size - 1] == '\n')
     {
       _buffer = "";
       _buffer.reserve(size);
@@ -166,7 +161,7 @@ size_t Logger::write(const uint8_t *buffer, size_t size)
 
       _buffer.trim();
       if (!_buffer.isEmpty())
-        toFile(_buffer);
+        toQueue(_buffer);
       _buffer = "";
       n = size;
     }
@@ -180,7 +175,7 @@ size_t Logger::write(const uint8_t *buffer, size_t size)
         {
           _buffer.trim();
           if (!_buffer.isEmpty())
-            toFile(_buffer);
+            toQueue(_buffer);
           _buffer = "";
         }
       }
@@ -195,7 +190,7 @@ size_t Logger::write(const uint8_t *buffer, size_t size)
 
 size_t Logger::printf(const __FlashStringHelper *ifsh, ...)
 {
-  char buf[_maxMsgLen + 1]; // max Msg len + zero termination
+  char buf[LOG_MSG_MAX_LEN + 1]; // max Msg len + zero termination
   va_list arg;
   va_start(arg, ifsh);
   const char *format = (reinterpret_cast<const char *>(ifsh));
@@ -211,7 +206,7 @@ size_t Logger::printf(const __FlashStringHelper *ifsh, ...)
 
 size_t Logger::printf(const char *format, ...)
 {
-  char buf[_maxMsgLen + 1]; // max Msg len + zero termination
+  char buf[LOG_MSG_MAX_LEN + 1]; // max Msg len + zero termination
   va_list args;
   va_start(args, format);
   int len = vsnprintf(buf, sizeof(buf), format, args);
@@ -454,9 +449,16 @@ size_t Logger::println(void)
 void Logger::clear()
 {
 
+  if (!lock())
+  {
+    _serial->println(F("[WARNING] Could not acquire lock for clearing log"));
+    return;
+  }
+
   if (!fsReady)
   {
-    println(F("[ERROR] LittleFS not initialized!"));
+    _serial->println(F("[ERROR] LittleFS not initialized!"));
+    unlock();
     return;
   }
   if (LittleFS.exists(_logFile))
@@ -468,6 +470,7 @@ void Logger::clear()
   if (f)
   {
     f.close();
+    unlock();
   }
 }
 
@@ -476,7 +479,7 @@ void Logger::resetFallBack()
   _logFallBack.store(false);
 }
 
-String Logger::levelToString(msgtype level)
+const char *Logger::levelToString(msgtype level)
 {
   switch (level)
   {
@@ -497,19 +500,19 @@ String Logger::levelToString(msgtype level)
   }
 }
 
-Logger::msgtype Logger::stringToLevel(const String &levelStr)
+Logger::msgtype Logger::stringToLevel(const char *levelStr)
 {
-  if (levelStr == "TRACE")
+  if (strcmp(levelStr, "TRACE") == 0)
     return MSG_TRACE;
-  if (levelStr == "DEBUG")
+  if (strcmp(levelStr, "DEBUG") == 0)
     return MSG_DEBUG;
-  if (levelStr == "INFO")
+  if (strcmp(levelStr, "INFO") == 0)
     return MSG_INFO;
-  if (levelStr == "WARNING")
+  if (strcmp(levelStr, "WARNING") == 0)
     return MSG_WARNING;
-  if (levelStr == "ERROR")
+  if (strcmp(levelStr, "ERROR") == 0)
     return MSG_ERROR;
-  if (levelStr == "CRITICAL")
+  if (strcmp(levelStr, "CRITICAL") == 0)
     return MSG_CRITICAL;
   return (msgtype)-1; // if unknown type
 }
@@ -699,87 +702,135 @@ void Logger::disableFileLog()
   _fileWriteEnabled = false;
 }
 
-void Logger::toFile(String message)
+void Logger::toQueue(const String &message)
 {
-  String msgType = levelToString(_currentLogLevel); // Default value
+  LogMessage entry;
+  strlcpy(entry.msg, message.c_str(), sizeof(entry.msg));
+  xQueueSend(_logQueue, &entry, 0); // nicht blockierend
+}
 
-  // Trim message if it exceeds max length
-  if (message.length() > _maxMsgLen)
+void Logger::queueTask(void *param)
+{
+  Logger *self = static_cast<Logger *>(param);
+  self->processQueue();
+}
+
+TaskHandle_t Logger::getQueueTaskHandle()
+{
+  return _queueTaskHandle;
+}
+
+bool Logger::lock()
+{
+  return (_bufferMutex && xSemaphoreTake(_bufferMutex, pdMS_TO_TICKS(500)));
+}
+
+void Logger::unlock()
+{
+  if (_bufferMutex)
+    xSemaphoreGive(_bufferMutex);
+}
+
+void Logger::processQueue()
+{
+  char msgType[11] = "INFO"; // Default
+
+  // 25 (timeStr) + 3 (sep1 " | ") + 16 (max msgType) + 3 (sep2 " | ") + _maxMsgLen + 4 (\r\n + \0)
+  int logLineSize = 25 + 3 + LOG_MSG_MAX_LEN + 3 + 16 + 4;
+  char logLine[logLineSize + 1];
+
+  LogMessage entry;
+
+  // Never exit this task, always continue to process next log message
+  while (true)
   {
-    message.remove(_maxMsgLen);
-  }
-
-  // Check whether the message begins with [XYZ] and extract the type
-  if (message.startsWith("["))
-  {
-    int endBracket = message.indexOf("]");
-    if (endBracket > 1)
-    { // At least 1 character between [ and ]
-      msgType = message.substring(1, endBracket);
-      message = message.substring(endBracket + 1); // Extract the rest of the message
-      message.trim();
-    }
-  }
-
-  // Convert msgtype from string
-  msgtype level = stringToLevel(msgType);
-
-  // Skip unknown level unless current log level is DEBUG or TRACE
-  if (level == (msgtype)-1 && _currentLogLevel > MSG_DEBUG)
-  {
-    return;
-  }
-
-  // Skip messages below current log level
-  if (level != (msgtype)-1 && level < _currentLogLevel)
-  {
-    return;
-  }
-
-  // additional output on the serial interface in debug or trace mode
-  if (_currentLogLevel == MSG_TRACE || _currentLogLevel == MSG_DEBUG)
-    _serial->println(message);
-
-  // Check file size, clear if too big
-  if (isFileTooBig())
-  {
-    println(F("[INFO] Log file too large, attempt to backup to ftp Server..."));
-    if (backupFileToFTPServer())
+    if (xQueueReceive(_logQueue, &entry, portMAX_DELAY))
     {
-      _serial->println(F("[INFO] Backup successful, clearing log file..."));
-      clear();
+      // Check if entry.msg starts with [LEVEL]
+      if (entry.msg[0] == '[')
+      {
+        char *end = strchr(entry.msg, ']');
+        if (end && end > entry.msg + 1)
+        {
+          size_t typeLen = end - entry.msg - 1;
+          if (typeLen > 0 && typeLen < 10)
+          {
+            memcpy(msgType, entry.msg + 1, typeLen);
+            msgType[typeLen] = '\0';
+          }
+
+          // shift message content left (in-place) after ]
+          size_t remainingLen = strlen(end + 1);
+          memmove(entry.msg, end + 1, remainingLen + 1); // include '\0'
+
+          // trim leading spaces
+          char *start = entry.msg;
+          while (*start == ' ')
+            ++start;
+          if (start != entry.msg)
+          {
+            memmove(entry.msg, start, strlen(start) + 1);
+          }
+        }
+      }
+
+      // Convert msgtype from string
+      msgtype level = stringToLevel(msgType);
+
+      // Skip unknown level unless current log level is DEBUG or TRACE
+      if (level == (msgtype)-1 && _currentLogLevel > MSG_DEBUG)
+      {
+        continue;
+      }
+
+      // Skip messages below current log level
+      if (level != (msgtype)-1 && level < _currentLogLevel)
+      {
+        continue;
+      }
+
+      // additional output on the serial interface in debug or trace mode
+      if (_currentLogLevel == MSG_TRACE || _currentLogLevel == MSG_DEBUG)
+        _serial->println(entry.msg);
+
+      // Check file size, clear if too big
+      if (isFileTooBig())
+      {
+        println(F("[INFO] Log file too large, attempt to backup to ftp Server..."));
+        if (backupFileToFTPServer())
+        {
+          _serial->println(F("[INFO] Backup successful, clearing log file..."));
+          clear();
+        }
+        else
+        {
+          println(F("[WARNING] Backup failed!"));
+        }
+      }
+
+      char timeStr[25] = {0};
+      formatUptime(timeStr, sizeof(timeStr));
+
+      if (!fsReady)
+      {
+        _serial->println(F("[ERROR] LittleFS not initialized!"));
+        continue;
+      }
+
+      // Append to log file
+      File f = LittleFS.open(String("/") + _logFile, FILE_APPEND);
+      if (!f)
+      {
+        _logFallBack.store(true);
+        _serial->println(F("[ERROR] Failed to open log file for appending"));
+        continue;
+      }
+
+      snprintf(logLine, logLineSize, "%s | %s | %s\r\n", timeStr, msgType, entry.msg);
+      f.write((const uint8_t *)logLine, strlen(logLine));
+      f.close();
     }
-    else
-    {
-      println(F("[WARNING] Backup failed!"));
-    }
   }
-
-  const size_t timeStrLen = 25; // Max Länge von timeStr (z. B. "00d 23h 59m 59s")
-  const size_t maxLineLen = timeStrLen + 3 /* sep1 */ + _maxMsgLen + 3 /* sep2 */ + 16 /* msgType max */ + 4 /* \r\n + '\0' */;
-  char timeStr[25] = {0};
-  formatUptime(timeStr, sizeof(timeStr));
-
-  if (!fsReady)
-  {
-    println(F("[ERROR] LittleFS not initialized!"));
-    return;
-  }
-
-  // Append to log file
-  File f = LittleFS.open(String("/") + _logFile, FILE_APPEND);
-  if (!f)
-  {
-    _logFallBack.store(true);
-    println(F("[ERROR] Failed to open log file for appending"));
-    return;
-  }
-
-  // 25 (timeStr) + 3 (sep1 " | ") + 16 (max msgType) +3 (sep2 " | ") + _maxMsgLen + 4 (\r\n + \0)
-  char logLine[25 + 3 + _maxMsgLen + 3 + 16 + 4];
-  snprintf(logLine, sizeof(logLine), "%s | %s | %s\r\n", timeStr, msgType.c_str(), message.c_str());
-  f.write((const uint8_t *)logLine, strlen(logLine));
-  f.close();
 }
 
 #endif

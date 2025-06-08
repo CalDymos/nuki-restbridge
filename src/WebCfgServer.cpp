@@ -1025,10 +1025,17 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
 
 void WebCfgServer::buildGetLogFileHtml(WebServer *server)
 {
+
     if (!fsReady)
     {
         Log->println(F("[ERROR] LittleFS Mount Failed"));
         server->send(500, F("text/plain"), F("LittleFS mount failed."));
+        return;
+    }
+
+    if (!Log->lock())
+    {
+        server->send(503, F("text/plain"), F("Logger is busy. Please try again."));
         return;
     }
 
@@ -1038,12 +1045,14 @@ void WebCfgServer::buildGetLogFileHtml(WebServer *server)
     {
         Log->printf(F("%s not found\n"), LOGGER_FILENAME);
         server->send(404, F("text/plain"), F("Log file not found."));
+        Log->unlock();
         return;
     }
 
     server->sendHeader(F("Content-Disposition"), "attachment; filename=\"" + String(LOGGER_FILENAME) + "\"");
     server->streamFile(file, F("application/octet-stream"));
     file.close();
+    Log->unlock();
     return;
 }
 
@@ -1115,7 +1124,6 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
     response += F("</body></html>");
 
     appendHomeButton(response);
-
 
     server->send(200, F("text/html"), response);
 }
@@ -1286,7 +1294,6 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
     response += F("<table>");
 
     appendInputFieldRow(response, "LOGFILE", "Filename", LOGGER_FILENAME, 64, "readonly");
-    appendInputFieldRow(response, "LOGMSGLEN", "Max. message length (min 5, max 1024)", _preferences->getInt(preference_log_max_msg_len), 6, "min='5' max='1024'");
     appendInputFieldRow(response, "LOGMAXSIZE", "Max. log file size (min 56KB, max 1024KB)", _preferences->getInt(preference_log_max_file_size), 6, "min='56' max='1024'");
 
     // Log level dropdown
@@ -1295,7 +1302,7 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
     {
         Logger::msgtype lvl = static_cast<Logger::msgtype>(i);
         String key = String(i);
-        String label = Log->levelToString(lvl);
+        String label = String(Log->levelToString(lvl));
         lvlOptions.emplace_back(key, label);
     }
     appendDropDownRow(response, "LOGLEVEL", "Log level for Nuki Bridge", String(_preferences->getInt(preference_log_level, 0)), lvlOptions);
@@ -1864,14 +1871,15 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += "\nNetwork task stack high watermark: " + String(uxTaskGetStackHighWaterMark(networkTaskHandle));
     response += "\nNuki task stack high watermark: " + String(uxTaskGetStackHighWaterMark(nukiTaskHandle));
     response += "\nWeb configurator task stack high watermark: " + String(uxTaskGetStackHighWaterMark(webCfgTaskHandle));
+    response += "\nLogger task stack high watermark: " + String(uxTaskGetStackHighWaterMark(Log->getQueueTaskHandle()));
 
     response += F("\n\n------------NUKI BRIDGE LOG ------------");
     response += F("\nMax message length: ");
-    response += String(_preferences->getInt(preference_log_max_msg_len));
+    response += String(LOG_MSG_MAX_LEN);
     response += F("\nFilename: ");
     response += LOGGER_FILENAME;
     response += F("\nLevel: ");
-    response += Log->levelToString(Log->getLevel());
+    response += String(Log->levelToString(Log->getLevel()));
     response += F("\nCurrent file size: ");
     response += String(Log->getFileSize() / 1024);
     response += F(" kb");
@@ -3088,16 +3096,6 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if (key == "LOGMSGLEN")
-        {
-            if (_preferences->getInt(preference_log_max_msg_len, 1) != value.toInt())
-            {
-                _preferences->putInt(preference_log_max_msg_len, value.toInt());
-                Log->print("Setting changed: ");
-                Log->println(key);
-                // configChanged = true;
-            }
-        }
         else if (key == "LOGMAXSIZE")
         {
             if (_preferences->getInt(preference_log_max_file_size) != value.toInt())
@@ -3615,15 +3613,15 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 }
             }
         }
-        else if(key == "TCPUB")
+        else if (key == "TCPUB")
         {
-            if(_preferences->getBool(preference_timecontrol_info_enabled, false) != (value == "1"))
+            if (_preferences->getBool(preference_timecontrol_info_enabled, false) != (value == "1"))
             {
                 _preferences->putBool(preference_timecontrol_info_enabled, (value == "1"));
                 _nuki->setTimeCtrlInfoEnabled((value == "1"));
                 Log->print("Setting changed: ");
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
         else if (key == "TCENA")
@@ -3636,15 +3634,15 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        else if(key == "AUTHPUB")
+        else if (key == "AUTHPUB")
         {
-            if(_preferences->getBool(preference_auth_info_enabled, false) != (value == "1"))
+            if (_preferences->getBool(preference_auth_info_enabled, false) != (value == "1"))
             {
                 _preferences->putBool(preference_auth_info_enabled, (value == "1"));
                 _nuki->setAuthInfoEnabled((value == "1"));
                 Log->print("Setting changed: ");
                 Log->println(key);
-                //configChanged = true;
+                // configChanged = true;
             }
         }
         else if (key == "AUTHENA")
