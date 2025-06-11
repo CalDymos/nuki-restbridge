@@ -41,6 +41,15 @@ public:
     void handleClient();
 
 private:
+    enum AuthResult
+    {
+        AUTH_OK = 0,
+        AUTH_NO_COOKIE_HEADER = 1,
+        AUTH_COOKIE_NOT_FOUND = 2,
+        AUTH_SESSION_INVALID = 3,
+        AUTH_SESSION_EXPIRED = 4
+    };
+    
     /**
      * @brief Sends embedded CSS styling to the client.
      */
@@ -67,7 +76,7 @@ private:
      * @param server Pointer to the WebServer instance.
      * @return True if session is authenticated.
      */
-    bool isAuthenticated(WebServer *server);
+    int checkAuthentication(WebServer *server);
 
     /**
      * @brief Performs login using credentials.

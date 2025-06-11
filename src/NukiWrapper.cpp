@@ -684,17 +684,25 @@ bool NukiWrapper::updateConfig()
             Nuki::CmdResult result = (Nuki::CmdResult)-1;
             int retryCount = 0;
 
-            while (retryCount < _nrOfRetries + 1)
+            // If the pin is 000000, it does not need to be checked.
+            if (_nukiLock.getSecurityPincode() > 0 || _nukiLock.getUltraPincode() > 0)
             {
-                result = _nukiLock.verifySecurityPin();
-                if (result != Nuki::CmdResult::Success)
+                while (retryCount < _nrOfRetries + 1)
                 {
-                    ++retryCount;
+                    result = _nukiLock.verifySecurityPin();
+                    if (result != Nuki::CmdResult::Success)
+                    {
+                        ++retryCount;
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
-                else
-                {
-                    break;
-                }
+            }
+            else
+            {
+                result = Nuki::CmdResult::Failed;
             }
 
             if (result != Nuki::CmdResult::Success)

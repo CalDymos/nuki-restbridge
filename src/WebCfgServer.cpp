@@ -100,44 +100,39 @@ WebCfgServer::~WebCfgServer()
     _webServer = nullptr;
 }
 
-bool WebCfgServer::isAuthenticated(WebServer *server)
+int WebCfgServer::checkAuthentication(WebServer *server)
 {
     String cookieKey = "sessionId";
 
     // Get all cookies as a string
     String cookieHeader = server->header("Cookie");
 
-    if (cookieHeader.length() > 0)
-    {
-        // Search the cookie value
-        int startIndex = cookieHeader.indexOf(cookieKey + "=");
-        if (startIndex != -1)
-        {
-            startIndex += cookieKey.length() + 1; // Position after the equal sign
-            int endIndex = cookieHeader.indexOf(";", startIndex);
-            if (endIndex == -1)
-                endIndex = cookieHeader.length();
+    if (cookieHeader.length() == 0)
+        return AUTH_NO_COOKIE_HEADER;
 
-            String cookie = cookieHeader.substring(startIndex, endIndex);
+    // Search the cookie value
+    int startIndex = cookieHeader.indexOf(cookieKey + "=");
+    if (startIndex == -1)
+        return AUTH_COOKIE_NOT_FOUND;
 
-            if (_httpSessions[cookie].is<JsonVariant>())
-            {
-                struct timeval time;
-                gettimeofday(&time, NULL);
-                int64_t time_us = (int64_t)time.tv_sec * 1000000L + (int64_t)time.tv_usec;
+    startIndex += cookieKey.length() + 1; // Position after the equal sign
+    int endIndex = cookieHeader.indexOf(";", startIndex);
+    if (endIndex == -1)
+        endIndex = cookieHeader.length();
 
-                if (_httpSessions[cookie].as<signed long long>() > time_us)
-                {
-                    return true;
-                }
-                else
-                {
-                    Log->println(F("[DEBUG] Cookie found, but not valid anymore"));
-                }
-            }
-        }
-    }
-    return false;
+    String cookie = cookieHeader.substring(startIndex, endIndex);
+
+    if (!_httpSessions[cookie].is<JsonVariant>())
+        return AUTH_SESSION_INVALID;
+
+    struct timeval time;
+    gettimeofday(&time, NULL);
+    int64_t time_us = (int64_t)time.tv_sec * 1000000L + (int64_t)time.tv_usec;
+
+    if (_httpSessions[cookie].as<signed long long>() <= time_us)
+        return AUTH_SESSION_EXPIRED;
+
+    return AUTH_OK;
 }
 
 int WebCfgServer::doAuthentication(WebServer *server)
@@ -151,9 +146,25 @@ int WebCfgServer::doAuthentication(WebServer *server)
         int savedAuthType = _preferences->getInt(preference_http_auth_type, 0);
         if (savedAuthType == 2)
         {
-            if (!isAuthenticated(server))
+            int authResult = checkAuthentication(server);
+            if (authResult != AUTH_OK)
             {
-                Log->println(F("[WARNING] Authentication Failed"));
+                const char *ip = server->client().remoteIP().toString().c_str();
+                switch (authResult)
+                {
+                case AUTH_NO_COOKIE_HEADER:
+                    Log->printf(F("[WARNING] Authentication Failed: No Cookie header (from %s)\n"), ip);
+                    break;
+                case AUTH_COOKIE_NOT_FOUND:
+                    Log->printf(F("[WARNING] Authentication Failed: Session cookie not found (from %s)\n"), ip);
+                    break;
+                case AUTH_SESSION_INVALID:
+                    Log->printf(F("[WARNING] Authentication Failed: Session entry invalid (from %s)\n"), ip);
+                    break;
+                case AUTH_SESSION_EXPIRED:
+                    Log->printf(F("[WARNING] Authentication Failed: Session expired (from %s)\n"), ip);
+                    break;
+                }
                 return savedAuthType;
             }
         }
@@ -161,7 +172,7 @@ int WebCfgServer::doAuthentication(WebServer *server)
         {
             if (!server->authenticate(_credUser, _credPassword))
             {
-                Log->println(F("[WARNING] Authentication Failed"));
+                Log->printf(F("[WARNING] Authentication Failed: wrong credentials (from %s)\n"), server->client().remoteIP().toString().c_str());
                 return savedAuthType;
             }
         }
