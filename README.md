@@ -27,6 +27,12 @@
       - [General](#general)
       - [Key Turner State](#key-turner-state)
       - [Battery Report](#battery-report)
+    - [Example: Sending HAR values to a **Loxone** Virtual Input](#example-sending-har-values-to-a-loxone-virtual-input)
+      - [Sending String values (Virtual Text Input)](#sending-string-values-virtual-text-input)
+      - [Sending Integer values (Virtual Input)](#sending-integer-values-virtual-input)
+    - [Example: Sending Values to a **Comexio** Device (WebIO or API)](#example-sending-har-values-to-a-comexio-device-webio-or-api)
+      - [Using the Comexio API](#using-the-comexio-api)
+      - [Using Comexio Marker Variables](#using-comexio-marker-variables)
   - [Nuki Configuration](#nuki-configuration)
     - [Basic Nuki Configuration](#basic-configuration)
     - [Advanced Nuki Configuration](#advanced-nuki-configuration)
@@ -217,91 +223,258 @@ You can configure:
 ##### General
 
 - **HA State Path**: Home Automation API path that returns the status of the HAR in response to a GET request. Used as an additional check to verify if the Home Automation system is reachable. Leave empty to disable status check.
-- **Uptime Path**: URL path to report ESP system uptime to Home Automation (e.g. `/api/system/uptime`)
-- **Uptime (Query/Param)**: Query to report the value (e.g. `?value=`)
 
-- **FW Restart Reason Path**: URL path to report the firmware restart reason to Home Automation (e.g. `/api/system/fwrestart`)
-- **FW Restart Reason (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Uptime Path**: URL path for the report to Home Automation on the operating time of the ESP system since the last start. (e.g. `api/system/uptime`)
+- **Uptime (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Seconds as Integer (e.g. 27546)
 
-- **ESP Restart Reason Path**: URL path to report the ESP restart reason to Home Automation (e.g. `/api/system/esprestart`)
-- **ESP Restart Reason (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **FW Restart Reason Path**: URL path to report the firmware restart reason to Home Automation (e.g. `api/system/fwrestart`)
+- **FW Restart Reason (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Reason as String (e.g "NetworkTimeoutWatchdog")
 
-- **Bridge Version Path**: URL path to report the Nuki Bridge firmware version (e.g. `/api/system/version`)
-- **Bridge Version (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **ESP Restart Reason Path**: URL path to report the ESP restart reason to Home Automation (e.g. `api/system/esprestart`)
+- **ESP Restart Reason (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Reason as String (e.g "ESP_RST_PANIC: Software reset due to exception/panic.")
 
-- **Bridge Build Path**: URL path to report the build number or date of the Nuki Bridge (e.g. `/api/system/build`)
-- **Bridge Build (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Bridge Version Path**: URL path to report the Nuki Bridge firmware version (e.g. `api/system/version`)
+- **Bridge Version (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Version as String (e.g. "0.7.3")
 
-- **Free Heap Path**: URL path to report available free heap memory (e.g. `/api/system/freeheap`)
-- **Free Heap (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Bridge Build Path**: URL path to report the build number or date of the Nuki Bridge (e.g. `api/system/build`)
+- **Bridge Build (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Number/Id as String (e.g. "main" )
 
-- **Wi-Fi RSSI Path**: URL path to report current Wi-Fi signal strength (RSSI) (e.g. `/api/system/wifi_rssi`)
-- **Wi-Fi RSSI (Query/Param)**: Query to report the value (e.g. `?rssi=`)
+- **Free Heap Path**: URL path to report available free heap memory(e.g. `api/system/freeheap`)
+- **Free Heap (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Bytes as integer (e.g. 77000)
 
-- **BLE Address Path**: URL path to report the BLE MAC address of the Nuki device (e.g. `/api/system/ble_address`)
-- **BLE Address (Query/Param)**: Query to report the value (e.g. `?addr=`)
+- **Wi-Fi RSSI Path**: URL path to report current Wi-Fi signal strength (RSSI) (e.g. `api/system/wifi_rssi`)
+- **Wi-Fi RSSI (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = dBm as Integer (e.g. -15)
 
-- **BLE RSSI Path**: URL path to report the signal strength (RSSI) of the BLE connection (e.g. `/api/system/ble_rssi`)
-- **BLE RSSI (Query/Param)**: Query to report the value (e.g. `?rssi=`)
+- **BLE Address Path**: URL path to report the BLE MAC address of the Nuki device (e.g. `api/system/ble_address`)
+- **BLE Address (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = MAC as String (e.g. "F1:D2:34:AB:12:CD")
+
+- **BLE RSSI Path**: URL path to report the signal strength (RSSI) of the BLE connection (e.g. `api/system/ble_rssi`)
+- **BLE RSSI (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = dBm as Integer (e.g. -40)
 
 ---
 
 ##### Key Turner State
 
-- **Lock State Path**: URL path to report the current lock state (e.g. `/api/lock/state`)
-- **Lock State (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Lock State Path**: URL path to report the current lock state (e.g. `api/lock/state`)
+- **Lock State (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = State as Integer:
 
-- **Lock 'N' Go State Path**: URL path to report if a Lock ’n’ Go action was triggered (e.g. `/api/lock/lockngo`)
-- **Lock 'N' Go State (Query/Param)**: Query to report the value (e.g. `?value=`)
+  | Value | Meaning         |
+  |-------|------------------|
+  | 0     | Uncalibrated     |
+  | 1     | Locked           |
+  | 2     | Unlocking        |
+  | 3     | Unlocked         |
+  | 4     | Locking          |
+  | 5     | Unlatched        |
+  | 6     | Unlocked (Lock ’n’ Go) |
+  | 7     | Unlatching       |
+  | 252   | Calibration      |
+  | 253   | Boot Run         |
+  | 254   | Motor Blocked    |
+  | 255   | Undefined        |
 
-- **Lock Trigger Path**: URL path to report the last trigger source (e.g. `/api/lock/trigger`)
-- **Lock Trigger (Query/Param)**: Query to report the value (e.g. `?source=`)
+- **Lock 'N' Go State Path**: URL path to report if a Lock ’n’ Go action was triggered (e.g. `api/lock/lockngo`)
+- **Lock 'N' Go State (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Remaining seconds until Lock 'N' Go is executed as Integer.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Value is `0` if no Lock 'N' Go action is active.
 
-- **Night Mode Path**: URL path to report whether night mode is active (e.g. `/api/lock/nightmode`)
-- **Night Mode (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Lock Trigger Path**: URL path to report the last trigger source (e.g. `api/lock/trigger`)
+- **Lock Trigger (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = trigger source as Integer:
 
-- **Process Status Path**: URL path to report the lock completion status (e.g. `/api/lock/completionstatus`)
-- **Process Status (Query/Param)**: Query to report the value (e.g. `?value=`)
+  | Value | Meaning   |
+  |-------|-----------|
+  | 0     | System    |
+  | 1     | Manual    |
+  | 2     | Button    |
+  | 3     | Automatic |
+  | 6     | AutoLock  |
+  | 171   | HomeKit   |
+  | 172   | MQTT      |
+  | 255   | Undefined |
 
-- **Battery Critical Path**: URL path to report whether the lock battery is critical (e.g. `/api/lock/batterycritical`)
-- **Battery Critical (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Night Mode Path**: URL path to report whether night mode is active (e.g. `api/lock/nightmode`)
+- **Night Mode (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Boolean as Integer (1 = active, 0 = inactive)
 
-- **Battery Level Path**: URL path to report the battery level percentage (e.g. `/api/lock/batterylevel`)
-- **Battery Level (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Process Status Path**: URL path to report the lock completion status (e.g. `api/lock/completionstatus`)
+- **Process Status (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Status As Integer:
 
-- **Battery Charging Path**: URL path to report if the battery is currently charging (e.g. `/api/lock/batterycharging`)
-- **Battery Charging (Query/Param)**: Query to report the value (e.g. `?value=`)
+  | Value | Meaning              |
+  |-------|-----------------------|
+  | 0     | Success               |
+  | 1     | Motor Blocked         |
+  | 2     | Canceled              |
+  | 3     | Too Recent            |
+  | 4     | Busy                  |
+  | 5     | Low Motor Voltage     |
+  | 6     | Clutch Failure        |
+  | 7     | Motor Power Failure   |
+  | 8     | Incomplete Failure    |
+  | 11    | Failure               |
+  | 224   | Invalid Code          |
+  | 254   | Other Error           |
+  | 255   | Unknown               |
 
-- **Door Sensor State Path**: URL path to report the door sensor state (e.g. `/api/lock/doorsensorstate`)
+- **Battery Critical Path**: URL path to report whether the lock battery is critical (e.g. `api/lock/batterycritical`)
+- **Battery Critical (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Boolean as Integer (1 = battery low, 0 = OK)
+
+- **Battery Level Path**: URL path to report the battery level percentage (e.g. `api/lock/batterylevel`)
+- **Battery Level (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = percent as Integer (e.g. 50)
+
+- **Battery Charging Path**: URL path to report if the battery is currently charging (e.g. `api/lock/batterycharging`)
+- **Battery Charging (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Boolean as Integer (1 = charging, 0 = not charging)
+
+- **Door Sensor State Path**: URL path to report the door sensor state (e.g. `api/lock/doorsensorstate`)
 - **Door Sensor State (Query/Param)**: Query to report the value (e.g. `?value=`)
+Transmitted Value = State as Integer:
 
-- **Door Sensor Critical Path**: URL path to report door sensor error state (e.g. `/api/lock/doorsensorcritical`)
-- **Door Sensor Critical (Query/Param)**: Query to report the value (e.g. `?value=`)
+  | Value | Meaning             |
+  |-------|----------------------|
+  | 0     | Unavailable          |
+  | 1     | Deactivated          |
+  | 2     | Door Closed          |
+  | 3     | Door Opened          |
+  | 4     | Door State Unknown   |
+  | 5     | Calibrating          |
+  | 16    | Uncalibrated         |
+  | 240   | Tampered             |
+  | 255   | Unknown              |
 
-- **Keypad Critical Path**: URL path to report keypad error state (e.g. `/api/lock/keypadcritical`)
-- **Keypad Critical (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Door Sensor Critical Path**: URL path to report whether door sensor battery is critical (e.g. `api/lock/doorsensorcritical`)
+- **Door Sensor Critical (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Boolean as Integer (1 = battery low, 0 = OK)
 
-- **Remote Access State Path**: URL path to report the current remote access state (e.g. `/api/lock/remoteaccess`)
-- **Remote Access State (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Keypad Critical Path**: URL path to report whether keypad battery is critical (e.g. `api/lock/keypadcritical`)
+- **Keypad Critical (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Boolean as Integer (1 = battery low, 0 = OK)
 
-- **BLE Strength Path**: URL path to report BLE signal strength (e.g. `/api/lock/blestrength`)
-- **BLE Strength (Query/Param)**: Query to report the value (e.g. `?value=`)
+> 📘 Only supported by Smart Lock 4th Generation and Ultra.
+> - **Remote Access State Path**: URL path to report the current remote access state (e.g. `api/lock/remoteaccess`)
+> - **Remote Access State (Query/Param)**: Query to report the value (e.g. `?value=`).  
+> Transmitted Value = Bitmask as Integer. Each bit represents a specific remote access state:
+> 
+>  | Bit | Mask | Meaning                                |
+>  |-----|------|----------------------------------------|
+>  | 0   | 1    | Remote access enabled                  |
+>  | 1   | 2    | Bridge paired                          |
+>  | 2   | 4    | SSE connected via Wi-Fi                |
+>  | 3   | 8    | SSE connection established             |
+>  | 4   | 16   | SSE connected via Thread               |
+>  | 5   | 32   | Thread SSE uplink enabled by user      |
+>  | 6   | 64   | NAT64 available via Thread             |
+>
+>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To extract specific state use bitwise operations, e.g. `value & 2` to check if the Bridge is paired.
+
+> 📘 Only supported by Smart Lock 4th Generation and Ultra.
+> - **BLE Strength Path**: URL path to report BLE signal strength between Nuki  Bridge and Lock (e.g. `api/lock/blestrength`)
+> - **BLE Strength (Query/Param)**: Query to report the value (e.g. `?value=`).  
+  Transmitted Value = RSSI in dBm or status code as Integer.
+>
+>  | Value     | Meaning                                                        |
+>  |-----------|----------------------------------------------------------------|
+>  | `< 0`     | Raw RSSI value in dBm (e.g. `-75`)                             |
+>  | `0`       | Invalid RSSI value                                             |
+>  | `1`       | Not supported (only Smart Lock 4.0 and Ultra return RSSI)     |
 
 ---
 
 ##### Battery Report
 
-- **Voltage Path**: URL path to report the current battery voltage (e.g. `/api/battery/voltage`)
-- **Voltage (Query/Param)**: Query to report the value (e.g. `?v=`)
+- **Voltage Path**: URL path to report the current battery voltage (e.g. `api/battery/voltage`)
+- **Voltage (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Voltage in mV as Integer
 
-- **Drain Path**: URL path to report battery drain rate (e.g. `/api/battery/drain`)
-- **Drain (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Drain Path**: URL path to report battery drain rate of last lock action (e.g. `api/battery/drain`)
+- **Drain (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = drain in mWs as Integer
 
-- **Max Turn Current Path**: URL path to report the peak current while turning the motor (e.g. `/api/battery/maxcurrent`)
-- **Max Turn Current (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Max Turn Current Path**: URL path to report the peak current while turning the motor (e.g. `api/battery/maxcurrent`)
+- **Max Turn Current (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Peak current in mA as Integer
 
-- **Lock Distance Path**: URL path to report motor lock distance (e.g. `/api/battery/lockdistance`)
-- **Lock Distance (Query/Param)**: Query to report the value (e.g. `?value=`)
+- **Lock Distance Path**: URL path to report motor lock distance (e.g. `api/battery/lockdistance`)
+- **Lock Distance (Query/Param)**: Query to report the value (e.g. `?value=`).  
+Transmitted Value = Distance in degrees as Integer
+
+---
+
+#### Example: Sending HAR values to a **Loxone** Virtual Input
+
+You can use **LOXONE** ***Virtual Inputs*** or ***Virtual Text Inputs*** to receive HAR status updates directly from the Nuki REST Bridge via **REST**.
+
+##### Sending String values (Virtual Text Input)
+
+Loxone expects the following URL format:  
+`http://<User>:<Password>@<MiniserverIP>:<Port>/dev/sps/io/<ConnectionName>/<Text>`
+
+- **Connection Name**: Typically starts with `VTI`, e.g. `VTI13`
+- **Text**: Any string (e.g. `Watchdog`, `Boot`, etc.)
+
+**HAR Configuration:**
+
+- **Path**: `dev/sps/io`
+- **Query / Param**: `VTI13/`
+
+> 📘 The actual value (e.g. `Watchdog`) will be appended automatically to the end of the query.
+
+##### Sending Integer values (Virtual Input)
+
+Loxone expects the following URL format:
+`http://<User>:<Password>@<MiniserverIP>:<Port>/dev/sps/io/<ConnectionName>/<IntValue>`
+
+- **Connection Name**: Typically starts with `VI`, e.g. `VI5`
+- **IntValue**: A numeric value like `0`, `1`, `75`, etc.
+
+**HAR Configuration:**
+
+- **Path**: `dev/sps/io`
+- **Query / Param**: `VI5/`
+
+> 📘 The numeric value (e.g. `1`, `255`, etc.) is appended automatically.
+
+#### Example: Sending HAR Values to a **Comexio** Device (WebIO or API)
+
+##### Using the Comexio API
+
+Comexio supports standard HTTP GET/POST requests with clear parameterized URLs.
+
+- **Example URL** (Integer or Boolean values):  
+  `http://<User>:<Password>@<ComexioIP>/api/?action=set&ext=<ExtensionName>&io=<IO_ID>&value=<VALUE>`
+
+- **REST Mode Configuration:**
+  - **Path** = `api`
+  - **Query** = `?action=set&ext=Extension1&io=Q1&value=`
+
+> 💡 **Info:** Comexio expects `Qx` (Q1, Q2, etc.) for outputs and `Ix` (I1, I2, etc.) for inputs.  
+> The `value` can be `0` or `1` for digital outputs or any number for analog values.
+
+---
+
+##### Using Comexio Marker Variables
+
+You can set markers via the API as follows:
+
+- **Example URL** (Analog value):  
+  `http://<ComexioIP>/api/?action=set&marker=M1&value=12`
+
+- **REST Mode Configuration:**
+  - **Path** = `api`
+  - **Query** = `?action=set&marker=M1&value=`
 
 ---
 
