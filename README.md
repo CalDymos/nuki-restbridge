@@ -796,4 +796,5 @@ Examples:
 | **Use VPN for remote access**          | Router / Gateway              | Avoid exposing devices to the internet – connect remotely via VPN only            |
 | **Set up a separate Guest LAN**        | Router / Access Point         | Create an isolated guest WiFi/LAN for visitors to prevent access to internal devices |
 | **Monitor network traffic**            | Firewall / Network Monitor    | Log or alert on unusual traffic from/to ESP32 IPs                                 |
+| **Use strong admin passwords**         | Router / HA System            | Set secure, unique passwords for admin access to router and Home Automation UI    |
 
