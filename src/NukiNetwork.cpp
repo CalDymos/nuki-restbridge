@@ -615,7 +615,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
             {
-                sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.lockNgoTimer);
+                sendToHAInt(key.c_str(), param.c_str(), (int)(keyTurnerState.lockNgoTimer != 255 ? keyTurnerState.lockNgoTimer : 0));
             }
 
             memset(&str, 0, sizeof(str));
@@ -638,7 +638,7 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
             if ((key && _homeAutomationMode == 1) || (param && _homeAutomationMode == 0))
             {
-                sendToHAInt(key.c_str(), param.c_str(), (int)keyTurnerState.nightModeActive);
+                sendToHAInt(key.c_str(), param.c_str(), (int)(keyTurnerState.nightModeActive != 255 ? keyTurnerState.nightModeActive : 0));
             }
 
             memset(&str, 0, sizeof(str));
