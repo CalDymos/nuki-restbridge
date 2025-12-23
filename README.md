@@ -60,7 +60,7 @@
 
 **Nuki REST Bridge** allows full local integration of Nuki Smart Locks via REST – no cloud, no MQTT broker required. It runs on an ESP32 and connects to Nuki devices over BLE while exposing a simple REST API.
 
-> 🔗 **Fork Notice**: This project is a **disconnected fork** of [Nuki Hub](https://github.com/technyon/nuki_hub). It's not actively synchronized with upstream and has diverged significantly.
+> 🔗 **Fork Notice**: This project is a **disconnected fork** of [Nuki Hub](https://github.com/technyon/nuki_hub). It's not actively synchronized with upstream and differs in some parts from the original..
 
 - Offers direct REST access for smart home platforms (e.g., Loxone Miniserver).
 - Ideal for autonomous environments without MQTT broker or additional original NukiBridge.
