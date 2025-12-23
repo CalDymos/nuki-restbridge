@@ -5,8 +5,7 @@ import re, shutil, os, csv
 from pathlib import Path
 import subprocess, psutil
 import serial.tools.list_ports
-import tkinter as tk
-from tkinter import Checkbutton, messagebox, simpledialog, ttk
+import sys, json
 import time
 from glob import glob
 
@@ -234,49 +233,47 @@ def center_window(window, width=300, height=150):
     
     window.geometry(f"{width}x{height}+{x}+{y}")
         
-def select_serial_port():
-    """ Zeigt ein Fenster mit allen verfügbaren seriellen Ports zur Auswahl """
-    ports = list(serial.tools.list_ports.comports())
-    
-    if not ports:
-        messagebox.showerror("Fehler", "Kein serieller Port gefunden! Überprüfen Sie die Verbindung.")
+def run_upload_gui(env, board: str, ports: list, default_port: str, default_erase: bool):
+    helper_path = os.path.join(project_dir, "pio_gui_helper.py")
+    if not os.path.exists(helper_path):
+        print(f"[ERROR] GUI helper not found: {helper_path}")
         return None
 
-    # List of available ports
-    port_list = [f"{port.device} - {port.description}" for port in ports]
-    port_devices = [port.device for port in ports]  # Extract COM ports only
-    
-    def on_confirm():
-        nonlocal selected_port
-        selected_index = port_list.index(port_var.get())  # Index of the selected entry
-        selected_port = port_devices[selected_index]  # Extract only the COM port
-        root.destroy()
-    
-    root = tk.Tk()
-    root.withdraw()  # Hide main window
-    root.attributes('-topmost', True)  # Always set windows in the foreground
-    
-    selected_port = None
-    dialog = tk.Toplevel(root)
-    dialog.title("Select port")
-    center_window(dialog)
-    
-    label = tk.Label(dialog, text="Select a serial port:")
-    label.pack(pady=10)
-    
-    port_var = tk.StringVar(value=port_list[0])
-    port_combo = ttk.Combobox(dialog, textvariable=port_var, values=port_list, state="readonly", width=40)
-    port_combo.pack()
-    
-    button_frame = tk.Frame(dialog)
-    button_frame.pack(pady=10)
-    
-    confirm_button = tk.Button(button_frame, text="OK", command=on_confirm)
-    confirm_button.pack()
-    
-    root.wait_window(dialog)
-    
-    return selected_port if selected_port else None
+    python_exe = env.GetProjectOption("custom_gui_python", "") or os.environ.get("PIO_GUI_PYTHON", "")
+    if not python_exe:
+        print("[ERROR] custom_gui_python / PIO_GUI_PYTHON not set. Cannot launch GUI helper.")
+        return None
+
+    payload = {
+        "board": board,
+        "ports": [{"device": p.device, "description": p.description} for p in ports],
+        "default_port": default_port,
+        "default_erase": default_erase,
+    }
+
+    try:
+        proc = subprocess.run(
+            [python_exe, helper_path],
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True
+        )
+    except Exception as ex:
+        print(f"[ERROR] Failed to start GUI helper: {ex}")
+        return None
+
+    if proc.stdout:
+        try:
+            return json.loads(proc.stdout.strip())
+        except Exception:
+            print("[ERROR] GUI helper returned invalid JSON.")
+            print(proc.stdout)
+            return None
+
+    if proc.stderr:
+        print(proc.stderr)
+
+    return None
     
 def upload_firmware(source, target, env):
     """ Flasht die generierte Firmware automatisch auf das ESP32-Board """
@@ -289,50 +286,35 @@ def upload_firmware(source, target, env):
     upload_port = env.GetProjectOption("upload_port", "COM3")
     monitor_speed = env.GetProjectOption("monitor_speed", "115200")  # Default: 115200 Baud
     upload_speed =  env.GetProjectOption("upload_speed", "115200")  # Default: 115200 Baud
-        
-    # GUI dialog to confirm the upload with checkbox for flash erase
-    def on_confirm():
-        nonlocal erase_flash, upload_confirmed
-        erase_flash = erase_var.get()
-        upload_confirmed = True
-        root.destroy()
 
-    root = tk.Tk()
-    root.withdraw()  # Hide main window
-    root.attributes('-topmost', True)  # Always set windows in the foreground
-    
-    erase_flash = False
+    auto_upload = env.GetProjectOption("custom_auto_upload", "0") == "1"
+    default_erase_flash = env.GetProjectOption("custom_erase_flash", "0") == "1"
+
+    ports = list(serial.tools.list_ports.comports())
+
+    erase_flash = default_erase_flash
     upload_confirmed = False
-    
-    dialog = tk.Toplevel(root)
-    dialog.title("Firmware Upload")
-    center_window(dialog)
-        
-    
-    label = tk.Label(dialog, text=f"Should the firmware be uploaded to {board}?")
-    label.pack(pady=10)
-    
-    erase_var = tk.BooleanVar()
-    erase_checkbox = Checkbutton(dialog, text="Erase Flash before upload", variable=erase_var)
-    erase_checkbox.pack()
 
-    button_frame = tk.Frame(dialog)
-    button_frame.pack(pady=10)
+    if auto_upload:
+        upload_confirmed = True
+    else:
+        gui_result = run_upload_gui(env, board, ports, upload_port, default_erase_flash)
+        if not gui_result or not gui_result.get("confirmed"):
+            print("[INFO] Upload canceled.")
+            return
 
-    confirm_button = tk.Button(button_frame, text="Yes", command=on_confirm)
-    confirm_button.pack(side=tk.LEFT, padx=5)
-    
-    cancel_button = tk.Button(button_frame, text="No", command=dialog.destroy)
-    cancel_button.pack(side=tk.RIGHT, padx=5)
-    
-    root.wait_window(dialog)
-            
-    if not upload_confirmed:
-        print("[INFO] Upload canceled.")
+        upload_confirmed = True
+        erase_flash = bool(gui_result.get("erase_flash", False))
+        selected_port = str(gui_result.get("port", "")).strip()
+        if selected_port:
+            upload_port = selected_port
+                    
+    # Check whether the `upload_port` exists
+    available_ports = [p.device for p in serial.tools.list_ports.comports()]
+    if upload_port not in available_ports:
+        print(f"[ERROR] Selected port {upload_port} is not available. Upload canceled.")
         return
 
-    # Check whether the `upload_port` exists
-    available_ports = [port.device for port in serial.tools.list_ports.comports()]
     
     if upload_port not in available_ports:
         print(f"[WARNING] The port {upload_port} was not found!")
