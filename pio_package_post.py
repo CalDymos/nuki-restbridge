@@ -314,15 +314,6 @@ def upload_firmware(source, target, env):
     if upload_port not in available_ports:
         print(f"[ERROR] Selected port {upload_port} is not available. Upload canceled.")
         return
-
-    
-    if upload_port not in available_ports:
-        print(f"[WARNING] The port {upload_port} was not found!")
-        upload_port = select_serial_port()
-        
-        if not upload_port:
-            print("[ERROR] No valid port selected. Upload canceled.")
-            return
         
     # Exit serial monitor if active   
     kill_serial_monitor(upload_port)
