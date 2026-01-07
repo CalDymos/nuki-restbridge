@@ -16,6 +16,7 @@ global project_dir
 
 build_dir = env.subst("$BUILD_DIR")  # type: ignore
 project_dir = env.subst("$PROJECT_DIR")  # type: ignore
+python_exe = env.subst("$PYTHONEXE") or sys.executable  # type: ignore
 
 def get_partition_offsets(env):
     """
@@ -211,8 +212,9 @@ def merge_bin(source, target, env):
     else:
         print(f"[INFO] No LittleFS image found in {littlefs_path}. Skipping in merge_bin().")
         
-    cmd = f"esptool.py --chip {chip} merge_bin -o {target_file} --flash_mode dio --flash_freq keep --flash_size keep " + " ".join(flash_args)
+    cmd = f"\"{python_exe}\" -m esptool --chip {chip} merge_bin -o \"{target_file}\" --flash_mode dio --flash_freq keep --flash_size keep " + " ".join(flash_args)
     env.Execute(cmd)
+
 
 def package_last_files(source, target, env):
     files = ["resources/boot_app0.bin"]
@@ -321,19 +323,19 @@ def upload_firmware(source, target, env):
     
     # Optional: Erase flash before upload
     if erase_flash:
-        cmd = f"esptool.py --chip {chip} --port {upload_port} erase_flash"
+        cmd = f"\"{python_exe}\" -m esptool --chip {chip} --port {upload_port} erase_flash"
         print("[INFO] Erasing flash before upload...")
         env.Execute(cmd)
     
     # Upload the firmware with `esptool.py`.
-    cmd = f"esptool.py --chip {chip} --port {upload_port} --baud {upload_speed} write_flash -z "
-    cmd += f"{partOffsets['bootloader']} {build_dir}/bootloader.bin "
-    cmd += f"{partOffsets['partition']} {build_dir}/partitions.bin "
-    cmd += f"{partOffsets['firmware']} {firmware_path}"
+    cmd = f"\"{python_exe}\" -m esptool --chip {chip} --port {upload_port} --baud {upload_speed} write_flash -z "
+    cmd += f"{partOffsets['bootloader']} \"{build_dir}/bootloader.bin\" "
+    cmd += f"{partOffsets['partition']} \"{build_dir}/partitions.bin\" "
+    cmd += f"{partOffsets['firmware']} \"{firmware_path}\""
 
     littlefs_path = os.path.join(build_dir, "littlefs.bin")
     if os.path.exists(littlefs_path):
-        cmd += f" {partOffsets['littlefs']} {littlefs_path}"
+        cmd += f" {partOffsets['littlefs']} \"{littlefs_path}\""
     else:
         print("[INFO] No LittleFS image found. Skipping in upload_firmware().")
     
