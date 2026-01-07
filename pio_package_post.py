@@ -18,6 +18,28 @@ build_dir = env.subst("$BUILD_DIR")  # type: ignore
 project_dir = env.subst("$PROJECT_DIR")  # type: ignore
 python_exe = env.subst("$PYTHONEXE") or sys.executable  # type: ignore
 
+def get_gui_python(env) -> str:
+    # 1) PlatformIO/Penv Python (most portable within PIO)
+    pio_python = env.subst("$PYTHONEXE") or sys.executable
+    pio_python_path = Path(str(pio_python))
+
+    # Prefer pythonw.exe if it exists next to python.exe
+    if os.name == "nt":
+        pio_pythonw = pio_python_path.with_name("pythonw.exe")
+        if pio_pythonw.exists():
+            return str(pio_pythonw)
+
+    # 2) If pythonw not available, try Windows launcher "pyw" (no user path)
+    if os.name == "nt":
+        pyw = shutil.which("pyw")
+        if pyw:
+            return pyw  # call it like: [pyw, "-3", script.py]
+
+    # 3) Fallback: whatever python we have (console window may appear)
+    return str(pio_python_path)
+
+gui_python = get_gui_python(env) # type: ignore
+
 def get_partition_offsets(env):
     """
     Reads partitions.csv and extracts offsets
@@ -241,11 +263,6 @@ def run_upload_gui(env, board: str, ports: list, default_port: str, default_eras
         print(f"[ERROR] GUI helper not found: {helper_path}")
         return None
 
-    python_exe = env.GetProjectOption("custom_gui_python", "") or os.environ.get("PIO_GUI_PYTHON", "")
-    if not python_exe:
-        print("[ERROR] custom_gui_python / PIO_GUI_PYTHON not set. Cannot launch GUI helper.")
-        return None
-
     payload = {
         "board": board,
         "ports": [{"device": p.device, "description": p.description} for p in ports],
@@ -254,8 +271,13 @@ def run_upload_gui(env, board: str, ports: list, default_port: str, default_eras
     }
 
     try:
+        if os.name == "nt" and os.path.basename(gui_python).lower() == "pyw.exe":
+            cmd = [gui_python, "-3", helper_path]
+        else:
+            cmd = [gui_python, helper_path]
+
         proc = subprocess.run(
-            [python_exe, helper_path],
+            cmd,
             input=json.dumps(payload),
             text=True,
             capture_output=True
@@ -276,6 +298,7 @@ def run_upload_gui(env, board: str, ports: list, default_port: str, default_eras
         print(proc.stderr)
 
     return None
+
     
 def upload_firmware(source, target, env):
     """ Flasht die generierte Firmware automatisch auf das ESP32-Board """
