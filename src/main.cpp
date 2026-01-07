@@ -653,12 +653,13 @@ void setup()
 
   initializeRestartReason();
 
-  if (esp_reset_reason() == esp_reset_reason_t::ESP_RST_PANIC ||
-      esp_reset_reason() == esp_reset_reason_t::ESP_RST_INT_WDT ||
-      esp_reset_reason() == esp_reset_reason_t::ESP_RST_TASK_WDT ||
-      esp_reset_reason() == esp_reset_reason_t::ESP_RST_WDT)
+  esp_reset_reason_t reason = esp_reset_reason();
+
+  if (reason == ESP_RST_PANIC ||
+      reason == ESP_RST_INT_WDT ||
+      reason == ESP_RST_TASK_WDT)
   {
-    logCoreDump();
+      logCoreDump();
   }
 
 #ifdef DEBUG_NUKIBRIDGE
