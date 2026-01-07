@@ -1,7 +1,7 @@
 #pragma once
 
-#define NUKI_REST_BRIDGE_VERSION "1.2.14"
-#define NUKI_REST_BRIDGE_BUILD "feature/ble-scanner-destructor"
+#define NUKI_REST_BRIDGE_VERSION "1.2.15"
+#define NUKI_REST_BRIDGE_BUILD "main"
 #define NUKI_REST_BRIDGE_DATE "2026-01-07"
 #define NUKI_REST_BRIDGE_HW "OLIMEX ESP32-POE-ISO"
 
