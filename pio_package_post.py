@@ -212,7 +212,7 @@ def merge_bin(source, target, env):
     else:
         print(f"[INFO] No LittleFS image found in {littlefs_path}. Skipping in merge_bin().")
         
-    cmd = f"\"{python_exe}\" -m esptool --chip {chip} merge_bin -o \"{target_file}\" --flash_mode dio --flash_freq keep --flash_size keep " + " ".join(flash_args)
+    cmd = f"\"{python_exe}\" -m esptool --chip {chip} merge-bin -o \"{target_file}\" --flash-mode dio --flash-freq keep --flash-size keep " + " ".join(flash_args)
     env.Execute(cmd)
 
 
