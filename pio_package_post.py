@@ -19,24 +19,13 @@ project_dir = env.subst("$PROJECT_DIR")  # type: ignore
 python_exe = env.subst("$PYTHONEXE") or sys.executable  # type: ignore
 
 def get_gui_python(env) -> str:
-    # 1) PlatformIO/Penv Python (most portable within PIO)
-    pio_python = env.subst("$PYTHONEXE") or sys.executable
-    pio_python_path = Path(str(pio_python))
-
-    # Prefer pythonw.exe if it exists next to python.exe
-    if os.name == "nt":
-        pio_pythonw = pio_python_path.with_name("pythonw.exe")
-        if pio_pythonw.exists():
-            return str(pio_pythonw)
-
-    # 2) If pythonw not available, try Windows launcher "pyw" (no user path)
     if os.name == "nt":
         pyw = shutil.which("pyw")
         if pyw:
-            return pyw  # call it like: [pyw, "-3", script.py]
-
-    # 3) Fallback: whatever python we have (console window may appear)
-    return str(pio_python_path)
+            return pyw 
+        py = shutil.which("py")
+        if py:
+            return py
 
 gui_python = get_gui_python(env) # type: ignore
 

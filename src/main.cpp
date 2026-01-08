@@ -9,8 +9,8 @@
 #include "esp_chip_info.h"
 #include "time.h"
 #include "esp_core_dump.h"
+#include <FS.h>
 #include <LittleFS.h>
-#include "FS.h"
 #ifdef CONFIG_SOC_SPIRAM_SUPPORTED
 #include "esp_psram.h"
 #endif
