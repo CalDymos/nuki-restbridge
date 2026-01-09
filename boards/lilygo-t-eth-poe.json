@@ -1,0 +1,36 @@
+{
+  "name": "LilyGO T-Internet-POE (ESP32-WROOM-32 + LAN8720)",
+  "vendor": "LilyGO",
+  "url": "https://github.com/Xinyuan-LilyGO/LilyGO-T-ETH-Series",
+  "frameworks": "arduino",
+  "platform": "espressif32",
+
+  "build": {
+    "mcu": "esp32",
+    "variant": "esp32",
+    "f_cpu": "240000000L",
+    "f_flash": "40000000L",
+    "flash_mode": "dio",
+    "core": "esp32",
+    "arduino": {
+      "ldscript": "esp32_out.ld"
+    }
+  },
+  
+    "connectivity": [
+    "wifi",
+    "bluetooth",
+    "ethernet"
+  ],
+
+  "upload": {
+    "flash_size": "4MB",
+    "maximum_ram_size": 327680,
+    "maximum_size": 4194304,
+    "speed": 921600
+  },
+
+  "debug": {
+    "openocd_target": "esp32.cfg"
+  }
+}
