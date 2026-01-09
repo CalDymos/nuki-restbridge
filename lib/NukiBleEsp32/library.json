@@ -1,7 +1,7 @@
 {
   "name": "NukiBleEsp32",
-  "version": "2.0.0",
-  "description": "Control Nuki smartlock via BLE from esp32 (cf762e7)",
+  "version": "2.6.2",
+  "description": "Control Nuki smartlock via BLE from esp32",
   "keywords": "nuki ble esp32",
   "authors": [
     {
@@ -10,11 +10,14 @@
     },
     {
       "name": "Bas Schouten"
+    },
+    {
+      "name": "CalDymos"
     }
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/iranl/NukiBleEsp32/tree/cf762e7dbd6ed501e9b719a7a4b9590ec85c7f99"
+    "url": "https://github.com/CalDymos/NukiBleEsp32.git"
   },
   "frameworks": "Arduino",
   "platforms": [

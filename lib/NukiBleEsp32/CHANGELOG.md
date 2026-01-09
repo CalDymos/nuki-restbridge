@@ -1,5 +1,11 @@
 # Changelog
 
+## V2.6.2 (Unreleased)
+
+- Improve logging level consistency and error visibility in several methods
+- Rate-limit NVS credential error logs to suppress repeated credential error messages
+- Assign appropriate log levels (debug/info/warn/error) to selected log messages
+
 ## V2.6.1 (Unreleased)
 
 - Fix GitHub build (#90)
