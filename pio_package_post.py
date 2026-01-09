@@ -171,11 +171,13 @@ def kill_serial_monitor(port):
 def get_board_name(env):
     """ Gibt den richtigen Board-Namen für die Firmware-Dateien zurück """
     board_mapping = {
-        'esp32-poe-iso': 'esp32poeiso',
+        'olimex-esp32-poe-iso-wroom': 'esp32poeisowroom',
+        'olimex-esp32-poe-iso-wrover': 'esp32poeisowrover',
         'wt32-eth01': 'wt32eth01',
-        'T-ETH-POE': 'tethpoe',
-        'esp32-s3-eth': 'esp32s3eth',
-        'esp32_poe': 'esp32poe',
+        'lilygo-t-eth-poe': 'lilygoethepoe',
+        'waveshare-esp32-s3-eth': 'waveshareesp32s3eth',
+        'waveshare-esp32-s3-poe-eth': 'waveshareesp32s3poeeth',
+        'jared-esp32-poe': 'jaredesp32poe',
         'wesp32': 'wesp32'
     }
 

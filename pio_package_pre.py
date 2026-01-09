@@ -21,9 +21,12 @@ file_content = ""
 # board mapping
 board_id = env.get("BOARD") # type: ignore
 board_name_map = {
-    "esp32-poe-iso": "OLIMEX ESP32-POE-ISO",
-    "esp32-s3-eth": "WAVESHARE ESP32-S3-ETH",
-    "T-ETH-POE": "LILYGO T-ETH-POE",
+    "olimex-esp32-poe-iso-wroom": "OLIMEX ESP32-POE-ISO",
+    "olimex-esp32-poe-iso-wrover": "OLIMEX ESP32-POE-ISO",
+    "waveshare-esp32-s3-eth": "WAVESHARE ESP32-S3-ETH",
+    "waveshare-esp32-s3-poe-eth": "WAVESHARE ESP32-S3-POE-ETH",
+    "lilygo-t-eth-poe": "LILYGO T-ETH-POE",
+    "jared-esp32-poe": "JARED ESP32-POE",
     "wt32-eth01": "WT32-ETH01",
     "wesp32": "wESP32",
 }
