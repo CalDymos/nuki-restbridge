@@ -1,0 +1,4 @@
+[submodule "lib/NukiBleEsp32"]
+	path = lib/NukiBleEsp32
+	url = https://github.com/CalDymos/NukiBleEsp32.git
+	branch = fix/logging-rate-limit
