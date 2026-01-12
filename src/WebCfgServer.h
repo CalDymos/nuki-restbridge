@@ -62,7 +62,7 @@ private:
      * @param server Pointer to the WebServer instance.
      * @param adminKey Whether to include admin-level settings.
      */
-    void WebCfgServer::sendSettings(WebServer *server, bool adminKey = false);
+    void sendSettings(WebServer *server, bool adminKey = false);
 
     /**
      * @brief Issues a redirect to a different URL.
