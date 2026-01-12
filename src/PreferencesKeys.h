@@ -1,6 +1,7 @@
 #pragma once
 #include "Config.h"
 #include <Preferences.h>
+#include <vector>
 
 // System / Start / Debugging
 #define preference_enable_bootloop_reset (char *)"enabtlprst"
@@ -244,117 +245,170 @@ inline bool initPreferences(Preferences *&preferences)
   return firstStart;
 }
 
-//Todo: Finish PreferencesKeyRegistry
+//Todo: check all types PreferencesKeyRegistry
 
-/* class PreferencesKeyRegistry
+// Registry for all known preferences keys used by this firmware.
+//
+// Notes:
+// - _keys contains *all* preference_* keys defined in this header (useful for backup/restore or diagnostics).
+// - Keys listed in _redact should be treated as sensitive and never be shown in plain text.
+// - The typed lists (_boolPrefs/_intPrefs/_bytePrefs/_uintPrefs/_uint64Prefs) are for code paths that need
+//   to load/save preferences with the correct Preferences::* API.
+class PreferencesKeyRegistry
 {
 private:
-    std::vector<char*> _keys =
+    const std::vector<char*> _keys =
     {
-        preference_started_before, preference_config_version, preference_device_id_lock, preference_device_id_opener, preference_nuki_id_lock, preference_nuki_id_opener,
-        preference_webcfgserver_enabled, preference_lock_enabled, preference_lock_pin_status, preference_opener_enabled, preference_opener_pin_status,
-        preference_opener_continuous_mode, preference_lock_max_keypad_code_count, preference_opener_max_keypad_code_count, preference_update_time, preference_time_server,
-        preference_lock_max_timecontrol_entry_count, preference_opener_max_timecontrol_entry_count, preference_enable_bootloop_reset,
-        preference_mqtt_hass_discovery, preference_mqtt_hass_cu_url, preference_buffer_size, preference_ip_dhcp_enabled, preference_ip_address,
-        preference_ip_subnet, preference_ip_gateway, preference_ip_dns_server, preference_network_hardware, preference_http_auth_type, preference_lock_gemini_pin,
-        preference_rssi_publish_interval, preference_hostname, preference_network_timeout, preference_restart_on_disconnect, preference_hybrid_reboot_on_disconnect,
-        preference_restart_ble_beacon_lost, preference_query_interval_lockstate, preference_timecontrol_topic_per_entry, preference_keypad_topic_per_entry,
-        preference_query_interval_configuration, preference_query_interval_battery, preference_query_interval_keypad, preference_keypad_control_enabled,
-        preference_keypad_info_enabled, preference_keypad_publish_code, preference_timecontrol_control_enabled, preference_timecontrol_info_enabled, preference_conf_info_enabled,
-        preference_register_as_app, preference_register_opener_as_app, preference_command_nr_of_retries, preference_command_retry_delay, preference_cred_user,
-        preference_cred_password, preference_disable_non_json, preference_publish_authdata, preference_publish_debug_info, preference_mqtt_ssl_enabled, preference_enable_debug_mode,
-        preference_official_hybrid_enabled, preference_query_interval_hybrid_lockstate, preference_official_hybrid_actions, preference_official_hybrid_retry,
-        preference_task_size_network, preference_task_size_nuki, preference_authlog_max_entries, preference_keypad_max_entries, preference_timecontrol_max_entries,
-        preference_update_from_mqtt, preference_show_secrets, preference_ble_tx_power, preference_webserial_enabled, preference_find_best_rssi, preference_lock_gemini_enabled,
-        preference_network_custom_mdc, preference_network_custom_clk, preference_network_custom_phy, preference_network_custom_addr, preference_network_custom_irq,
-        preference_network_custom_rst, preference_network_custom_cs, preference_network_custom_sck, preference_network_custom_miso, preference_network_custom_mosi,
-        preference_network_custom_pwr, preference_network_custom_mdio, preference_lock_max_auth_entry_count, preference_opener_max_auth_entry_count,
-        preference_auth_control_enabled, preference_auth_topic_per_entry, preference_auth_info_enabled, preference_auth_max_entries, preference_wifi_ssid, preference_wifi_pass,
-        preference_keypad_check_code_enabled, preference_disable_network_not_connected, preference_mqtt_hass_enabled, preference_hass_device_discovery, preference_retain_gpio,
-        preference_debug_connect, preference_debug_communication, preference_debug_readable_data, preference_debug_hex_data, preference_debug_command,
-        preference_lock_force_id, preference_lock_force_doorsensor, preference_lock_force_keypad, preference_opener_force_id, preference_opener_force_keypad, preference_nukihub_id,
-        preference_cred_duo_host, preference_cred_duo_ikey, preference_cred_duo_skey, preference_cred_duo_user, preference_cred_duo_enabled, preference_https_fqdn, preference_bypass_proxy,
-        preference_cred_session_lifetime, preference_cred_session_lifetime_remember, preference_cred_session_lifetime_duo, preference_cred_session_lifetime_duo_remember,
-        preference_cred_duo_approval, preference_cred_bypass_boot_btn_enabled, preference_cred_bypass_gpio_high, preference_cred_bypass_gpio_low, preference_publish_config,
-        preference_config_from_mqtt, preference_totp_secret, preference_cred_session_lifetime_totp, preference_cred_session_lifetime_totp_remember, preference_bypass_secret,
-        preference_admin_secret, preference_ble_general_timeout, preference_ble_command_timeout, preference_force_hosted_update
+        preference_enable_bootloop_reset, preference_started_before, preference_show_secrets,
+        preference_restart_on_disconnect, preference_restart_ble_beacon_lost, preference_task_size_network,
+        preference_task_size_nuki, preference_buffer_size, preference_enable_debug_mode, preference_debug_command,
+        preference_debug_communication, preference_debug_connect, preference_debug_hex_data,
+        preference_debug_readable_data, preference_send_debug_info, preference_ip_dhcp_enabled,
+        preference_ip_address, preference_ip_subnet, preference_ip_gateway, preference_ip_dns_server,
+        preference_hostname, preference_network_timeout, preference_ntw_reconfigure, preference_wifi_ssid,
+        preference_wifi_pass, preference_find_best_rssi, preference_rssi_send_interval, preference_time_server,
+        preference_timezone, preference_network_hardware, preference_network_custom_phy,
+        preference_network_custom_addr, preference_network_custom_irq, preference_network_custom_rst,
+        preference_network_custom_cs, preference_network_custom_sck, preference_network_custom_miso,
+        preference_network_custom_mosi, preference_network_custom_pwr, preference_network_custom_mdio,
+        preference_network_custom_mdc, preference_network_custom_clk, preference_Maintenance_send_interval,
+        preference_ble_tx_power, preference_nuki_id_lock, preference_device_id_lock, preference_lock_enabled,
+        preference_lock_force_id, preference_lock_force_doorsensor, preference_lock_force_keypad, preference_acl,
+        preference_conf_lock_basic_acl, preference_conf_lock_advanced_acl, preference_lock_max_keypad_code_count,
+        preference_lock_max_auth_entry_count, preference_lock_max_timecontrol_entry_count,
+        preference_lock_pin_status, preference_keypad_check_code_enabled, preference_keypad_control_enabled,
+        preference_keypad_info_enabled, preference_keypad_max_entries, preference_keypad_code_encryption,
+        preference_keypad_code_multiplier, preference_keypad_code_offset, preference_keypad_code_modulus,
+        preference_auth_control_enabled, preference_auth_max_entries, preference_authlog_max_entries,
+        preference_auth_info_enabled, preference_access_level, preference_timecontrol_max_entries,
+        preference_timecontrol_info_enabled, preference_timecontrol_control_enabled,
+        preference_query_interval_lockstate, preference_query_interval_configuration,
+        preference_query_interval_battery, preference_query_interval_keypad, preference_update_time,
+        preference_connect_mode, preference_command_nr_of_retries, preference_command_retry_delay,
+        preference_har_enabled, preference_har_mode, preference_har_rest_mode, preference_har_address,
+        preference_har_port, preference_har_user, preference_har_password, preference_har_key_state,
+        preference_har_key_remote_access_state, preference_har_param_remote_access_state,
+        preference_har_key_wifi_rssi, preference_har_param_wifi_rssi, preference_har_key_uptime,
+        preference_har_param_uptime, preference_har_key_restart_reason_fw, preference_har_param_restart_reason_fw,
+        preference_har_key_restart_reason_esp, preference_har_param_restart_reason_esp,
+        preference_har_key_info_nuki_bridge_version, preference_har_param_info_nuki_bridge_version,
+        preference_har_key_info_nuki_bridge_build, preference_har_param_info_nuki_bridge_build,
+        preference_har_key_freeheap, preference_har_param_freeheap, preference_har_key_ble_address,
+        preference_har_param_ble_address, preference_har_key_ble_strength, preference_har_param_ble_strength,
+        preference_har_key_ble_rssi, preference_har_param_ble_rssi, preference_har_key_lock_state,
+        preference_har_param_lock_state, preference_har_key_lockngo_state, preference_har_param_lockngo_state,
+        preference_har_key_lock_trigger, preference_har_param_lock_trigger, preference_har_key_lock_night_mode,
+        preference_har_param_lock_night_mode, preference_har_key_lock_completionStatus,
+        preference_har_param_lock_completionStatus, preference_har_key_doorsensor_state,
+        preference_har_param_doorsensor_state, preference_har_key_doorsensor_critical,
+        preference_har_param_doorsensor_critical, preference_har_key_keypad_critical,
+        preference_har_param_keypad_critical, preference_har_key_lock_battery_critical,
+        preference_har_param_lock_battery_critical, preference_har_key_lock_battery_level,
+        preference_har_param_lock_battery_level, preference_har_key_lock_battery_charging,
+        preference_har_param_lock_battery_charging, preference_har_key_battery_voltage,
+        preference_har_param_battery_voltage, preference_har_key_battery_drain,
+        preference_har_param_battery_drain, preference_har_key_battery_max_turn_current,
+        preference_har_param_battery_max_turn_current, preference_har_key_battery_lock_distance,
+        preference_har_param_battery_lock_distance, preference_api_enabled, preference_api_port,
+        preference_api_token, preference_config_from_api, preference_webcfgserver_enabled, preference_cred_user,
+        preference_cred_password, preference_cred_session_lifetime, preference_cred_session_lifetime_remember,
+        preference_http_auth_type, preference_bypass_proxy, preference_admin_secret, preference_log_max_file_size,
+        preference_log_level, preference_log_backup_enabled, preference_log_backup_ftp_server,
+        preference_log_backup_ftp_dir, preference_log_backup_ftp_user, preference_log_backup_ftp_pwd,
+        preference_log_backup_file_index
     };
-    std::vector<char*> _redact =
+
+    const std::vector<char*> _redact =
     {
-        preference_mqtt_user, preference_mqtt_password, preference_cred_user, preference_cred_password, preference_nuki_id_lock, preference_nuki_id_opener, preference_wifi_pass,
-        preference_lock_gemini_pin, preference_cred_duo_host, preference_cred_duo_ikey, preference_cred_duo_skey, preference_cred_duo_user, preference_bypass_proxy,
-        preference_totp_secret, preference_bypass_secret, preference_admin_secret
+        preference_wifi_ssid, preference_wifi_pass, preference_nuki_id_lock, preference_device_id_lock,
+        preference_har_user, preference_har_password, preference_api_token, preference_cred_user,
+        preference_cred_password, preference_admin_secret, preference_log_backup_ftp_user,
+        preference_log_backup_ftp_pwd
     };
-    std::vector<char*> _boolPrefs =
+
+    const std::vector<char*> _boolPrefs =
     {
-        preference_started_before, preference_mqtt_log_enabled, preference_check_updates, preference_lock_enabled, preference_opener_enabled, preference_opener_continuous_mode,
-        preference_timecontrol_topic_per_entry, preference_keypad_topic_per_entry, preference_enable_bootloop_reset, preference_webserver_enabled, preference_update_time,
-        preference_restart_on_disconnect, preference_keypad_control_enabled, preference_keypad_info_enabled, preference_keypad_publish_code, preference_show_secrets,
-        preference_timecontrol_control_enabled, preference_timecontrol_info_enabled, preference_register_as_app, preference_register_opener_as_app, preference_ip_dhcp_enabled,
-        preference_publish_authdata, preference_publish_debug_info, preference_official_hybrid_enabled, preference_mqtt_hass_enabled, preference_retain_gpio,
-        preference_official_hybrid_actions, preference_official_hybrid_retry, preference_conf_info_enabled, preference_disable_non_json, preference_update_from_mqtt,
-        preference_auth_control_enabled, preference_auth_topic_per_entry, preference_auth_info_enabled, preference_webserial_enabled, preference_hass_device_discovery,
-        preference_keypad_check_code_enabled, preference_disable_network_not_connected, preference_find_best_rssi, preference_cred_bypass_boot_btn_enabled,
-        preference_debug_connect, preference_debug_communication, preference_debug_readable_data, preference_debug_hex_data, preference_debug_command,
-        preference_lock_force_id, preference_lock_force_doorsensor, preference_lock_force_keypad, preference_opener_force_id, preference_opener_force_keypad, preference_mqtt_ssl_enabled,
-        preference_hybrid_reboot_on_disconnect, preference_lock_gemini_enabled, preference_enable_debug_mode, preference_cred_duo_enabled, preference_cred_duo_approval,
-        preference_publish_config, preference_config_from_mqtt, preference_force_hosted_update
+        preference_enable_bootloop_reset, preference_started_before, preference_show_secrets,
+        preference_restart_on_disconnect, preference_enable_debug_mode, preference_debug_command,
+        preference_debug_communication, preference_debug_connect, preference_debug_hex_data,
+        preference_debug_readable_data, preference_send_debug_info, preference_ip_dhcp_enabled,
+        preference_ntw_reconfigure, preference_find_best_rssi, preference_lock_enabled, preference_lock_force_id,
+        preference_lock_force_doorsensor, preference_lock_force_keypad, preference_keypad_check_code_enabled,
+        preference_keypad_control_enabled, preference_keypad_info_enabled, preference_auth_control_enabled,
+        preference_auth_info_enabled, preference_timecontrol_info_enabled, preference_timecontrol_control_enabled,
+        preference_update_time, preference_connect_mode, preference_har_enabled, preference_api_enabled,
+        preference_config_from_api, preference_webcfgserver_enabled, preference_log_backup_enabled
     };
-    std::vector<char*> _bytePrefs =
+
+    const std::vector<char*> _bytePrefs =
     {
-        preference_acl, preference_conf_lock_basic_acl, preference_conf_lock_advanced_acl, preference_conf_opener_basic_acl,
-        preference_conf_opener_advanced_acl, preference_gpio_configuration
+        preference_acl, preference_conf_lock_basic_acl, preference_conf_lock_advanced_acl
     };
-    std::vector<char*> _intPrefs =
+
+    const std::vector<char*> _intPrefs =
     {
-        preference_config_version, preference_mqtt_broker_port, preference_command_retry_delay, preference_query_interval_hybrid_lockstate,
-        preference_lock_pin_status, preference_opener_pin_status, preference_lock_max_keypad_code_count, preference_opener_max_keypad_code_count,
-        preference_lock_max_timecontrol_entry_count, preference_opener_max_timecontrol_entry_count, preference_buffer_size, preference_network_hardware,
-        preference_rssi_publish_interval, preference_network_timeout, preference_restart_ble_beacon_lost, preference_query_interval_lockstate,
-        preference_query_interval_configuration, preference_query_interval_battery, preference_query_interval_keypad, preference_command_nr_of_retries,
-        preference_task_size_network, preference_task_size_nuki, preference_authlog_max_entries, preference_keypad_max_entries, preference_timecontrol_max_entries,
-        preference_ble_tx_power, preference_network_custom_mdc, preference_network_custom_clk, preference_network_custom_phy, preference_network_custom_addr,
-        preference_network_custom_irq, preference_network_custom_rst, preference_network_custom_cs, preference_network_custom_sck, preference_network_custom_miso,
-        preference_network_custom_mosi, preference_network_custom_pwr, preference_network_custom_mdio, preference_http_auth_type,
-        preference_cred_session_lifetime, preference_cred_session_lifetime_remember, preference_cred_session_lifetime_duo, preference_cred_session_lifetime_duo_remember,
-        preference_cred_bypass_gpio_high, preference_cred_bypass_gpio_low, preference_cred_session_lifetime_totp, preference_cred_session_lifetime_totp_remember,
-        preference_ble_general_timeout, preference_ble_command_timeout
+        preference_restart_ble_beacon_lost, preference_task_size_network, preference_task_size_nuki,
+        preference_buffer_size, preference_network_timeout, preference_rssi_send_interval,
+        preference_network_hardware, preference_network_custom_phy, preference_network_custom_addr,
+        preference_network_custom_irq, preference_network_custom_rst, preference_network_custom_cs,
+        preference_network_custom_sck, preference_network_custom_miso, preference_network_custom_mosi,
+        preference_network_custom_pwr, preference_network_custom_mdio, preference_network_custom_mdc,
+        preference_network_custom_clk, preference_Maintenance_send_interval, preference_ble_tx_power,
+        preference_lock_max_keypad_code_count, preference_lock_max_auth_entry_count,
+        preference_lock_max_timecontrol_entry_count, preference_lock_pin_status, preference_keypad_max_entries,
+        preference_keypad_code_encryption, preference_keypad_code_multiplier, preference_keypad_code_offset,
+        preference_keypad_code_modulus, preference_auth_max_entries, preference_authlog_max_entries,
+        preference_access_level, preference_timecontrol_max_entries, preference_query_interval_lockstate,
+        preference_query_interval_configuration, preference_query_interval_battery,
+        preference_query_interval_keypad, preference_command_nr_of_retries, preference_command_retry_delay,
+        preference_har_mode, preference_har_rest_mode, preference_har_port, preference_api_port,
+        preference_cred_session_lifetime, preference_cred_session_lifetime_remember, preference_http_auth_type,
+        preference_log_max_file_size, preference_log_level, preference_log_backup_file_index
     };
-    std::vector<char*> _uintPrefs =
+
+    const std::vector<char*> _uintPrefs =
     {
-        preference_device_id_lock, preference_device_id_opener, preference_nuki_id_lock, preference_nuki_id_opener
+        preference_nuki_id_lock, preference_device_id_lock
     };
-    std::vector<char*> _uint64Prefs =
+
+    const std::vector<char*> _uint64Prefs =
     {
-        preference_nukihub_id
+
     };
+
 public:
-    const std::vector<char*> getPreferencesKeys()
+    const std::vector<char*> getPreferencesKeys() const
     {
         return _keys;
     }
-    const std::vector<char*> getPreferencesRedactedKeys()
+
+    const std::vector<char*> getPreferencesRedactedKeys() const
     {
         return _redact;
     }
-    const std::vector<char*> getPreferencesBoolKeys()
+
+    const std::vector<char*> getPreferencesBoolKeys() const
     {
         return _boolPrefs;
     }
-    const std::vector<char*> getPreferencesByteKeys()
+
+    const std::vector<char*> getPreferencesByteKeys() const
     {
         return _bytePrefs;
     }
-    const std::vector<char*> getPreferencesIntKeys()
+
+    const std::vector<char*> getPreferencesIntKeys() const
     {
         return _intPrefs;
     }
-    const std::vector<char*> getPreferencesUIntKeys()
+
+    const std::vector<char*> getPreferencesUIntKeys() const
     {
         return _uintPrefs;
     }
-    const std::vector<char*> getPreferencesUInt64Keys()
+
+    const std::vector<char*> getPreferencesUInt64Keys() const
     {
         return _uint64Prefs;
     }
-}; */
+};
