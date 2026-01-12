@@ -421,7 +421,7 @@ void WebCfgServer::initialize()
                     return sendSettings(this->_webServer, true);
                 }
 
-                const String clientIp = this->_webServer->client().remoteIP().toString();
+                const String clientIp = this->_webServer->client().localIP().toString();
                 const String approveKey = clientIp + F("approve");
 
                 if(_importExport->_sessionsOpts[approveKey])
