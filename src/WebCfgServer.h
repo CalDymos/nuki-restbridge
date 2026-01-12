@@ -58,6 +58,13 @@ private:
     void sendCss(WebServer *server);
 
     /**
+     * @brief Sends the current configuration settings as JSON.
+     * @param server Pointer to the WebServer instance.
+     * @param adminKey Whether to include admin-level settings.
+     */
+    void WebCfgServer::sendSettings(WebServer *server, bool adminKey = false);
+
+    /**
      * @brief Issues a redirect to a different URL.
      */
     void redirect(WebServer *server, const char *url, int code = 301);
@@ -215,6 +222,12 @@ private:
      * @param server Pointer to the active WebServer instance.
      */
     void buildStatusHtml(WebServer *server);
+
+    /**
+     * @brief Builds the HTML page for importing/exporting configuration settings.
+     * @param server Pointer to the active WebServer instance.
+     */
+    void buildImportExportHtml(WebServer *server);
 
     /**
      * @brief Handles waiting and asynchronous processing if requested.

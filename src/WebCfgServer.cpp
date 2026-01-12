@@ -414,6 +414,26 @@ void WebCfgServer::initialize()
                 _preferences->putBool(preference_enable_debug_mode, false);
                 return buildConfirmHtml(this->_webServer, "Debug Off", 3, true);
             }
+            else if (value == "export")
+            {
+                if(adminKeyValid)
+                {
+                    return sendSettings(this->_webServer, true);
+                }
+
+                const String clientIp = this->_webServer->client().remoteIP().toString();
+                const String approveKey = clientIp + F("approve");
+
+                if(_importExport->_sessionsOpts[approveKey])
+                {
+                    _importExport->_sessionsOpts[approveKey] = false;
+                    return sendSettings(this->_webServer);
+                }
+            }
+            else if (value == "impexpcfg")
+            {
+                return buildImportExportHtml(this->_webServer);
+            }
             else if (value == "status")
             {
                 return buildStatusHtml(this->_webServer);
@@ -1669,6 +1689,7 @@ void WebCfgServer::buildHtml(WebServer *server)
     appendNavigationMenuEntry(response, "Access Level Configuration", "/get?page=acclvl");
     appendNavigationMenuEntry(response, "Credentials", "/get?page=cred");
     appendNavigationMenuEntry(response, "Log Configuration", "/get?page=logging");
+    appendNavigationMenuEntry(response, "Import/Export Configuration", "/get?page=impexpcfg");
 
     if (_preferences->getInt(preference_network_hardware, 0) == 11)
     {
@@ -2393,6 +2414,35 @@ void WebCfgServer::buildStatusHtml(WebServer *server)
     return server->send(200, F("application/json"), jsonStr.c_str());
 }
 
+void WebCfgServer::buildImportExportHtml(WebServer *server)
+{
+    String response;
+    reserveHtmlResponse(response,
+                        0,   // Checkbox
+                        0,   // Input fields
+                        0,   // Dropdown
+                        0,   // Dropdown options
+                        0,   // Textareas
+                        0,   // Parameter rows
+                        2,   // Buttons
+                        0,   // menus
+                        256  // extra bytes
+    );
+
+    buildHtmlHeader(response);
+    response += F("<div id=\"upform\"><h4>Import configuration</h4>");
+    response += F("<form method=\"post\" action=\"post\"><textarea id=\"importjson\" name=\"importjson\" rows=\"10\" cols=\"50\"></textarea><br/>");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"import\">");
+    response += F("<br><input type=\"submit\" name=\"submit\" value=\"Import\"></form><br><br></div>");
+    response += F("<div id=\"gitdiv\">");
+    response += F("<h4>Export configuration</h4><br>");
+    response += F("<button title=\"Basic export\" onclick=\" window.open('/get?page=export', '_self'); return false;\">Basic export</button>");
+    response += F("<br><br><button title=\"Export with redacted settings\" onclick=\" window.open('/get?page=export&redacted=1'); return false;\">Export with redacted settings</button>");
+    response += F("<br><br><button title=\"Export with redacted settings and pairing data\" onclick=\" window.open('/get?page=export&redacted=1&pairing=1'); return false;\">Export with redacted settings and pairing data</button>");
+    response += F("</div></body></html>");
+    server->send(200, F("text/html"), response);
+}
+
 void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage, const char *onClick)
 {
     response += F("<a class=\"naventry\" href=\"");
@@ -2667,6 +2717,49 @@ void WebCfgServer::sendCss(WebServer *server)
     // Setze den Content-Type auf text/css
     server->setContentLength(CONTENT_LENGTH_UNKNOWN); // Länge muss nicht im Voraus bekannt sein
     server->send(200, F("text/css"), css);            // Antwortstatus 200 und Content-Type "text/css"
+}
+
+void WebCfgServer::sendSettings(WebServer *server, bool adminKey)
+{
+    JsonDocument json;
+    String jsonPretty;
+    String name;
+
+    int paramCount = server->args();
+
+    for (int i = 0; i < paramCount; ++i)
+    {
+        String key = server->argName(i);
+        String value = server->arg(i);
+
+        name = "nuki_bridge_settings.json";
+        bool redacted = false;
+        bool pairing = false;
+
+        if(key == "redacted")
+        {
+            if(value == "1")
+            {
+                redacted = true;
+            }
+        }
+        if(key == "pairing")
+        {
+            if(value == "1")
+            {
+                pairing = true;
+            }
+        }
+        _importExport->exportNukiBridgeJson(json, redacted, pairing, (_nuki != nullptr));
+    
+    }
+    serializeJsonPretty(json, jsonPretty);
+
+    if(!adminKey)
+    {
+        server->sendHeader(F("Content-Disposition"), "attachment; filename=\"" + name + "\"");
+    }
+    server->send(200, F("application/json"), jsonPretty.c_str());
 }
 
 String WebCfgServer::generateConfirmCode()
