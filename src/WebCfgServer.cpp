@@ -2067,7 +2067,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += F("\nHA password: ");
     response += _preferences->getString(preference_har_password).length() > 0 ? F("***") : F("Not set");
     response += F("\nHAR mode: ");
-    response += _preferences->getString(preference_har_mode, F("Not set"));
+    response += _preferences->getInt(preference_har_mode) == 0 ? F("UDP") : F("REST");
 
     // Bluetooth Infos
     response += F("\n\n------------ BLUETOOTH ------------");
@@ -2848,7 +2848,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 configChanged = true;
             }
         }
-        HANDLE_STRING_PREF_ARG("HARRESTMODE", preference_har_rest_mode, true)
+        HANDLE_INT_PREF_ARG("HARRESTMODE", preference_har_rest_mode, true)
         HANDLE_STRING_PREF_ARG("KEY_" TOKEN_SUFFIX_STAT, preference_har_key_state, true)
         HANDLE_STRING_PREF_ARG("KEY_" TOKEN_SUFFIX_REMACCSTAT, preference_har_key_remote_access_state, true)
         HANDLE_STRING_PREF_ARG("PARAM_" TOKEN_SUFFIX_REMACCSTAT, preference_har_param_remote_access_state, true)
