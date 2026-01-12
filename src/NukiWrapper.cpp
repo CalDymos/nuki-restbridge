@@ -57,6 +57,8 @@ void NukiWrapper::initialize()
     _nukiLock.setEventHandler(this);
     _nukiLock.setConnectTimeout(3);
     _nukiLock.setDisconnectTimeout(2000);
+    _nukiLock.setGeneralTimeout(_preferences->getInt(preference_ble_general_timeout, 10000));
+    _nukiLock.setCommandTimeout(_preferences->getInt(preference_ble_command_timeout, 3000));
 
     _firmwareVersion.reserve(12);
     _hardwareVersion.reserve(8);
