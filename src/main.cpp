@@ -23,6 +23,7 @@
 #include "PreferencesKeys.h"
 #include "RestartReason.h"
 #include "EspMillis.h"
+#include "ImportExport.h"
 
 Preferences *preferences = nullptr;        // Pointer to non-volatile key-value storage (nvs).
 NukiNetwork *network = nullptr;            // Main network interface (WiFi/Ethernet, REST API).
