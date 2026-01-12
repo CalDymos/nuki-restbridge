@@ -56,6 +56,8 @@
 
 // BLE
 #define preference_ble_tx_power (char *)"bleTxPwr"
+#define preference_ble_general_timeout (char*)"bleGenTmOt"
+#define preference_ble_command_timeout (char*)"bleCmdTmOt"
 
 // Nuki Settings (Lock, Keypad, ...)
 #define preference_nuki_id_lock (char *)"nukiId"     // Nuki lock ID (not user-changeable)
@@ -198,7 +200,7 @@ inline bool initPreferences(Preferences *&preferences)
 
   if (firstStart)
   {
-    Serial.println("First start, setting preference defaults");
+    Serial.println(F("First start, setting preference defaults"));
 
     preferences->putBool(preference_started_before, true);
     preferences->putBool(preference_lock_enabled, true);
@@ -214,12 +216,18 @@ inline bool initPreferences(Preferences *&preferences)
     preferences->putString(preference_bypass_proxy, "");
     preferences->putInt(preference_api_port, 8080);
     preferences->putBool(preference_ip_dhcp_enabled, true);
+    preferences->putBool(preference_enable_bootloop_reset, false);
+    preferences->putBool(preference_show_secrets, false);
     preferences->putBool(preference_find_best_rssi, true);
+    preferences->putBool(preference_keypad_info_enabled, false);
+    preferences->putBool(preference_timecontrol_info_enabled, false);  
     preferences->putBool(preference_connect_mode, true);
 
     preferences->putInt(preference_buffer_size, CHAR_BUFFER_SIZE);
     preferences->putInt(preference_task_size_network, NETWORK_TASK_SIZE);
     preferences->putInt(preference_task_size_nuki, NUKI_TASK_SIZE);
+    preferences->putInt(preference_ble_general_timeout, 10000);
+    preferences->putInt(preference_ble_command_timeout, 3000);
 
     preferences->putInt(preference_authlog_max_entries, MAX_AUTHLOG);
     preferences->putInt(preference_keypad_max_entries, MAX_KEYPAD);
@@ -315,7 +323,7 @@ private:
         preference_http_auth_type, preference_bypass_proxy, preference_admin_secret, preference_log_max_file_size,
         preference_log_level, preference_log_backup_enabled, preference_log_backup_ftp_server,
         preference_log_backup_ftp_dir, preference_log_backup_ftp_user, preference_log_backup_ftp_pwd,
-        preference_log_backup_file_index
+        preference_log_backup_file_index, preference_ble_general_timeout, preference_ble_command_timeout
     };
 
     const std::vector<char*> _redact =
@@ -363,7 +371,8 @@ private:
         preference_query_interval_keypad, preference_command_nr_of_retries, preference_command_retry_delay,
         preference_har_mode, preference_har_rest_mode, preference_har_port, preference_api_port,
         preference_cred_session_lifetime, preference_cred_session_lifetime_remember, preference_http_auth_type,
-        preference_log_max_file_size, preference_log_level, preference_log_backup_file_index
+        preference_log_max_file_size, preference_log_level, preference_log_backup_file_index,
+        preference_ble_general_timeout, preference_ble_command_timeout
     };
 
     const std::vector<char*> _uintPrefs =
