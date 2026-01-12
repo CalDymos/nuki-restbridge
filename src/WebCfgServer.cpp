@@ -57,11 +57,11 @@ const char css[] PROGMEM = ":root{--nc-font-sans:'Inter',-apple-system,BlinkMacS
                            ".btn-icon:hover{background:var(--nc-lk-2)}"
                            "/* version: " NUKI_REST_BRIDGE_VERSION " */";
 
-WebCfgServer::WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences *preferences)
+WebCfgServer::WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences *preferences, ImportExport* importExport)
     : _nuki(nuki),
       _network(network),
-      _preferences(preferences)
-
+      _preferences(preferences),
+      _importExport(importExport)
 {
     _webServer = new WebServer(WEBCFGSERVER_PORT);
     if (_webServer == nullptr)

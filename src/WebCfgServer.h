@@ -7,6 +7,7 @@
 #include "NukiWrapper.h"
 #include "NukiNetwork.h"
 #include <ArduinoJson.h>
+#include "ImportExport.h"
 
 /**
  * @brief Minimal Web Configuration Server that accepts configuration via `/` and `/save`.
@@ -22,8 +23,9 @@ public:
      * @param nuki         Pointer to the NukiWrapper instance for controlling the smart lock.
      * @param network      Pointer to the NukiNetwork instance for network communication.
      * @param preferences  Pointer to the Preferences instance for storing settings.
+     * @param importExport Pointer to the ImportExport instance for handling import/export operations.
      */
-    WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences *preferences);
+    WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences *preferences, ImportExport* importExport);
 
     /**
      * @brief Destructor
@@ -496,6 +498,7 @@ private:
     NukiWrapper *_nuki = nullptr;        // Pointer to the NukiWrapper instance for Smart Lock control.
     NukiNetwork *_network = nullptr;     // Pointer to the NukiNetwork instance for connectivity control.
     Preferences *_preferences = nullptr; // Pointer to the Preferences instance for configuration storage.
+    ImportExport* _importExport;        // Pointer to the ImportExport instance for handling import/export operations.
     WebServer *_webServer = nullptr;     // Pointer to the internal web server instance.
     JsonDocument _httpSessions;          // In-memory representation of active HTTP login sessions.
                                          //

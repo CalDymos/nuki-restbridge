@@ -7,10 +7,11 @@
 
 NukiNetwork *NukiNetwork::_inst = nullptr;
 
-NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize)
+NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize, ImportExport* importExport)
     : _preferences(preferences),
       _buffer(buffer),
-      _bufferSize(bufferSize)
+      _bufferSize(bufferSize),
+      _importExport(importExport)
 {
     _inst = this;
     _webCfgEnabled = _preferences->getBool(preference_webcfgserver_enabled, true);

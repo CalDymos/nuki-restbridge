@@ -22,6 +22,7 @@
 #include "NetworkServiceState.h"
 #include "QueryCommand.h"
 #include "LockActionResult.h"
+#include "ImportExport.h"
 
 /**
  * @brief Manages network interfaces (Wi-Fi, Ethernet), REST API, and Home Automation communication.
@@ -40,8 +41,9 @@ public:
      * @param preferences Pointer to the Preferences instance.
      * @param buffer Reusable character buffer (e.g., for REST JSON responses).
      * @param bufferSize Size of the buffer.
+     * @param importExport Pointer to the ImportExport instance.
      */
-    NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize);
+    NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize, ImportExport* importExport);
 
     /**
      * @brief Destroys the network instance and cleans up allocated resources.
@@ -390,6 +392,7 @@ private:
     static NukiNetwork *_inst;
 
     Preferences *_preferences;                                                // Preferences handler for NVS access
+    ImportExport* _importExport;                                              // Import/Export handler                                                                 //
     IPConfiguration *_ipConfiguration = nullptr;                              // IP configuration helper (DHCP/static)
     String _hostname;                                                         // Hostname used on the network (WiFi or Ethernet)
     String _WiFissid;                                                         // Stored WiFi SSID

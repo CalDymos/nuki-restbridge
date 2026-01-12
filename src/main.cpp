@@ -26,6 +26,7 @@
 #include "ImportExport.h"
 
 Preferences *preferences = nullptr;        // Pointer to non-volatile key-value storage (nvs).
+ImportExport* importExport = nullptr;      // Import/Export handler for settings backup.
 NukiNetwork *network = nullptr;            // Main network interface (WiFi/Ethernet, REST API).
 BleScanner::Scanner *bleScanner = nullptr; // BLE scanner to discover/connect Nuki devices.
 NukiWrapper *nuki = nullptr;               // Core smart lock wrapper.
@@ -695,7 +696,9 @@ void setup()
   char16_t buffer_size = CHAR_BUFFER_SIZE;
   CharBuffer::initialize(buffer_size);
 
-  network = new NukiNetwork(preferences, CharBuffer::get(), buffer_size);
+  importExport = new ImportExport(preferences);
+
+  network = new NukiNetwork(preferences, CharBuffer::get(), buffer_size, importExport);
   network->initialize();
 
   lockEnabled = preferences->getBool(preference_lock_enabled);
@@ -724,7 +727,7 @@ void setup()
 
   if (!disableNetwork && (forceEnableWebCfgServer || preferences->getBool(preference_webcfgserver_enabled, true)))
   {
-    webCfgServer = new WebCfgServer(nuki, network, preferences);
+    webCfgServer = new WebCfgServer(nuki, network, preferences, importExport);
     Log->println(F("[INFO] Start to initialize WebCfgServer..."));
     webCfgServer->initialize();
   }
