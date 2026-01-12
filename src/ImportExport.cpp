@@ -14,7 +14,7 @@ ImportExport::ImportExport(Preferences *preferences)
 void ImportExport::readSettings()
 {
 
-    _updateTime = _preferences->getBool(preference_update_time, false);
+
 }
 
 void ImportExport::exportNukiBridgeJson(JsonDocument &json, bool redacted, bool pairing, bool nuki)

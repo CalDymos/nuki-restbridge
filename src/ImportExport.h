@@ -6,18 +6,35 @@
 class ImportExport
 {
 public:
-    explicit ImportExport(Preferences* preferences);
-    void exportNukiBridgeJson(JsonDocument &json, bool redacted = false, bool pairing = false, bool nuki = false);
-    JsonDocument importJson(JsonDocument &doc);
-    void readSettings();
-    JsonDocument _sessionsOpts;
-    int64_t _lastCodeCheck = 0;
-    int64_t _lastCodeCheck2 = 0;
-    int _invalidCount = 0;
-    int _invalidCount2 = 0;
-private:
-    Preferences* _preferences;
-    struct tm timeinfo;
-    bool _updateTime = false;
-};
+    /**
+     * @brief Constructor for ImportExport class.
+     * @param preferences Pointer to the Preferences instance for NVS access.
+     */
+    explicit ImportExport(Preferences *preferences);
 
+    /**
+     * @brief Exports Nuki Bridge settings to a JSON document.
+     * @param json Reference to the JsonDocument to populate with settings.
+     * @param redacted If true, sensitive information will be omitted.
+     * @param pairing If true, includes pairing-related information.
+     * @param nuki If true, includes Nuki-specific pairing information.
+     */
+    void exportNukiBridgeJson(JsonDocument &json, bool redacted = false, bool pairing = false, bool nuki = false);
+    /**
+     * @brief Imports Nuki Bridge settings from a JSON document.
+     * @param doc Reference to the JsonDocument containing settings to import.
+     * @return JsonDocument summarizing the changes made during import.
+     */
+    JsonDocument importJson(JsonDocument &doc);
+
+    /**
+     * @brief Reads settings from Preferences to initialize ImportExport state.
+     */
+    void readSettings();
+
+    JsonDocument _sessionsOpts; // Summary of import changes
+
+private:
+    Preferences *_preferences;
+
+};
