@@ -442,7 +442,7 @@ void NukiWrapper::unpair()
 {
     _nukiLock.unPairNuki();
     Preferences nukiBlePref;
-    nukiBlePref.begin("NukiBridge", false);
+    nukiBlePref.begin(PREFERENCE_NAME, false);
     nukiBlePref.clear();
     nukiBlePref.end();
     _deviceId->assignNewId();

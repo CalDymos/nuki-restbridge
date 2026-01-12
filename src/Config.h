@@ -21,3 +21,6 @@
 #define MAX_KEYPAD 10
 #define MAX_TIMECONTROL 10
 #define MAX_AUTH 10
+
+#define PREFERENCE_NAME (char *)"nukibridge"
+#define DEVICE_NAME (char *)"NukiBridge"

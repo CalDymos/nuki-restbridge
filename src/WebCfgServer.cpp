@@ -2274,7 +2274,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
         unsigned char secretKeyK[32] = {0x00};
 
         Preferences nukiBlePref;
-        nukiBlePref.begin("NukiBridge", false);
+        nukiBlePref.begin(PREFERENCE_NAME, false);
         nukiBlePref.getBytes("bleAddress", currentBleAddress, 6);
         nukiBlePref.getBytes("secretKeyK", secretKeyK, 32);
         nukiBlePref.getBytes("authorizationId", authorizationId, 4);
@@ -4012,7 +4012,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
     {
         Log->println(F("[DEBUG] Changing lock pairing"));
         Preferences nukiBlePref;
-        nukiBlePref.begin("NukiBridge", false);
+        nukiBlePref.begin(PREFERENCE_NAME, false);
         nukiBlePref.putBytes("bleAddress", currentBleAddress, 6);
         nukiBlePref.putBytes("secretKeyK", secretKeyK, 32);
         nukiBlePref.putBytes("authorizationId", authorizationId, 4);

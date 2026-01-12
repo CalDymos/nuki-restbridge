@@ -710,14 +710,14 @@ void setup()
     bleScanner = new BleScanner::Scanner();
     // Scan interval and window according to Nuki recommendations:
     // https://developer.nuki.io/t/bluetooth-specification-questions/1109/27
-    bleScanner->initialize("NukiBridge", true, 40, 40);
+    bleScanner->initialize(DEVICE_NAME, true, 40, 40);
     bleScanner->setScanDuration(0);
   }
 
   Log->println(lockEnabled ? F("[INFO] Nuki Lock enabled") : F("[INFO] Nuki Lock disabled"));
   if (lockEnabled)
   {
-    nuki = new NukiWrapper("NukiBridge", deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
+    nuki = new NukiWrapper(DEVICE_NAME, deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
     nuki->initialize();
   }
 

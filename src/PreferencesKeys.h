@@ -192,7 +192,7 @@
 inline bool initPreferences(Preferences *&preferences)
 {
   preferences = new Preferences();
-  preferences->begin("nukibridge", false);
+  preferences->begin(PREFERENCE_NAME, false);
 
   bool firstStart = !preferences->getBool(preference_started_before);
 
@@ -373,7 +373,7 @@ private:
 
     const std::vector<char*> _uint64Prefs =
     {
-
+        // (none currently)
     };
 
 public:

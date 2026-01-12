@@ -96,7 +96,7 @@ void ImportExport::exportNukiHubJson(JsonDocument &json, bool redacted, bool pai
             uint32_t storedUltraPincode = 000000;
             bool isUltra = false;
             Preferences nukiBlePref;
-            nukiBlePref.begin("nukibridge", false);
+            nukiBlePref.begin(PREFERENCE_NAME, false);
             nukiBlePref.getBytes("bleAddress", currentBleAddress, 6);
             nukiBlePref.getBytes("secretKeyK", secretKeyK, 32);
             nukiBlePref.getBytes("authorizationId", authorizationId, 4);
@@ -315,7 +315,7 @@ JsonDocument ImportExport::importJson(JsonDocument &doc)
     }
 
     Preferences nukiBlePref;
-    nukiBlePref.begin("nukibridge", false);
+    nukiBlePref.begin(PREFERENCE_NAME, false);
 
     if(!doc["bleAddressLock"].isNull())
     {
