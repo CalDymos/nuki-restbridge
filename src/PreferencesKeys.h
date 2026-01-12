@@ -85,7 +85,6 @@
 #define preference_auth_max_entries (char *)"authmaxentry"
 #define preference_authlog_max_entries (char *)"authmaxlogent"
 #define preference_auth_info_enabled (char *)"authInfoEna"
-#define preference_access_level (char *)"accLvl"
 #define preference_timecontrol_max_entries (char *)"tcmaxentry"
 #define preference_timecontrol_info_enabled (char *)"tcInfoEnabled"
 #define preference_timecontrol_control_enabled (char *)"tcCntrlEnabled"
@@ -288,7 +287,7 @@ private:
         preference_keypad_info_enabled, preference_keypad_max_entries, preference_keypad_code_encryption,
         preference_keypad_code_multiplier, preference_keypad_code_offset, preference_keypad_code_modulus,
         preference_auth_control_enabled, preference_auth_max_entries, preference_authlog_max_entries,
-        preference_auth_info_enabled, preference_access_level, preference_timecontrol_max_entries,
+        preference_auth_info_enabled, preference_timecontrol_max_entries,
         preference_timecontrol_info_enabled, preference_timecontrol_control_enabled,
         preference_query_interval_lockstate, preference_query_interval_configuration,
         preference_query_interval_battery, preference_query_interval_keypad, preference_update_time,
@@ -328,10 +327,9 @@ private:
 
     const std::vector<char*> _redact =
     {
-        preference_wifi_ssid, preference_wifi_pass, preference_nuki_id_lock, preference_device_id_lock,
-        preference_har_user, preference_har_password, preference_api_token, preference_cred_user,
-        preference_cred_password, preference_admin_secret, preference_log_backup_ftp_user,
-        preference_log_backup_ftp_pwd
+        preference_wifi_pass, preference_nuki_id_lock, preference_har_user, preference_har_password,
+        preference_api_token, preference_cred_user, preference_cred_password, preference_bypass_proxy,
+        preference_admin_secret, preference_log_backup_ftp_user, preference_log_backup_ftp_pwd
     };
 
     const std::vector<char*> _boolPrefs =
@@ -342,10 +340,11 @@ private:
         preference_debug_readable_data, preference_send_debug_info, preference_ip_dhcp_enabled,
         preference_ntw_reconfigure, preference_find_best_rssi, preference_lock_enabled, preference_lock_force_id,
         preference_lock_force_doorsensor, preference_lock_force_keypad, preference_keypad_check_code_enabled,
-        preference_keypad_control_enabled, preference_keypad_info_enabled, preference_auth_control_enabled,
-        preference_auth_info_enabled, preference_timecontrol_info_enabled, preference_timecontrol_control_enabled,
-        preference_update_time, preference_connect_mode, preference_har_enabled, preference_api_enabled,
-        preference_config_from_api, preference_webcfgserver_enabled, preference_log_backup_enabled
+        preference_keypad_control_enabled, preference_keypad_info_enabled, preference_keypad_code_encryption,
+        preference_auth_control_enabled, preference_auth_info_enabled, preference_timecontrol_info_enabled,
+        preference_timecontrol_control_enabled, preference_update_time, preference_connect_mode,
+        preference_har_enabled, preference_api_enabled, preference_config_from_api,
+        preference_webcfgserver_enabled, preference_log_backup_enabled
     };
 
     const std::vector<char*> _bytePrefs =
@@ -361,63 +360,71 @@ private:
         preference_network_custom_irq, preference_network_custom_rst, preference_network_custom_cs,
         preference_network_custom_sck, preference_network_custom_miso, preference_network_custom_mosi,
         preference_network_custom_pwr, preference_network_custom_mdio, preference_network_custom_mdc,
-        preference_network_custom_clk, preference_Maintenance_send_interval, preference_ble_tx_power,
-        preference_lock_max_keypad_code_count, preference_lock_max_auth_entry_count,
-        preference_lock_max_timecontrol_entry_count, preference_lock_pin_status, preference_keypad_max_entries,
-        preference_keypad_code_encryption, preference_keypad_code_multiplier, preference_keypad_code_offset,
-        preference_keypad_code_modulus, preference_auth_max_entries, preference_authlog_max_entries,
-        preference_access_level, preference_timecontrol_max_entries, preference_query_interval_lockstate,
+        preference_network_custom_clk, preference_ble_tx_power, preference_lock_max_keypad_code_count,
+        preference_lock_max_auth_entry_count, preference_lock_max_timecontrol_entry_count,
+        preference_lock_pin_status, preference_keypad_max_entries, preference_auth_max_entries,
+        preference_authlog_max_entries, preference_timecontrol_max_entries, preference_query_interval_lockstate,
         preference_query_interval_configuration, preference_query_interval_battery,
         preference_query_interval_keypad, preference_command_nr_of_retries, preference_command_retry_delay,
-        preference_har_mode, preference_har_rest_mode, preference_har_port, preference_api_port,
-        preference_cred_session_lifetime, preference_cred_session_lifetime_remember, preference_http_auth_type,
-        preference_log_max_file_size, preference_log_level, preference_log_backup_file_index,
+        preference_har_mode, preference_har_port, preference_api_port, preference_cred_session_lifetime,
+        preference_cred_session_lifetime_remember, preference_http_auth_type, preference_log_max_file_size,
+        preference_log_level, preference_log_backup_file_index, preference_Maintenance_send_interval,
         preference_ble_general_timeout, preference_ble_command_timeout
     };
 
     const std::vector<char*> _uintPrefs =
     {
-        preference_nuki_id_lock, preference_device_id_lock
+        preference_nuki_id_lock, preference_device_id_lock, preference_keypad_code_multiplier,
+        preference_keypad_code_offset, preference_keypad_code_modulus
     };
 
     const std::vector<char*> _uint64Prefs =
     {
-        // (none currently)
+        // (none)
+    };
+
+    const std::vector<char*> _stringPrefs =
+    {
+        preference_ip_address, preference_ip_subnet, preference_ip_gateway, preference_ip_dns_server,
+        preference_hostname, preference_wifi_ssid, preference_wifi_pass, preference_time_server,
+        preference_timezone, preference_har_rest_mode, preference_har_address, preference_har_user,
+        preference_har_password, preference_har_key_state, preference_har_key_remote_access_state,
+        preference_har_param_remote_access_state, preference_har_key_wifi_rssi, preference_har_param_wifi_rssi,
+        preference_har_key_uptime, preference_har_param_uptime, preference_har_key_restart_reason_fw,
+        preference_har_param_restart_reason_fw, preference_har_key_restart_reason_esp,
+        preference_har_param_restart_reason_esp, preference_har_key_info_nuki_bridge_version,
+        preference_har_param_info_nuki_bridge_version, preference_har_key_info_nuki_bridge_build,
+        preference_har_param_info_nuki_bridge_build, preference_har_key_freeheap, preference_har_param_freeheap,
+        preference_har_key_ble_address, preference_har_param_ble_address, preference_har_key_ble_strength,
+        preference_har_param_ble_strength, preference_har_key_ble_rssi, preference_har_param_ble_rssi,
+        preference_har_key_lock_state, preference_har_param_lock_state, preference_har_key_lockngo_state,
+        preference_har_param_lockngo_state, preference_har_key_lock_trigger, preference_har_param_lock_trigger,
+        preference_har_key_lock_night_mode, preference_har_param_lock_night_mode,
+        preference_har_key_lock_completionStatus, preference_har_param_lock_completionStatus,
+        preference_har_key_doorsensor_state, preference_har_param_doorsensor_state,
+        preference_har_key_doorsensor_critical, preference_har_param_doorsensor_critical,
+        preference_har_key_keypad_critical, preference_har_param_keypad_critical,
+        preference_har_key_lock_battery_critical, preference_har_param_lock_battery_critical,
+        preference_har_key_lock_battery_level, preference_har_param_lock_battery_level,
+        preference_har_key_lock_battery_charging, preference_har_param_lock_battery_charging,
+        preference_har_key_battery_voltage, preference_har_param_battery_voltage,
+        preference_har_key_battery_drain, preference_har_param_battery_drain,
+        preference_har_key_battery_max_turn_current, preference_har_param_battery_max_turn_current,
+        preference_har_key_battery_lock_distance, preference_har_param_battery_lock_distance,
+        preference_api_token, preference_cred_user, preference_cred_password, preference_bypass_proxy,
+        preference_admin_secret, preference_log_backup_ftp_server, preference_log_backup_ftp_dir,
+        preference_log_backup_ftp_user, preference_log_backup_ftp_pwd
     };
 
 public:
-    const std::vector<char*> getPreferencesKeys() const
-    {
-        return _keys;
-    }
+    const std::vector<char*> getPreferencesKeys() const { return _keys; }
+    const std::vector<char*> getPreferencesRedactedKeys() const { return _redact; }
 
-    const std::vector<char*> getPreferencesRedactedKeys() const
-    {
-        return _redact;
-    }
+    const std::vector<char*> getPreferencesBoolKeys() const { return _boolPrefs; }
+    const std::vector<char*> getPreferencesByteKeys() const { return _bytePrefs; }
+    const std::vector<char*> getPreferencesIntKeys() const { return _intPrefs; }
+    const std::vector<char*> getPreferencesUIntKeys() const { return _uintPrefs; }
+    const std::vector<char*> getPreferencesUInt64Keys() const { return _uint64Prefs; }
+    const std::vector<char*> getPreferencesStringKeys() const { return _stringPrefs; }
 
-    const std::vector<char*> getPreferencesBoolKeys() const
-    {
-        return _boolPrefs;
-    }
-
-    const std::vector<char*> getPreferencesByteKeys() const
-    {
-        return _bytePrefs;
-    }
-
-    const std::vector<char*> getPreferencesIntKeys() const
-    {
-        return _intPrefs;
-    }
-
-    const std::vector<char*> getPreferencesUIntKeys() const
-    {
-        return _uintPrefs;
-    }
-
-    const std::vector<char*> getPreferencesUInt64Keys() const
-    {
-        return _uint64Prefs;
-    }
 };
