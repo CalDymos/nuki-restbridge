@@ -22,5 +22,5 @@
 #define MAX_TIMECONTROL 10
 #define MAX_AUTH 10
 
-#define PREFERENCE_NAME (char *)"nukibridge"
-#define DEVICE_NAME (char *)"NukiBridge"
+#define PREFERENCE_NAME "nukibridge"
+#define DEVICE_NAME "NukiBridge"

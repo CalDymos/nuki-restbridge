@@ -724,18 +724,18 @@ void setup()
   if (!disableNetwork && (forceEnableWebCfgServer || preferences->getBool(preference_webcfgserver_enabled, true)))
   {
     webCfgServer = new WebCfgServer(nuki, network, preferences);
-    Log->println("[INFO] Start to initialize WebCfgServer...");
+    Log->println(F("[INFO] Start to initialize WebCfgServer..."));
     webCfgServer->initialize();
   }
 
 #ifdef DEBUG_NUKIBRIDGE
-  Log->printf("[DEBUG] Heap before setupTasks: %d bytes\r\n", ESP.getFreeHeap());
+  Log->printf(F("[DEBUG] Heap before setupTasks: %d bytes\r\n"), ESP.getFreeHeap());
 #endif
 
   setupTasks();
 
 #ifdef DEBUG_NUKIBRIDGE
-  Log->printf("[DEBUG] Heap after setupTasks: %d bytes\r\n", ESP.getFreeHeap());
+  Log->printf(F("[DEBUG] Heap after setupTasks: %d bytes\r\n"), ESP.getFreeHeap());
   printTaskInfo();
 #endif
 }
