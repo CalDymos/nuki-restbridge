@@ -2276,9 +2276,9 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
 
         Preferences nukiBlePref;
         nukiBlePref.begin(PREFERENCE_NAME, false);
-        nukiBlePref.getBytes("bleAddress", currentBleAddress, 6);
-        nukiBlePref.getBytes("secretKeyK", secretKeyK, 32);
-        nukiBlePref.getBytes("authorizationId", authorizationId, 4);
+        nukiBlePref.getBytes(Nuki::BLE_ADDRESS_STORE_NAME, currentBleAddress, 6);
+        nukiBlePref.getBytes(Nuki::SECRET_KEY_STORE_NAME, secretKeyK, 32);
+        nukiBlePref.getBytes(Nuki::AUTH_ID_STORE_NAME, authorizationId, 4);
         nukiBlePref.end();
 
         response += F("\n\n------------ NUKI LOCK PAIRING ------------");
@@ -4038,10 +4038,10 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         Log->println(F("[DEBUG] Changing lock pairing"));
         Preferences nukiBlePref;
         nukiBlePref.begin(PREFERENCE_NAME, false);
-        nukiBlePref.putBytes("bleAddress", currentBleAddress, 6);
-        nukiBlePref.putBytes("secretKeyK", secretKeyK, 32);
-        nukiBlePref.putBytes("authorizationId", authorizationId, 4);
-        nukiBlePref.putBytes("securityPinCode", pincode, 2);
+        nukiBlePref.putBytes(Nuki::BLE_ADDRESS_STORE_NAME, currentBleAddress, 6);
+        nukiBlePref.putBytes(Nuki::SECRET_KEY_STORE_NAME, secretKeyK, 32);
+        nukiBlePref.putBytes(Nuki::AUTH_ID_STORE_NAME, authorizationId, 4);
+        nukiBlePref.putBytes(Nuki::SECURITY_PINCODE_STORE_NAME, pincode, 2);
 
         nukiBlePref.end();
         Log->print(F("[DEBUG] Setting changed: "));

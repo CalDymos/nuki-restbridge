@@ -7,9 +7,8 @@ class ImportExport
 {
 public:
     explicit ImportExport(Preferences* preferences);
-    void exportNukiHubJson(JsonDocument &json, bool redacted = false, bool pairing = false, bool nuki = false, bool nukiOpener = false);
+    void exportNukiBridgeJson(JsonDocument &json, bool redacted = false, bool pairing = false, bool nuki = false);
     JsonDocument importJson(JsonDocument &doc);
-    bool getBypassEnabled();
     void readSettings();
     JsonDocument _sessionsOpts;
     int64_t _lastCodeCheck = 0;

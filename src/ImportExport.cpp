@@ -3,6 +3,7 @@
 #include "LittleFS.h"
 #include "Logger.h"
 #include "PreferencesKeys.h"
+#include "NukiConstants.h"
 
 ImportExport::ImportExport(Preferences *preferences)
     : _preferences(preferences)
@@ -16,7 +17,7 @@ void ImportExport::readSettings()
     _updateTime = _preferences->getBool(preference_update_time, false);
 }
 
-void ImportExport::exportNukiHubJson(JsonDocument &json, bool redacted, bool pairing, bool nuki, bool nukiOpener)
+void ImportExport::exportNukiBridgeJson(JsonDocument &json, bool redacted, bool pairing, bool nuki)
 {
     PreferencesKeyRegistry prefKeyRegistry;
 
@@ -97,12 +98,12 @@ void ImportExport::exportNukiHubJson(JsonDocument &json, bool redacted, bool pai
             bool isUltra = false;
             Preferences nukiBlePref;
             nukiBlePref.begin(PREFERENCE_NAME, false);
-            nukiBlePref.getBytes("bleAddress", currentBleAddress, 6);
-            nukiBlePref.getBytes("secretKeyK", secretKeyK, 32);
-            nukiBlePref.getBytes("authorizationId", authorizationId, 4);
-            nukiBlePref.getBytes("securityPinCode", &storedPincode, 2);
-            nukiBlePref.getBytes("ultraPinCode", &storedUltraPincode, 4);
-            isUltra = nukiBlePref.getBool("isUltra", false);
+            nukiBlePref.getBytes(Nuki::BLE_ADDRESS_STORE_NAME, currentBleAddress, 6);
+            nukiBlePref.getBytes(Nuki::SECRET_KEY_STORE_NAME, secretKeyK, 32);
+            nukiBlePref.getBytes(Nuki::AUTH_ID_STORE_NAME, authorizationId, 4);
+            nukiBlePref.getBytes(Nuki::SECURITY_PINCODE_STORE_NAME, &storedPincode, 2);
+            nukiBlePref.getBytes(Nuki::ULTRA_PINCODE_STORE_NAME, &storedUltraPincode, 4);
+            isUltra = nukiBlePref.getBool(Nuki::ULTRA_STORE_NAME, false);
             nukiBlePref.end();
             char text[255];
             text[0] = '\0';
@@ -132,46 +133,6 @@ void ImportExport::exportNukiHubJson(JsonDocument &json, bool redacted, bool pai
             json["securityPinCodeLock"] = storedPincode;
             json["ultraPinCodeLock"] = storedUltraPincode;
             json["isUltra"] = isUltra ? "1" : "0";
-        }
-        if(nukiOpener)
-        {
-            unsigned char currentBleAddressOpn[6];
-            unsigned char authorizationIdOpn[4] = {0x00};
-            unsigned char secretKeyKOpn[32] = {0x00};
-            uint16_t storedPincodeOpn = 0000;
-            Preferences nukiBlePref;
-            nukiBlePref.begin("NukiHubopener", false);
-            nukiBlePref.getBytes("bleAddress", currentBleAddressOpn, 6);
-            nukiBlePref.getBytes("secretKeyK", secretKeyKOpn, 32);
-            nukiBlePref.getBytes("authorizationId", authorizationIdOpn, 4);
-            nukiBlePref.getBytes("securityPinCode", &storedPincodeOpn, 2);
-            nukiBlePref.end();
-            char text[255];
-            text[0] = '\0';
-            for(int i = 0 ; i < 6 ; i++)
-            {
-                size_t offset = strlen(text);
-                sprintf(&(text[offset]), "%02x", currentBleAddressOpn[i]);
-            }
-            json["bleAddressOpener"] = text;
-            memset(text, 0, sizeof(text));
-            text[0] = '\0';
-            for(int i = 0 ; i < 32 ; i++)
-            {
-                size_t offset = strlen(text);
-                sprintf(&(text[offset]), "%02x", secretKeyKOpn[i]);
-            }
-            json["secretKeyKOpener"] = text;
-            memset(text, 0, sizeof(text));
-            text[0] = '\0';
-            for(int i = 0 ; i < 4 ; i++)
-            {
-                size_t offset = strlen(text);
-                sprintf(&(text[offset]), "%02x", authorizationIdOpn[i]);
-            }
-            json["authorizationIdOpener"] = text;
-            memset(text, 0, sizeof(text));
-            json["securityPinCodeOpener"] = storedPincodeOpn;
         }
     }
 
@@ -327,7 +288,7 @@ JsonDocument ImportExport::importJson(JsonDocument &doc)
                 currentBleAddress[(i/2)] = std::stoi(value.substring(i, i+2).c_str(), nullptr, 16);
             }
             json["bleAddressLock"] = "changed";
-            nukiBlePref.putBytes("bleAddress", currentBleAddress, 6);
+            nukiBlePref.putBytes(Nuki::BLE_ADDRESS_STORE_NAME, currentBleAddress, 6);
         }
     }
     if(!doc["secretKeyKLock"].isNull())
@@ -340,7 +301,7 @@ JsonDocument ImportExport::importJson(JsonDocument &doc)
                 secretKeyK[(i/2)] = std::stoi(value.substring(i, i+2).c_str(), nullptr, 16);
             }
             json["secretKeyKLock"] = "changed";
-            nukiBlePref.putBytes("secretKeyK", secretKeyK, 32);
+            nukiBlePref.putBytes(Nuki::SECRET_KEY_STORE_NAME, secretKeyK, 32);
         }
     }
     if(!doc["authorizationIdLock"].isNull())
@@ -353,7 +314,7 @@ JsonDocument ImportExport::importJson(JsonDocument &doc)
                 authorizationId[(i/2)] = std::stoi(value.substring(i, i+2).c_str(), nullptr, 16);
             }
             json["authorizationIdLock"] = "changed";
-            nukiBlePref.putBytes("authorizationId", authorizationId, 4);
+            nukiBlePref.putBytes(Nuki::AUTH_ID_STORE_NAME, authorizationId, 4);
         }
     }
     if(!doc["isUltra"].isNull())
@@ -361,7 +322,7 @@ JsonDocument ImportExport::importJson(JsonDocument &doc)
         if (doc["isUltra"].as<String>().length() >0)
         {
             json["isUltra"] = "changed";
-            nukiBlePref.putBool("isUltra", (doc["isUltra"].as<String>() == "1" ? true : false));
+            nukiBlePref.putBool(Nuki::ULTRA_STORE_NAME, (doc["isUltra"].as<String>() == "1" ? true : false));
         }
     }
     if(!doc["securityPinCodeLock"].isNull())
@@ -369,93 +330,17 @@ JsonDocument ImportExport::importJson(JsonDocument &doc)
         if(doc["securityPinCodeLock"].as<String>().length() > 0)
         {
             json["securityPinCodeLock"] = "changed";
-            nukiBlePref.putBytes("securityPinCode", (byte*)(doc["securityPinCodeLock"].as<int>()), 2);
+            nukiBlePref.putBytes(Nuki::SECURITY_PINCODE_STORE_NAME, (byte*)(doc["securityPinCodeLock"].as<int>()), 2);
             //_nuki->setPin(doc["securityPinCodeLock"].as<int>());
         }
         else
         {
             json["securityPinCodeLock"] = "removed";
             unsigned char pincode[2] = {0x00};
-            nukiBlePref.putBytes("securityPinCode", pincode, 2);
+            nukiBlePref.putBytes(Nuki::SECURITY_PINCODE_STORE_NAME, pincode, 2);
             //_nuki->setPin(0xffff);
         }
     }
-    if(!doc["ultraPinCodeLock"].isNull())
-    {
-        if(doc["ultraPinCodeLock"].as<String>().length() > 0)
-        {
-            json["ultraPinCodeLock"] = "changed";
-            nukiBlePref.putBytes("ultraPinCode", (byte*)(doc["ultraPinCodeLock"].as<int>()), 4);
-            //_nuki->setUltraPin(doc["ultraPinCodeLock"].as<int>());
-            _preferences->putInt(preference_lock_gemini_pin, doc["ultraPinCodeLock"].as<int>());
-        }
-        else
-        {
-            json["ultraPinCodeLock"] = "removed";
-            unsigned char ultraPincode[4] = {0x00};
-            nukiBlePref.putBytes("ultraPinCode", ultraPincode, 4);
-            _preferences->putInt(preference_lock_gemini_pin, 0);
-        }
-    }
     nukiBlePref.end();
-    nukiBlePref.begin("NukiHubopener", false);
-    if(!doc["bleAddressOpener"].isNull())
-    {
-        if (doc["bleAddressOpener"].as<String>().length() == 12)
-        {
-            String value = doc["bleAddressOpener"].as<String>();
-            for(int i=0; i<value.length(); i+=2)
-            {
-                currentBleAddressOpn[(i/2)] = std::stoi(value.substring(i, i+2).c_str(), nullptr, 16);
-            }
-            json["bleAddressOpener"] = "changed";
-            nukiBlePref.putBytes("bleAddress", currentBleAddressOpn, 6);
-        }
-    }
-    if(!doc["secretKeyKOpener"].isNull())
-    {
-        if (doc["secretKeyKOpener"].as<String>().length() == 64)
-        {
-            String value = doc["secretKeyKOpener"].as<String>();
-            for(int i=0; i<value.length(); i+=2)
-            {
-                secretKeyKOpn[(i/2)] = std::stoi(value.substring(i, i+2).c_str(), nullptr, 16);
-            }
-            json["secretKeyKOpener"] = "changed";
-            nukiBlePref.putBytes("secretKeyK", secretKeyKOpn, 32);
-        }
-    }
-    if(!doc["authorizationIdOpener"].isNull())
-    {
-        if (doc["authorizationIdOpener"].as<String>().length() == 8)
-        {
-            String value = doc["authorizationIdOpener"].as<String>();
-            for(int i=0; i<value.length(); i+=2)
-            {
-                authorizationIdOpn[(i/2)] = std::stoi(value.substring(i, i+2).c_str(), nullptr, 16);
-            }
-            json["authorizationIdOpener"] = "changed";
-            nukiBlePref.putBytes("authorizationId", authorizationIdOpn, 4);
-        }
-    }
-
-    if(!doc["securityPinCodeOpener"].isNull())
-    {
-        if(doc["securityPinCodeOpener"].as<String>().length() > 0)
-        {
-            json["securityPinCodeOpener"] = "changed";
-            nukiBlePref.putBytes("securityPinCode", (byte*)(doc["securityPinCodeOpener"].as<int>()), 2);
-            //_nukiOpener->setPin(doc["securityPinCodeOpener"].as<int>());
-        }
-        else
-        {
-            json["securityPinCodeOpener"] = "removed";
-            unsigned char pincode[2] = {0x00};
-            nukiBlePref.putBytes("securityPinCode", pincode, 2);
-            //_nukiOpener->setPin(0xffff);
-        }
-    }
-    nukiBlePref.end();
-
     return json;
 }

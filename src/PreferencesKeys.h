@@ -261,6 +261,7 @@ inline bool initPreferences(Preferences *&preferences)
 // - Keys listed in _redact should be treated as sensitive and never be shown in plain text.
 // - The typed lists (_boolPrefs/_intPrefs/_bytePrefs/_uintPrefs/_uint64Prefs) are for code paths that need
 //   to load/save preferences with the correct Preferences::* API.
+//   The default for _keys is the String type.
 class PreferencesKeyRegistry
 {
 private:
@@ -383,39 +384,6 @@ private:
         // (none)
     };
 
-    const std::vector<char*> _stringPrefs =
-    {
-        preference_ip_address, preference_ip_subnet, preference_ip_gateway, preference_ip_dns_server,
-        preference_hostname, preference_wifi_ssid, preference_wifi_pass, preference_time_server,
-        preference_timezone, preference_har_rest_mode, preference_har_address, preference_har_user,
-        preference_har_password, preference_har_key_state, preference_har_key_remote_access_state,
-        preference_har_param_remote_access_state, preference_har_key_wifi_rssi, preference_har_param_wifi_rssi,
-        preference_har_key_uptime, preference_har_param_uptime, preference_har_key_restart_reason_fw,
-        preference_har_param_restart_reason_fw, preference_har_key_restart_reason_esp,
-        preference_har_param_restart_reason_esp, preference_har_key_info_nuki_bridge_version,
-        preference_har_param_info_nuki_bridge_version, preference_har_key_info_nuki_bridge_build,
-        preference_har_param_info_nuki_bridge_build, preference_har_key_freeheap, preference_har_param_freeheap,
-        preference_har_key_ble_address, preference_har_param_ble_address, preference_har_key_ble_strength,
-        preference_har_param_ble_strength, preference_har_key_ble_rssi, preference_har_param_ble_rssi,
-        preference_har_key_lock_state, preference_har_param_lock_state, preference_har_key_lockngo_state,
-        preference_har_param_lockngo_state, preference_har_key_lock_trigger, preference_har_param_lock_trigger,
-        preference_har_key_lock_night_mode, preference_har_param_lock_night_mode,
-        preference_har_key_lock_completionStatus, preference_har_param_lock_completionStatus,
-        preference_har_key_doorsensor_state, preference_har_param_doorsensor_state,
-        preference_har_key_doorsensor_critical, preference_har_param_doorsensor_critical,
-        preference_har_key_keypad_critical, preference_har_param_keypad_critical,
-        preference_har_key_lock_battery_critical, preference_har_param_lock_battery_critical,
-        preference_har_key_lock_battery_level, preference_har_param_lock_battery_level,
-        preference_har_key_lock_battery_charging, preference_har_param_lock_battery_charging,
-        preference_har_key_battery_voltage, preference_har_param_battery_voltage,
-        preference_har_key_battery_drain, preference_har_param_battery_drain,
-        preference_har_key_battery_max_turn_current, preference_har_param_battery_max_turn_current,
-        preference_har_key_battery_lock_distance, preference_har_param_battery_lock_distance,
-        preference_api_token, preference_cred_user, preference_cred_password, preference_bypass_proxy,
-        preference_admin_secret, preference_log_backup_ftp_server, preference_log_backup_ftp_dir,
-        preference_log_backup_ftp_user, preference_log_backup_ftp_pwd
-    };
-
 public:
     const std::vector<char*> getPreferencesKeys() const { return _keys; }
     const std::vector<char*> getPreferencesRedactedKeys() const { return _redact; }
@@ -425,6 +393,5 @@ public:
     const std::vector<char*> getPreferencesIntKeys() const { return _intPrefs; }
     const std::vector<char*> getPreferencesUIntKeys() const { return _uintPrefs; }
     const std::vector<char*> getPreferencesUInt64Keys() const { return _uint64Prefs; }
-    const std::vector<char*> getPreferencesStringKeys() const { return _stringPrefs; }
 
 };
