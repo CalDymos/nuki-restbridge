@@ -7,10 +7,14 @@
 #include "LockActionResult.h"
 #include "NukiDeviceId.hpp"
 #include "EspMillis.h"
+#include "util/NukiRetryHandler.h"
+#include "RestartReason.h"
+#include "BleControllerRestartReason.h"
 
 class NukiWrapper : public Nuki::SmartlockEventHandler
 {
 public:
+    using BleControllerRestartReason = ::BleControllerRestartReason;
     /**
      * @brief Creates an instance to communicate with the Nuki Smart Lock.
      * @param deviceName   Reference to the name of the device.
@@ -41,6 +45,7 @@ public:
     /**
      * @brief Updates the internal state (e.g. maintain BLE connection).
      *        Should be called regularly, e.g. from the main loop().
+     * @param reboot Whether to reboot the lock logic after a failure.
      */
     void update(bool reboot);
 
@@ -126,6 +131,17 @@ public:
      * @brief Returns the BLE address of the lock.
      */
     const BLEAddress getBleAddress() const;
+
+    /**
+     * @brief Returns whether the lock has successfully connected at least once.
+     */
+    const bool hasConnected() const;
+
+    /**
+     * @brief Returns the reason for the last BLE controller restart.
+     * @return BleControllerRestartReason Enum value indicating the restart reason.
+     */
+    BleControllerRestartReason getBleControllerRestartReason() const;
 
     /**
      * @brief Returns the firmware version of the connected Smart Lock.
@@ -258,7 +274,7 @@ private:
     /**
      * @brief Reads advanced lock configuration from the device.
      */
-    void readAdvancedConfig();
+    bool readAdvancedConfig();
 
     /**
      * @brief Prints the result of a Nuki command to log.
@@ -280,90 +296,94 @@ private:
     Nuki::BatteryType batteryTypeToEnum(const char *str);
     NukiLock::MotorSpeed motorSpeedToEnum(const char *str);
 
-    std::string _deviceName;                                                    // Name of the smart lock device (user-defined identifier).
-    NukiDeviceId *_deviceId = nullptr;                                          // Unique device ID stored in preferences.
-                                                                                //
-    BleScanner::Scanner *_bleScanner = nullptr;                                 // BLE scanner instance to find/connect the lock.
-    NukiLock::NukiLock _nukiLock;                                               // Instance handling BLE communication with the lock.
-    NukiNetwork *_network = nullptr;                                            // Reference to the network service (API, Home Automation).
-    Preferences *_preferences;                                                  // Pointer to the ESP32 preferences for persistent storage.
-                                                                                //
-    char *_buffer;                                                              // Shared data buffer for building requests or storing responses.
-    const size_t _bufferSize;                                                   // Size of the shared buffer in bytes.
-                                                                                //
-    NukiLock::KeyTurnerState _lastKeyTurnerState;                               // Previously known KeyTurnerState.
-    NukiLock::KeyTurnerState _keyTurnerState;                                   // Most recent KeyTurnerState from the device.
-                                                                                //
-    std::vector<uint16_t> _keypadCodeIds;                                       // IDs of configured keypad codes.
-    std::vector<uint32_t> _keypadCodes;                                         // Keypad code hashes (or representations).
-    std::vector<uint8_t> _timeControlIds;                                       // Time control entry IDs.
-    std::vector<uint32_t> _authIds;                                             // Authorization IDs stored on the device.
-                                                                                //
-    bool _checkKeypadCodes = false;                                             // Indicates if keypad codes need to be validated.
-    bool _hasKeypad = false;                                                    // Whether the lock has a keypad accessory.
-    bool _forceDoorsensor = false;                                              // Enforce door sensor presence.
-    bool _forceKeypad = false;                                                  // Enforce keypad detection.
-    bool _forceId = false;                                                      // Force assignment of a specific device ID.
-    bool _keypadInfoEnabled = false;                                            // Indicates if the keypad info is currently active.
-                                                                                //
-    bool _authInfoEnabled = false;                                              // Indicates if the keypad info is currently active.
-    bool _timeCtrlInfoEnabled = false;                                          // Indicates if the keypad info is currently active.
-                                                                                //
-    NukiLock::Config _nukiConfig = {0};                                         // Basic configuration of the lock.
-    NukiLock::AdvancedConfig _nukiAdvancedConfig = {0};                         // Advanced configuration.
-    bool _nukiConfigValid = false;                                              // Whether the basic configuration is valid.
-    bool _nukiAdvancedConfigValid = false;                                      // Whether the advanced configuration is valid.
-    uint32_t _basicLockConfigaclPrefs[16];                                      // Stored preference bitfields for access control of basic lock configuration (persisted per ACL entry).
-    uint32_t _advancedLockConfigaclPrefs[25];                                   // Stored preference bitfields for access control of advanced lock configuration (persisted per ACL entry).
-                                                                                //
-    NukiLock::BatteryReport _batteryReport;                                     // Latest battery status reported by the lock.
-    NukiLock::BatteryReport _lastBatteryReport;                                 // Previously stored battery report.
-                                                                                //
-    int _intervalLockstate = 0;                                                 // Update interval for lock state polling (seconds).
-    int _intervalBattery = 0;                                                   // Update interval for battery checks (seconds).
-    int _intervalConfig = 60 * 60;                                              // Interval for configuration polling (seconds).
-    int _intervalKeypad = 0;                                                    // Interval for keypad update polling (seconds).
-                                                                                //
-    int64_t _statusUpdatedTs = 0;                                               // Timestamp of last successful status update.
-    int64_t _disableBleWatchdogTs = 0;                                          // Timestamp when BLE watchdog was disabled.
-    int64_t _nextLockStateUpdateTs = 0;                                         // Next planned lock state update timestamp.
-    int64_t _nextBatteryReportTs = 0;                                           // Next planned battery report timestamp.
-    int64_t _nextConfigUpdateTs = 0;                                            // Next configuration update timestamp.
-    int64_t _nextKeypadUpdateTs = 0;                                            // Next keypad update timestamp.
-    int64_t _nextTimeUpdateTs = 0;                                              // Next time sync with lock.
-    int64_t _nextRssiTs = 0;                                                    // Next planned RSSI update.
-    int64_t _waitAuthUpdateTs = 0;                                              // Timestamp for next auth data check.
-    int64_t _waitTimeControlUpdateTs = 0;                                       // Timestamp for next time control update.
-    int64_t _waitKeypadUpdateTs = 0;                                            // Timestamp for next keypad sync.
-    int64_t _waitAuthLogUpdateTs = 0;                                           // Timestamp for delayed auth log polling.
-    int64_t _lastPairingLogTs = 0;                                              // throttling pairing Message via time
-                                                                                //
-    int _invalidCount = 0;                                                      // Number of invalid communication attempts.
-    int _nrOfRetries = 0;                                                       // Retry counter for reconnect attempts.
-    int _retryDelay = 0;                                                        // Delay between retries in milliseconds.
-    int _retryConfigCount = 0;                                                  // Retry attempts for reading configuration.
-    int _retryLockstateCount = 0;                                               // Retry attempts for polling lock state.
-    int _restartBeaconTimeout = 0;                                              // Timeout to restart beacon scanner (seconds).
-    int _rssiPublishInterval = 0;                                               // Interval in seconds for publishing RSSI values.
-                                                                                //
-    String _firmwareVersion = "";                                               // Cached firmware version string.
-    String _hardwareVersion = "";                                               // Cached hardware version string.
-                                                                                //
-    uint _maxKeypadCodeCount = 0;                                               // Max supported number of keypad entries.
-    uint _maxTimeControlEntryCount = 0;                                         // Max supported time control entries.
-    uint _maxAuthEntryCount = 0;                                                // Max supported authorization entries.
-                                                                                //
-    bool _keypadCodeEncryptionEnabled = false;                                  //
-    uint32_t _keypadCodeMultiplier;                                             //
-    uint32_t _keypadCodeOffset;                                                 //
-    uint32_t _keypadCodeModulus;                                                //
-    uint32_t _keypadCodeInverse;                                                //
-                                                                                //
-    bool _paired = false;                                                       // Whether the lock is currently paired.
-    bool _pairingMsgShown = false;                                              // nur einmalige Sofortausgabe
-    bool _statusUpdated = false;                                                // Whether the latest update was successful.
-    int64_t _lastCodeCheck = 0;                                                 // Last time the PIN codes were checked.
-    int64_t _lastRssi = 0;                                                      // Last known RSSI value.
-                                                                                //
-    volatile NukiLock::LockAction _nextLockAction = (NukiLock::LockAction)0xff; // Next lock action to be performed via API.
+    std::string _deviceName;                       // Name of the smart lock device (user-defined identifier).
+    NukiDeviceId *_deviceId = nullptr;             // Unique device ID stored in preferences.
+                                                   //
+    BleScanner::Scanner *_bleScanner = nullptr;    // BLE scanner instance to find/connect the lock.
+    NukiLock::NukiLock _nukiLock;                  // Instance handling BLE communication with the lock.
+    NukiNetwork *_network = nullptr;               // Reference to the network service (API, Home Automation).
+    Preferences *_preferences;                     // Pointer to the ESP32 preferences for persistent storage.
+    NukiRetryHandler *_nukiRetryHandler = nullptr; // Retry handler for Nuki communication.
+
+    char *_buffer;                                                                             // Shared data buffer for building requests or storing responses.
+    const size_t _bufferSize;                                                                  // Size of the shared buffer in bytes.
+                                                                                               //
+    NukiLock::KeyTurnerState _lastKeyTurnerState;                                              // Previously known KeyTurnerState.
+    NukiLock::KeyTurnerState _keyTurnerState;                                                  // Most recent KeyTurnerState from the device.
+                                                                                               //
+    std::vector<uint16_t> _keypadCodeIds;                                                      // IDs of configured keypad codes.
+    std::vector<uint32_t> _keypadCodes;                                                        // Keypad code hashes (or representations).
+    std::vector<uint8_t> _timeControlIds;                                                      // Time control entry IDs.
+    std::vector<uint32_t> _authIds;                                                            // Authorization IDs stored on the device.
+                                                                                               //
+    bool _checkKeypadCodes = false;                                                            // Indicates if keypad codes need to be validated.
+    bool _hasKeypad = false;                                                                   // Whether the lock has a keypad accessory.
+    bool _forceDoorsensor = false;                                                             // Enforce door sensor presence.
+    bool _forceKeypad = false;                                                                 // Enforce keypad detection.
+    bool _forceId = false;                                                                     // Force assignment of a specific device ID.
+    bool _keypadInfoEnabled = false;                                                           // Indicates if the keypad info is currently active.
+                                                                                               //
+    bool _authInfoEnabled = false;                                                             // Indicates if the keypad info is currently active.
+    bool _timeCtrlInfoEnabled = false;                                                         // Indicates if the keypad info is currently active.
+                                                                                               //
+    NukiLock::Config _nukiConfig = {0};                                                        // Basic configuration of the lock.
+    NukiLock::AdvancedConfig _nukiAdvancedConfig = {0};                                        // Advanced configuration.
+    bool _nukiConfigValid = false;                                                             // Whether the basic configuration is valid.
+    bool _nukiAdvancedConfigValid = false;                                                     // Whether the advanced configuration is valid.
+    uint32_t _basicLockConfigaclPrefs[16];                                                     // Stored preference bitfields for access control of basic lock configuration (persisted per ACL entry).
+    uint32_t _advancedLockConfigaclPrefs[25];                                                  // Stored preference bitfields for access control of advanced lock configuration (persisted per ACL entry).
+                                                                                               //
+    NukiLock::BatteryReport _batteryReport;                                                    // Latest battery status reported by the lock.
+    NukiLock::BatteryReport _lastBatteryReport;                                                // Previously stored battery report.
+                                                                                               //
+    int _intervalLockstate = 0;                                                                // Update interval for lock state polling (seconds).
+    int _intervalBattery = 0;                                                                  // Update interval for battery checks (seconds).
+    int _intervalConfig = 60 * 60;                                                             // Interval for configuration polling (seconds).
+    int _intervalKeypad = 0;                                                                   // Interval for keypad update polling (seconds).
+                                                                                               //
+    int64_t _statusUpdatedTs = 0;                                                              // Timestamp of last successful status update.
+    int _newSignal = 0;                                                                        // Signal strength of the last connection.
+    int64_t _disableBleWatchdogTs = 0;                                                         // Timestamp when BLE watchdog was disabled.
+    int64_t _nextLockStateUpdateTs = 0;                                                        // Next planned lock state update timestamp.
+    int64_t _nextBatteryReportTs = 0;                                                          // Next planned battery report timestamp.
+    int64_t _nextConfigUpdateTs = 0;                                                           // Next configuration update timestamp.
+    int64_t _nextKeypadUpdateTs = 0;                                                           // Next keypad update timestamp.
+    int64_t _nextTimeUpdateTs = 0;                                                             // Next time sync with lock.
+    int64_t _nextRssiTs = 0;                                                                   // Next planned RSSI update.
+    int64_t _waitAuthUpdateTs = 0;                                                             // Timestamp for next auth data check.
+    int64_t _waitTimeControlUpdateTs = 0;                                                      // Timestamp for next time control update.
+    int64_t _waitKeypadUpdateTs = 0;                                                           // Timestamp for next keypad sync.
+    int64_t _waitAuthLogUpdateTs = 0;                                                          // Timestamp for delayed auth log polling.
+    int64_t _lastPairingLogTs = 0;                                                             // throttling pairing Message via time
+                                                                                               //
+    int _invalidCount = 0;                                                                     // Number of invalid communication attempts.
+    int _nrOfRetries = 0;                                                                      // Retry counter for reconnect attempts.
+    int _retryDelay = 0;                                                                       // Delay between retries in milliseconds.
+    int _retryConfigCount = 0;                                                                 // Retry attempts for reading configuration.
+    int _retryLockstateCount = 0;                                                              // Retry attempts for polling lock state.
+    int _restartBeaconTimeout = 0;                                                             // Timeout to restart beacon scanner (seconds).
+    int _rssiPublishInterval = 0;                                                              // Interval in seconds for publishing RSSI values.
+                                                                                               //
+    String _firmwareVersion = "";                                                              // Cached firmware version string.
+    String _hardwareVersion = "";                                                              // Cached hardware version string.
+                                                                                               //
+    bool _hasConnected = false;                                                                // Whether the lock has successfully connected at least once.
+    uint _maxKeypadCodeCount = 0;                                                              // Max supported number of keypad entries.
+    uint _maxTimeControlEntryCount = 0;                                                        // Max supported time control entries.
+    uint _maxAuthEntryCount = 0;                                                               // Max supported authorization entries.
+    BleControllerRestartReason _bleControllerRestartReason = BleControllerRestartReason::None; // Reason for the last BLE controller restart.
+                                                                                               //
+    bool _keypadCodeEncryptionEnabled = false;                                                 // Whether keypad code encryption is enabled.
+    uint32_t _keypadCodeMultiplier;                                                            // Multiplier for keypad code encryption.
+    uint32_t _keypadCodeOffset;                                                                // Offset for keypad code encryption.
+    uint32_t _keypadCodeModulus;                                                               // Modulus for keypad code encryption.
+    uint32_t _keypadCodeInverse;                                                               // Inverse multiplier for keypad code decryption.
+                                                                                               //
+    bool _paired = false;                                                                      // Whether the lock is currently paired.
+    bool _pairingMsgShown = false;                                                             // nur einmalige Sofortausgabe
+    bool _statusUpdated = false;                                                               // Whether the latest update was successful.
+    int64_t _lastCodeCheck = 0;                                                                // Last time the PIN codes were checked.
+    int64_t _lastRssi = 0;                                                                     // Last known RSSI value.
+                                                                                               //
+    volatile NukiLock::LockAction _nextLockAction = (NukiLock::LockAction)0xff;                // Next lock action to be performed via API.
 };

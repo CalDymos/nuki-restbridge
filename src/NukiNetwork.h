@@ -20,6 +20,7 @@
 #include "NetworkDeviceType.h"
 #include "BridgeApiToken.h"
 #include "NetworkServiceState.h"
+#include "ServiceRestartRequest.h"
 #include "QueryCommand.h"
 #include "LockActionResult.h"
 #include "ImportExport.h"
@@ -33,6 +34,8 @@
 class NukiNetwork
 {
 public:
+    using ServiceRestartRequest = ::ServiceRestartRequest;
+
     /**
      * @brief Constructs the NukiNetwork and initializes internal state from preferences.
      *
@@ -70,7 +73,12 @@ public:
     /**
      * @brief Performs a new configuration / reconnect (e.g. with a new SSID).
      */
-    void reconfigure();
+    void reconfigureAdapter();
+
+    /**
+     * @brief Stops or restarts WebServer(API)/HTTPClient(HAR) in case of failure.
+     */
+    void restartNetworkServices(NetworkServiceState status);
 
     /**
      * @brief Starts a WiFi scan (synchronous or asynchronous).
@@ -171,10 +179,10 @@ public:
     bool isConnected() const;
 
     /**
-     * @brief Checks whether (at least) the WiFi module is connected.
+     * @brief Checks whether the network gate is open (i.e., network operations are permitted).
      *
      */
-    bool isWifiConnected();
+    bool networkGateOpen() const;
 
     /**
      * @brief Checks whether WiFi credentials are configured.
@@ -286,6 +294,19 @@ public:
      */
     char *getApiToken();
 
+    /**
+     * @brief Consumes any pending service restart request.
+     * @return The pending ServiceRestartRequest value.
+     */
+    ServiceRestartRequest consumeServiceRestartRequest();
+
+    /**
+     * @brief Requests a service restart, optionally with reconnection.
+     * @param reconnect Whether to attempt reconnection after restart.
+     */
+    void requestServiceRestart(bool reconnect = false);
+
+
 private:
     /**
      * @brief Sets up the hardware type (WiFi or Ethernet) based on preferences or fallback logic.
@@ -335,11 +356,6 @@ private:
      * @brief Runs tests for WebServer (API) and HTTPClient (HAR) (e.g., ping).
      */
     NetworkServiceState testNetworkServices();
-
-    /**
-     * @brief Stops or restarts WebServer(API)/HTTPClient(HAR) in case of failure.
-     */
-    void restartNetworkServices(NetworkServiceState status);
 
     /**
      * @brief Handles network-related events (WiFi/Ethernet callback).
@@ -413,6 +429,8 @@ private:
     bool _restartOnDisconnect = false;                                        // Whether the device should reboot on disconnect
     bool _firstTunerStateSent = true;                                         // Ensures the first lock state is always sent
     NetworkServiceState _networkServicesState = NetworkServiceState::UNKNOWN; // Current state of network services
+                                                                              //
+    ServiceRestartRequest _pendingServiceRestart = ServiceRestartRequest::None;  // Pending service restart request
                                                                               //
     String _keypadCommandName = "";                                           // Temporary buffer for keypad command name
     String _keypadCommandEncCode = "";                                        // Temporary buffer for encrypted keypad command code

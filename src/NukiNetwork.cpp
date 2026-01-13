@@ -4,6 +4,7 @@
 #include "Config.h"
 #include "RestartReason.h"
 #include "hal/wdt_hal.h"
+#include "util/TaskUtils.h"
 
 NukiNetwork *NukiNetwork::_inst = nullptr;
 
@@ -152,6 +153,19 @@ void NukiNetwork::initialize()
     }
 }
 
+NukiNetwork::ServiceRestartRequest NukiNetwork::consumeServiceRestartRequest()
+{
+    ServiceRestartRequest request = _pendingServiceRestart;
+    _pendingServiceRestart = ServiceRestartRequest::None;
+    return request;
+}
+
+void NukiNetwork::requestServiceRestart(bool reconnect)
+{
+    _pendingServiceRestart = reconnect ? ServiceRestartRequest::RestartWithReconnect
+                                       : ServiceRestartRequest::Restart;
+}
+
 bool NukiNetwork::update()
 {
 
@@ -193,7 +207,7 @@ bool NukiNetwork::update()
         if (_restartOnDisconnect && espMillis() > 60000)
         {
             Log->disableFileLog();
-            delay(10);
+            TaskWdtResetAndDelay(10);
             restartEsp(RestartReason::RestartOnDisconnectWatchdog);
         }
     }
@@ -212,7 +226,7 @@ bool NukiNetwork::update()
             if (svcBothDown || svcHADown || svcAPIDown)
             { // error in network Services
                 restartNetworkServices(_networkServicesState);
-                delay(1000);
+                TaskWdtResetAndDelay(1000);
                 _networkServicesState = testNetworkServices(); // test network services again
 
                 bool expectedStateOk =
@@ -233,14 +247,14 @@ bool NukiNetwork::update()
         {
             forceEnableWebCfgServer = false;
             Log->disableFileLog();
-            delay(200);
+            TaskWdtResetAndDelay(200);
             restartEsp(RestartReason::ReconfigureWebCfgServer);
         }
         else if (!_webCfgEnabled)
         {
             forceEnableWebCfgServer = false;
         }
-        delay(2000);
+        TaskWdtResetAndDelay(2000);
     }
 
     if (_networkServicesState != NetworkServiceState::OK || !isConnected())
@@ -253,10 +267,10 @@ bool NukiNetwork::update()
             }
             Log->println(F("[WARNING] Networkservice timeout has been reached, restarting ..."));
             Log->disableFileLog();
-            delay(200);
+            TaskWdtResetAndDelay(200);
             restartEsp(RestartReason::NetworkTimeoutWatchdog);
         }
-        delay(2000);
+        TaskWdtResetAndDelay(2000);
         return false;
     }
 
@@ -332,7 +346,7 @@ bool NukiNetwork::update()
     return true;
 }
 
-void NukiNetwork::reconfigure()
+void NukiNetwork::reconfigureAdapter()
 {
     switch (_networkDeviceType)
     {
@@ -340,12 +354,12 @@ void NukiNetwork::reconfigure()
         _preferences->putString(preference_wifi_ssid, "");
         _preferences->putString(preference_wifi_pass, "");
         Log->disableFileLog();
-        delay(200);
+        TaskWdtResetAndDelay(200);
         restartEsp(RestartReason::ReconfigureWifi);
         break;
     case NetworkDeviceType::ETH:
         Log->disableFileLog();
-        delay(200);
+        TaskWdtResetAndDelay(200);
         restartEsp(RestartReason::ReconfigureETH);
         break;
     }
@@ -395,7 +409,7 @@ bool NukiNetwork::isConnected() const
     return (_networkDeviceType == NetworkDeviceType::WiFi ? WiFi.isConnected() : _connected);
 }
 
-bool NukiNetwork::isWifiConnected()
+bool NukiNetwork::networkGateOpen() const
 {
     return (_networkDeviceType != NetworkDeviceType::WiFi ? true : isConnected());
 }
@@ -947,7 +961,7 @@ void NukiNetwork::initializeWiFi()
         while (!_APisReady && retries > 0)
         {
             Log->println(F("[DEBUG] Waiting for AP to be ready..."));
-            delay(1000);
+            TaskWdtResetAndDelay(1000);
             retries--;
         }
 
@@ -965,7 +979,7 @@ void NukiNetwork::initializeWiFi()
 
 void NukiNetwork::initializeEthernet()
 {
-    delay(250);
+    TaskWdtResetAndDelay(250);
     if (ethCriticalFailure)
     {
         ethCriticalFailure = false;
@@ -973,7 +987,7 @@ void NukiNetwork::initializeEthernet()
         Log->println(F("[ERROR] Network device has a critical failure, enable fallback to Wi-Fi and reboot."));
         wifiFallback = true;
         Log->disableFileLog();
-        delay(200);
+        TaskWdtResetAndDelay(200);
         restartEsp(RestartReason::NetworkDeviceCriticalFailure);
         return;
     }
@@ -1003,7 +1017,7 @@ void NukiNetwork::initializeEthernet()
         Log->println(F("[ERROR] Network device has a critical failure, enable fallback to Wi-Fi and reboot."));
         wifiFallback = true;
         Log->disableFileLog();
-        delay(200);
+        TaskWdtResetAndDelay(200);
         restartEsp(RestartReason::NetworkDeviceCriticalFailure);
         return;
     }
@@ -1118,10 +1132,10 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
     else if (comparePrefixedPath(path, api_path_bridge, api_path_reboot))
     {
         Log->println(F("[INFO] (REST API) Reboot requested"));
-        delay(200);
+        TaskWdtResetAndDelay(200);
         sendResponse(jsonResult);
         Log->disableFileLog();
-        delay(500);
+        TaskWdtResetAndDelay(500);
         restartEsp(RestartReason::RequestedViaApi);
     }
     else if (comparePrefixedPath(path, api_path_bridge, api_path_enable_web_server))
@@ -1154,7 +1168,7 @@ void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
 
         clearWifiFallback();
         Log->disableFileLog();
-        delay(200);
+        TaskWdtResetAndDelay(200);
         restartEsp(RestartReason::ReconfigureWebCfgServer);
 
         // "Lock" Rest API Requests
@@ -1322,7 +1336,7 @@ void NukiNetwork::onShutdownReceived(const char *path, WebServer &server)
 {
     Log->println("[INFO] (REST API) Shutdown request received");
     Log->disableFileLog();
-    delay(10);
+    TaskWdtResetAndDelay(10);
     disableHAR();
     disableAPI();
     _preferences->end();
@@ -1731,7 +1745,7 @@ bool NukiNetwork::connect()
     {
         WiFi.mode(WIFI_STA);
         WiFi.setHostname(_hostname.c_str());
-        delay(500);
+        TaskWdtResetAndDelay(500);
 
         int bestConnection = -1;
 
@@ -1779,7 +1793,7 @@ bool NukiNetwork::connect()
         while (!isConnected() && loop < 150)
         {
             Log->print(".");
-            delay(100);
+            TaskWdtResetAndDelay(100);
             loop++;
         }
         Log->println("");
@@ -1792,7 +1806,7 @@ bool NukiNetwork::connect()
             {
                 Log->println(F("[INFO] Restart on disconnect watchdog triggered, rebooting"));
                 Log->disableFileLog();
-                delay(100);
+                TaskWdtResetAndDelay(100);
                 restartEsp(RestartReason::RestartOnDisconnectWatchdog);
             }
             else
@@ -1817,9 +1831,9 @@ void NukiNetwork::openAP()
         Log->println(F("[INFO] Starting AP with SSID NukiRestBridge and Password NukiBridgeESP32"));
         _startAP = false;
         WiFi.mode(WIFI_AP);
-        delay(500);
+        TaskWdtResetAndDelay(500);
         WiFi.softAPsetHostname(_hostname.c_str());
-        delay(500);
+        TaskWdtResetAndDelay(500);
         WiFi.softAP(F("NukiRestBridge"), F("NukiBridgeESP32"));
     }
 }
@@ -1842,7 +1856,7 @@ void NukiNetwork::onDisconnected()
         if (_preferences->getBool(preference_restart_on_disconnect, false) && (espMillis() > 60000))
         {
             Log->disableFileLog();
-            delay(10);
+            TaskWdtResetAndDelay(10);
             restartEsp(RestartReason::RestartOnDisconnectWatchdog);
         }
         break;

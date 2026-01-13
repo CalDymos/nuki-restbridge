@@ -6,6 +6,7 @@
 #include "NukiPinState.h"
 #include "hal/wdt_hal.h"
 #include <time.h>
+#include "util/TaskUtils.h"
 
 NukiWrapper *nukiInst = nullptr;
 
@@ -52,10 +53,10 @@ void NukiWrapper::initialize()
     _nukiLock.setDebugCommand(_preferences->getBool(preference_debug_command, false));
     _nukiLock.registerLogger(Log);
 
-    _nukiLock.initialize(_preferences->getBool(preference_connect_mode, true));
+    _nukiLock.initialize();
     _nukiLock.registerBleScanner(_bleScanner);
     _nukiLock.setEventHandler(this);
-    _nukiLock.setConnectTimeout(3);
+    _nukiLock.setConnectTimeout(2);
     _nukiLock.setDisconnectTimeout(2000);
     _nukiLock.setGeneralTimeout(_preferences->getInt(preference_ble_general_timeout, 10000));
     _nukiLock.setCommandTimeout(_preferences->getInt(preference_ble_command_timeout, 3000));
@@ -64,6 +65,8 @@ void NukiWrapper::initialize()
     _hardwareVersion.reserve(8);
 
     readSettings();
+
+    _nukiRetryHandler = new NukiRetryHandler("Lock", _nrOfRetries, _retryDelay);
 }
 
 void NukiWrapper::readSettings()
@@ -205,6 +208,16 @@ void NukiWrapper::readSettings()
     Log->println(_intervalBattery);
 }
 
+NukiWrapper::BleControllerRestartReason NukiWrapper::getBleControllerRestartReason() const
+{
+    return _bleControllerRestartReason;
+}
+
+const bool NukiWrapper::hasConnected() const
+{
+    return _hasConnected;
+}
+
 void NukiWrapper::update(bool reboot)
 {
     wdt_hal_context_t rtc_wdt_ctx = RWDT_HAL_CONTEXT_DEFAULT();
@@ -241,7 +254,7 @@ void NukiWrapper::update(bool reboot)
         }
         else
         {
-            delay(200);
+            TaskWdtResetAndDelay(200);
             return;
         }
     }
@@ -260,8 +273,8 @@ void NukiWrapper::update(bool reboot)
         Log->print((ts - lastReceivedBeaconTs) / 1000);
         Log->println(F(" seconds, restarting device."));
         Log->disableFileLog();
-        delay(200);
-        restartEsp(RestartReason::BLEBeaconWatchdog);
+        TaskWdtResetAndDelay(200);
+        _bleControllerRestartReason = BleControllerRestartReason::BeaconWatchdog;
     }
 
     _nukiLock.updateConnectionState();
@@ -269,31 +282,22 @@ void NukiWrapper::update(bool reboot)
     if (_nextLockAction != (NukiLock::LockAction)0xff)
     {
         int retryCount = 0;
-        Nuki::CmdResult cmdResult;
+        Nuki::CmdResult cmdResult = _nukiRetryHandler->retryComm([&]()
+                                                                 {
+             Nuki::CmdResult cmdResult;
+             cmdResult = _nukiLock.lockAction(_nextLockAction, 0, 0);
+             char resultStr[15] = {0};
+             NukiLock::cmdResultToString(cmdResult, resultStr);
+             
+             Log->printf(F("[INFO] Lock action result: %s\r\n"), resultStr);
 
-        while (retryCount < _nrOfRetries + 1 && cmdResult != Nuki::CmdResult::Success)
-        {
-            cmdResult = _nukiLock.lockAction(_nextLockAction, 0, 0);
-            char resultStr[15] = {0};
-            NukiLock::cmdResultToString(cmdResult, resultStr);
+             if(cmdResult != Nuki::CmdResult::Success)
+             {
+                 // send to HAR
+             }
+             postponeBleWatchdog();
 
-            Log->printf(F("[INFO] Lock action result: %s\r\n"), resultStr);
-
-            if (cmdResult != Nuki::CmdResult::Success)
-            {
-                Log->print(F("[WARNING] Lock: Last command failed, retrying after "));
-                Log->print(_retryDelay);
-                Log->print(" milliseconds. Retry ");
-                Log->print(retryCount + 1);
-                Log->print(" of ");
-                Log->println(_nrOfRetries);
-
-                delay(_retryDelay);
-
-                ++retryCount;
-            }
-            postponeBleWatchdog();
-        }
+            return cmdResult; });
 
         if (cmdResult == Nuki::CmdResult::Success)
         {
@@ -320,8 +324,14 @@ void NukiWrapper::update(bool reboot)
     if (_statusUpdated || _nextLockStateUpdateTs == 0 || ts >= _nextLockStateUpdateTs || (queryCommands & QUERY_COMMAND_LOCKSTATE) > 0)
     {
         Log->println(F("[DEBUG] Updating Lock state based on status, timer or query"));
-        _statusUpdated = updateKeyTurnerState();
         _nextLockStateUpdateTs = ts + _intervalLockstate * 1000;
+        _statusUpdated = updateKeyTurnerState();
+        // send status update to HA
+
+        if (_statusUpdated)
+        {
+            TaskWdtResetAndDelay(500);
+        }
     }
     if (_network->networkServicesState() == NetworkServiceState::OK || _network->networkServicesState() == NetworkServiceState::ERROR_REST_API_SERVER)
     {
@@ -468,25 +478,16 @@ void NukiWrapper::updateAuthData(bool retrieved)
         Nuki::CmdResult result = (Nuki::CmdResult)-1;
         int retryCount = 0;
 
-        while (retryCount < _nrOfRetries + 1)
-        {
-            Log->print(F("[TRACE] Retrieve log entries: "));
-            result = _nukiLock.retrieveLogEntries(0, _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG), 1, false);
-            if (result != Nuki::CmdResult::Success)
-            {
-                ++retryCount;
-            }
-            else
-            {
-                break;
-            }
-        }
+        Log->print(F("[TRACE] Retrieve log entries: "));
+
+        result = _nukiRetryHandler->retryComm([&]()
+                                              { return _nukiLock.retrieveLogEntries(0, _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG), 1, false); });
 
         printCommandResult(result);
         if (result == Nuki::CmdResult::Success)
         {
             _waitAuthLogUpdateTs = espMillis() + 5000;
-            delay(100);
+            TaskWdtResetAndDelay(100);
 
             std::list<NukiLock::LogEntry> log;
             _nukiLock.getLogEntries(&log);
@@ -538,15 +539,14 @@ bool NukiWrapper::updateKeyTurnerState()
 
     Log->println(F("[TRACE] Querying lock state"));
 
+    result = _nukiRetryHandler->retryComm([&]()
+                                          { return _nukiLock.requestKeyTurnerState(&_keyTurnerState); });
+
     char resultStr[15];
-    while (result != Nuki::CmdResult::Success && retryCount < _nrOfRetries + 1)
-    {
-        result = _nukiLock.requestKeyTurnerState(&_keyTurnerState);
-        memset(&resultStr, 0, sizeof(resultStr));
-        NukiLock::cmdResultToString(result, resultStr);
-        Log->printf(F("[DEBUG] Result (attempt %d): %s"), retryCount + 1, resultStr);
-        ++retryCount;
-    }
+    result = _nukiLock.requestKeyTurnerState(&_keyTurnerState);
+    memset(&resultStr, 0, sizeof(resultStr));
+    NukiLock::cmdResultToString(result, resultStr);
+    Log->printf(F("[DEBUG] Result : %s"), resultStr);
 
     if (result != Nuki::CmdResult::Success)
     {
@@ -560,8 +560,17 @@ bool NukiWrapper::updateKeyTurnerState()
             Log->println("ms");
             _nextLockStateUpdateTs = espMillis() + _retryDelay;
         }
+        else
+        {
+            _nextLockStateUpdateTs = espMillis() + (_retryLockstateCount * 333);
+        }
+
         _network->sendToHAKeyTurnerState(_keyTurnerState, _lastKeyTurnerState);
         return false;
+    }
+    else if (!_hasConnected)
+    {
+        _hasConnected = true;
     }
 
     _retryLockstateCount = 0;
@@ -607,27 +616,11 @@ bool NukiWrapper::updateKeyTurnerState()
 bool NukiWrapper::updateBatteryState()
 {
 
-    Nuki::CmdResult result = (Nuki::CmdResult)-1;
-    int retryCount = 0;
-
     Log->println("[TRACE] Querying lock battery state");
+    Nuki::CmdResult result = (Nuki::CmdResult)-1;
 
-    while (retryCount < _nrOfRetries + 1)
-    {
-        Log->print("[DEBUG] Result (attempt ");
-        Log->print(retryCount + 1);
-        Log->print("): ");
-        result = _nukiLock.requestBatteryReport(&_batteryReport);
-
-        if (result != Nuki::CmdResult::Success)
-        {
-            ++retryCount;
-        }
-        else
-        {
-            break;
-        }
-    }
+    result = _nukiRetryHandler->retryComm([&]()
+                                          { return _nukiLock.requestBatteryReport(&_batteryReport); });
 
     printCommandResult(result);
     if (result == Nuki::CmdResult::Success)
@@ -684,23 +677,12 @@ bool NukiWrapper::updateConfig()
             const int pinStatus = _preferences->getInt(preference_lock_pin_status, (int)NukiPinState::NotConfigured);
 
             Nuki::CmdResult result = (Nuki::CmdResult)-1;
-            int retryCount = 0;
 
             // If the pin is 000000, it does not need to be checked.
             if (_nukiLock.getSecurityPincode() > 0 || _nukiLock.getUltraPincode() > 0)
             {
-                while (retryCount < _nrOfRetries + 1)
-                {
-                    result = _nukiLock.verifySecurityPin();
-                    if (result != Nuki::CmdResult::Success)
-                    {
-                        ++retryCount;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
+                result = _nukiRetryHandler->retryComm([&]()
+                                                      { return _nukiLock.verifySecurityPin(); });
             }
             else
             {
@@ -742,6 +724,7 @@ bool NukiWrapper::updateConfig()
 
         if (_nukiAdvancedConfigValid)
         {
+            // send advanced config to HA
         }
         else
         {
@@ -780,22 +763,12 @@ void NukiWrapper::updateTimeControl(bool retrieved)
 
     if (!retrieved)
     {
-        Nuki::CmdResult result = (Nuki::CmdResult)-1;
-        int retryCount = 0;
+        Log->print(F("[TRACE] Querying lock timecontrol: "));
 
-        while (retryCount < _nrOfRetries + 1)
-        {
-            Log->print(F("[TRACE] Querying lock timecontrol: "));
-            result = _nukiLock.retrieveTimeControlEntries();
-            if (result != Nuki::CmdResult::Success)
-            {
-                ++retryCount;
-            }
-            else
-            {
-                break;
-            }
-        }
+        Nuki::CmdResult result = (Nuki::CmdResult)-1;
+
+        result = _nukiRetryHandler->retryComm([&]()
+                                              { return _nukiLock.retrieveTimeControlEntries(); });
 
         printCommandResult(result);
         if (result == Nuki::CmdResult::Success)
@@ -858,23 +831,11 @@ void NukiWrapper::updateAuth(bool retrieved)
 
     if (!retrieved)
     {
+        Log->println(F("[TRACE] Querying lock authorization: "));
         Nuki::CmdResult result = (Nuki::CmdResult)-1;
-        int retryCount = 0;
 
-        while (retryCount < _nrOfRetries)
-        {
-            Log->println(F("[TRACE] Querying lock authorization: "));
-            result = _nukiLock.retrieveAuthorizationEntries(0, _preferences->getInt(preference_auth_max_entries, MAX_AUTH));
-            delay(250);
-            if (result != Nuki::CmdResult::Success)
-            {
-                ++retryCount;
-            }
-            else
-            {
-                break;
-            }
-        }
+        result = _nukiRetryHandler->retryComm([&]()
+                                              { return _nukiLock.retrieveAuthorizationEntries(0, _preferences->getInt(preference_auth_max_entries, MAX_AUTH)); });
 
         printCommandResult(result);
         if (result == Nuki::CmdResult::Success)
@@ -937,24 +898,12 @@ void NukiWrapper::updateKeypad(bool retrieved)
 
     if (!retrieved)
     {
+        Log->println(F("[TRACE] Querying lock keypad: "));
         Nuki::CmdResult result = (Nuki::CmdResult)-1;
-        int retryCount = 0;
 
-        while (retryCount < _nrOfRetries + 1)
-        {
-            Log->println(F("[TRACE] Querying lock keypad: "));
-            result = _nukiLock.retrieveKeypadEntries(0, _preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD));
-            if (result != Nuki::CmdResult::Success)
-            {
-                ++retryCount;
-            }
-            else
-            {
-                break;
-            }
-        }
+        result = _nukiRetryHandler->retryComm([&]()
+                                              { return _nukiLock.retrieveKeypadEntries(0, _preferences->getInt(preference_keypad_max_entries, MAX_KEYPAD)); });
 
-        printCommandResult(result);
         if (result == Nuki::CmdResult::Success)
         {
             _waitKeypadUpdateTs = espMillis() + 5000;
@@ -2527,7 +2476,7 @@ void NukiWrapper::onTimeControlCommandReceived(const char *value)
 
                     if (resultTc == Nuki::CmdResult::Success)
                     {
-                        delay(5000);
+                        TaskWdtResetAndDelay(5000);
                         std::list<NukiLock::TimeControlEntry> timeControlEntries;
                         _nukiLock.getTimeControlEntries(&timeControlEntries);
 
@@ -2753,7 +2702,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
                 {
                     result = _nukiLock.deleteAuthorizationEntry(authId);
                     NukiLock::cmdResultToString(result, resultStr);
-                    delay(250);
+                    TaskWdtResetAndDelay(250);
                     Log->print("[INFO] Delete authorization: ");
                     Log->println(resultStr);
                 }
@@ -2974,7 +2923,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
 
                     result = _nukiLock.addAuthorizationEntry(entry);
                     NukiLock::cmdResultToString(result, resultStr);
-                    delay(250);
+                    TaskWdtResetAndDelay(250);
                     Log->print("[INFO] Add authorization: ");
                     Log->println(resultStr);
                 }
@@ -2997,7 +2946,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
 
                     if (resultAuth == Nuki::CmdResult::Success)
                     {
-                        delay(5000);
+                        TaskWdtResetAndDelay(5000);
                         std::list<NukiLock::AuthorizationEntry> entries;
                         _nukiLock.getAuthorizationEntries(&entries);
 
@@ -3141,7 +3090,7 @@ void NukiWrapper::onAuthCommandReceived(const char *value)
 
                     result = _nukiLock.updateAuthorizationEntry(entry);
                     NukiLock::cmdResultToString(result, resultStr);
-                    delay(250);
+                    TaskWdtResetAndDelay(250);
                     Log->print("[INFO] Update authorization: ");
                     Log->println(resultStr);
                 }
@@ -3490,9 +3439,30 @@ void NukiWrapper::postponeBleWatchdog()
 
 void NukiWrapper::notify(Nuki::EventType eventType)
 {
-    if (eventType == Nuki::EventType::KeyTurnerStatusUpdated)
+    if (eventType == Nuki::EventType::KeyTurnerStatusReset)
     {
-        _statusUpdated = true;
+        _newSignal = 0;
+        Log->println("KeyTurnerStatusReset");
+    }
+    else if (eventType == Nuki::EventType::KeyTurnerStatusUpdated)
+    {
+        if (!_statusUpdated && _newSignal < 5)
+        {
+            _newSignal++;
+            Log->println("KeyTurnerStatusUpdated");
+            _statusUpdated = true;
+            _statusUpdatedTs = espMillis();
+            // _network->sendStatusUpdated(_statusUpdated);
+        }
+    }
+    else if (eventType == Nuki::EventType::ERROR_BAD_PIN)
+    {
+        _preferences->putInt(preference_lock_pin_status, (int)NukiPinState::Invalid);
+    }
+    else if (eventType == Nuki::EventType::BLE_ERROR_ON_DISCONNECT)
+    {
+        Log->println("[Error] Error in disconnecting BLE client, signalling to restart BLE controller");
+        _bleControllerRestartReason = BleControllerRestartReason::DisconnectError;
     }
 }
 
@@ -3501,32 +3471,19 @@ bool NukiWrapper::readConfig()
     Nuki::CmdResult result = (Nuki::CmdResult)-1;
     int retryCount = 0;
 
-    while (retryCount < _nrOfRetries + 1)
-    {
-        result = _nukiLock.requestConfig(&_nukiConfig);
-        _nukiConfigValid = result == Nuki::CmdResult::Success;
+    result = _nukiRetryHandler->retryComm([&]()
+    { 
+        return _nukiLock.requestConfig(&_nukiConfig); 
+    });
 
-        char resultStr[20];
-        NukiLock::cmdResultToString(result, resultStr);
-        Log->print(F("[DEBUG] Lock config result: "));
-        Log->println(resultStr);
+    _nukiConfigValid = result == Nuki::CmdResult::Success;
 
-        if (result != Nuki::CmdResult::Success)
-        {
-            if (retryCount == 0)
-                Log->println(F("[WARNING] Failed to retrieve lock config, retrying..."));
-            else
-                Log->println(F("[DEBUG] Failed to retrieve lock config, retrying in 1s"));
-            ++retryCount;
-            delay(1000);
-        }
-        else
-        {
-            return true;
-        }
-    }
-    Log->printf("[ERROR] Could not retrieve lock config after %d retries\n", retryCount - 1);
-    return false;
+    char resultStr[20];
+    NukiLock::cmdResultToString(result, resultStr);
+    Log->print(F("[DEBUG] Lock config result: "));
+    Log->println(resultStr);
+
+    return _nukiConfigValid;
 }
 
 uint32_t NukiWrapper::calcKeypadCodeInverse()
@@ -3561,32 +3518,23 @@ uint32_t NukiWrapper::decryptKeypadCode(uint32_t encryptedCode)
     return ((encryptedCode - _keypadCodeOffset) * _keypadCodeInverse) % _keypadCodeModulus;
 }
 
-void NukiWrapper::readAdvancedConfig()
+bool NukiWrapper::readAdvancedConfig()
 {
     Nuki::CmdResult result = (Nuki::CmdResult)-1;
-    int retryCount = 0;
 
-    while (retryCount < _nrOfRetries + 1)
-    {
-        result = _nukiLock.requestAdvancedConfig(&_nukiAdvancedConfig);
-        _nukiAdvancedConfigValid = result == Nuki::CmdResult::Success;
+    result = _nukiRetryHandler->retryComm([&]()
+    { 
+        return _nukiLock.requestAdvancedConfig(&_nukiAdvancedConfig); 
+    });
 
-        char resultStr[20];
-        NukiLock::cmdResultToString(result, resultStr);
-        Log->print(F("[DEBUG] Lock advanced config result: "));
-        Log->println(resultStr);
+    _nukiAdvancedConfigValid = result == Nuki::CmdResult::Success;
 
-        if (result != Nuki::CmdResult::Success)
-        {
-            ++retryCount;
-            Log->println(F("[WARNING] Failed to retrieve lock advanced config, retrying in 1s"));
-            delay(1000);
-        }
-        else
-        {
-            break;
-        }
-    }
+    char resultStr[20];
+    NukiLock::cmdResultToString(result, resultStr);
+    Log->print(F("[DEBUG] Lock advanced config result: "));
+    Log->println(resultStr);
+
+    return _nukiAdvancedConfigValid;
 }
 
 void NukiWrapper::setTimeCtrlInfoEnabled(bool enabled) { _timeCtrlInfoEnabled = enabled; }

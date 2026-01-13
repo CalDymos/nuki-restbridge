@@ -1,10 +1,12 @@
 #pragma once
+#include <LittleFS.h>
 
 /**
  * @brief Represents the reason why the ESP32 was restarted or shut down.
  */
 enum class RestartReason
 {
+    Unknown = 0,
     RequestedViaApi,
     RequestedViaWebCfgServer,
     BLEError,

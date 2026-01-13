@@ -23,6 +23,7 @@
 #include "PreferencesKeys.h"
 #include "RestartReason.h"
 #include "EspMillis.h"
+#include "NimBLEDevice.h"
 #include "ImportExport.h"
 
 Preferences *preferences = nullptr;        // Pointer to non-volatile key-value storage (nvs).
@@ -34,13 +35,20 @@ NukiDeviceId *deviceIdLock = nullptr;      // Unique device ID handler.
 WebCfgServer *webCfgServer = nullptr;      // Web-based configuration interface.
 Logger *Log = nullptr;                     // Global logger instance.
 
-bool lockEnabled = false;    // Whether lock operations are currently permitted.
-bool networkReady = false;   // Whether network is connected / ready
-bool rebootLock = false;     // Whether to reboot lock logic after failure.
-bool coredumpPrinted = true; // Prevent repeated printing of core dump on each boot.
-bool timeSynced = false;     // Whether NTP time sync was successful.
-bool restartReason_isValid;  // True if restart reason could be determined.
-bool fsReady = false;        // true, if LittleFS was successfully mounted
+bool bleDone = false;                           // Whether BLE initialization is complete.
+bool lockEnabled = false;                       // Whether lock operations are currently permitted.
+bool netwConnected = false;                      // Whether network is connected / ready
+bool netwGateOpen = false;                      // Whether network gate is open (i.e., network operations are permitted).
+bool rebootLock = false;                        // Whether to reboot lock after failure.
+uint8_t lockBleRestartAttemptCount = 0;         // Counter for lock restart attempts.
+bool coredumpPrinted = true;                    // Prevent repeated printing of core dump on each boot.
+bool timeSynced = false;                        // Whether NTP time sync was successful.
+bool restartReason_isValid;                     // True if restart reason could be determined.
+bool fsReady = false;                           // true, if LittleFS was successfully mounted
+bool webCfgStarted = false;                     // true, if web configuration server was started
+bool lockStarted = false;                       // true, if Nuki lock handling was started
+bool bleScannerStarted = false;                 // true, if BLE scanner was started
+char16_t buffer_size = CHAR_BUFFER_SIZE;        // Size of the shared character buffer.
 
 int64_t restartTs = (pow(2, 63) - (5 * 1000 * 60000)) / 1000; // Time stamp for restarting the ESP to prevent the ESPtimer from overflowing
 
@@ -51,8 +59,8 @@ RTC_NOINIT_ATTR bool forceEnableWebCfgServer;      // Flag to force-enable web c
 RTC_NOINIT_ATTR bool disableNetwork;               // Flag to disable all network activity.
 RTC_NOINIT_ATTR bool wifiFallback;                 // Whether WiFi fallback was triggered (e.g. AP mode).
 RTC_NOINIT_ATTR bool ethCriticalFailure;           // Flag for Ethernet hardware failure (e.g. PHY).
-RTC_NOINIT_ATTR uint64_t bootloopValidDetect;
-RTC_NOINIT_ATTR int8_t bootloopCounter;
+RTC_NOINIT_ATTR uint64_t bootloopValidDetect;      // Validation value for bootloop detection.
+RTC_NOINIT_ATTR int8_t bootloopCounter;            // Counter for bootloop detection.
 
 int lastHTTPeventId = -1;                                          // ID of last received HTTP event.
 RestartReason currentRestartReason = RestartReason::NotApplicable; // Tracks current restart state (e.g. Watchdog, Manual, Error etc.).
@@ -131,7 +139,60 @@ bool initializeFileSystem()
   Serial.println(F("[ERROR] LittleFS init failed."));
   return false;
 }
+/**
+ * @brief Starts the web configuration server if not already started.
+ */
+void startWebCfgServer()
+{
+  if (webCfgStarted)
+  {
+    Log->println("[INFO] Restarting web server");
+  }
+  else
+  {
+    const bool enableWebCfg =
+        forceEnableWebCfgServer ||
+        preferences->getBool(preference_webcfgserver_enabled, true);
 
+    if (!enableWebCfg)
+    {
+      return;
+    }
+    Log->println("[INFO] Starting web server");
+  }
+
+  if (webCfgServer == nullptr)
+  {
+    webCfgServer = new WebCfgServer(nuki, network, preferences, importExport);
+    Log->println(F("[INFO] Initializing WebCfgServer"));
+    webCfgServer->initialize();
+    webCfgStarted = true;
+    Log->println("[INFO] (Re-)Starting web server done");
+  }
+  else
+  {
+    Log->println("[WARNING] (Re-)starting not possible, WebCfgServer is still running");
+  }
+}
+/**
+ * @brief Stops the web configuration server if running.
+ */
+static void stopWebCfgServer()
+{
+  
+  if (webCfgServer != nullptr)
+  {
+    Log->println("[DEBUG] Deleting webCfgServer");
+    delete webCfgServer;
+    webCfgServer = nullptr;
+    Log->println("[DEBUG] Deleting webCfgServer done");
+  }
+}
+
+/**
+ * @brief Detects bootloops based on reset reasons and increments a counter.
+ *        If a bootloop is detected, resets certain preferences to default values.
+ */
 void bootloopDetection()
 {
   uint64_t cmp = IS_VALID_DETECT;
@@ -169,11 +230,94 @@ void bootloopDetection()
   }
 }
 
+void restartServices(bool reconnect)
+{
+    bleDone = false;
+    lockEnabled = preferences->getBool(preference_lock_enabled);
+    importExport->readSettings();
+    network->readSettings();
+
+    if (reconnect)
+    {
+        network->restartNetworkServices(NetworkServiceState::UNKNOWN);
+    }
+
+    if(webCfgStarted)
+    {
+        stopWebCfgServer();
+        
+    }
+
+    if(lockStarted)
+    {
+        Log->println("[DEBUG] Deleting nuki");
+        delete nuki;
+        nuki = nullptr;
+        if (reconnect)
+        {
+            lockStarted = false;
+        }
+        Log->println("[DEBUG] Deleting nuki done");
+    }
+
+    if (bleScannerStarted)
+    {
+        bleScannerStarted = false;
+        Log->println("[DEBUG] Destroying scanner from main");
+        delete bleScanner;
+        Log->println("[DEBUG] Scanner deleted");
+        bleScanner = nullptr;
+        Log->println("[DEBUG] Scanner nulled from main");
+    }
+
+    if (BLEDevice::isInitialized())
+    {
+        Log->println("[DEBUG] Deinit BLE device");
+        BLEDevice::deinit(false);
+        Log->println("[DEBUG] Deinit BLE device done");
+    }
+
+    TaskWdtResetAndDelay(2000);
+
+    if(lockEnabled)
+    {
+		    Log->println("[INFO] Restarting BLE Scanner");
+        bleScanner = new BleScanner::Scanner();
+        bleScanner->initialize("NukiHub", true, 40, 40);
+        bleScanner->setScanDuration(0);
+        bleScannerStarted = true;
+        Log->println("[DEBUG] Restarting BLE Scanner done");
+    }
+
+    if(lockEnabled)
+    {
+        Log->println("[INFO] Restarting Nuki lock");
+
+        if (reconnect)
+        {
+            lockStarted = true;
+        }
+
+        new NukiWrapper(DEVICE_NAME, deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
+        nuki->initialize();
+        bleScanner->whitelist(nuki->getBleAddress());
+        Log->println("[DEBUG] Restarting Nuki lock done");
+    }
+
+    TaskWdtResetAndDelay(2000);
+
+    bleDone = true;
+
+    startWebCfgServer();
+}
+
 /**
  * @brief Nuki-Task: handle Nuki events()
  */
 void nukiTask(void *parameter)
 {
+  TaskWdtReset();
+
   int64_t nukiLoopTs = 0;
   bool whiteListed = false;
 
@@ -183,16 +327,19 @@ void nukiTask(void *parameter)
   while (true)
   {
 
-    if (disableNetwork || networkReady)
+    if ((disableNetwork || netwGateOpen) && bleDone)
     {
+      if(bleScannerStarted)
+      {
       bleScanner->update();
-      delay(20);
+      TaskWdtResetAndDelay(20);
+      }
 
-      bool needsPairing = (lockEnabled && !nuki->isPaired());
+      bool needsPairing = (lockStarted && !nuki->isPaired());
 
       if (needsPairing)
       {
-        delay(2500);
+        TaskWdtResetAndDelay(2500);
       }
       else if (!whiteListed)
       {
@@ -203,10 +350,39 @@ void nukiTask(void *parameter)
         }
       }
 
-      if (lockEnabled)
+      if (lockStarted)
       {
-        nuki->update(rebootLock);
-        rebootLock = false;
+        NukiWrapper::BleControllerRestartReason restartReason = nuki->getBleControllerRestartReason();
+        if (restartReason != NukiWrapper::BleControllerRestartReason::None)
+        {
+          if (lockBleRestartAttemptCount > 3)
+          {
+            if (restartReason == NukiWrapper::BleControllerRestartReason::DisconnectError)
+            {
+              restartEsp(RestartReason::BLEError);
+            }
+            else if (restartReason == NukiWrapper::BleControllerRestartReason::BeaconWatchdog)
+            {
+              restartEsp(RestartReason::BLEBeaconWatchdog);
+            }
+          }
+          else
+          {
+            lockBleRestartAttemptCount += 1;
+            restartServices(false);
+            continue;
+          }
+        }
+        else
+        {
+          if (lockBleRestartAttemptCount > 0 && nuki->hasConnected())
+          {
+            lockBleRestartAttemptCount = 0;
+          }
+
+          nuki->update(rebootLock);
+          rebootLock = false;
+        }
       }
     }
     if (espMillis() - nukiLoopTs > 120000)
@@ -215,11 +391,7 @@ void nukiTask(void *parameter)
       nukiLoopTs = espMillis();
     }
 
-    vTaskDelay(1 / portTICK_PERIOD_MS);
-    if (esp_task_wdt_status(NULL) == ESP_OK)
-    {
-      esp_task_wdt_reset();
-    }
+    TaskWdtResetAndDelay(50);
   }
 }
 
@@ -253,9 +425,10 @@ void networkTask(void *parameter)
     }
 
     network->update();
-    networkReady = network->isConnected();
+    TaskWdtResetAndDelay(50);
+    netwConnected = network->isConnected();
 
-    if (networkReady && updateTime)
+    if (netwConnected && updateTime)
     {
       if (preferences->getBool(preference_update_time, false))
       {
@@ -286,9 +459,24 @@ void networkTask(void *parameter)
       updateTime = false;
     }
 
-    if (networkReady && lockEnabled)
+    netwConnected = network->networkGateOpen();
+    NukiNetwork::ServiceRestartRequest req = network->consumeServiceRestartRequest();
+
+    if (req == NukiNetwork::ServiceRestartRequest::Restart)
     {
-      rebootLock = network->update();
+      restartServices(false);
+    }
+    else if (req == NukiNetwork::ServiceRestartRequest::RestartWithReconnect)
+    {
+      restartServices(true);
+    }
+    else
+    {
+      // No restart requested
+      if (netwConnected && lockStarted)
+      {
+        // rebootLock = method for setting rebootLock
+      }
     }
 
     if (espMillis() - networkLoopTs > 120000)
@@ -300,15 +488,11 @@ void networkTask(void *parameter)
     if (espMillis() > restartTs)
     {
       Log->disableFileLog();
-      delay(10);
+      TaskWdtResetAndDelay(10);
       restartEsp(RestartReason::RestartTimer);
     }
 
-    vTaskDelay(1 / portTICK_PERIOD_MS);
-    if (esp_task_wdt_status(networkTaskHandle) == ESP_OK)
-    {
-      esp_task_wdt_reset();
-    }
+    TaskWdtResetAndDelay(50);
   }
 }
 
@@ -332,11 +516,7 @@ void webCfgTask(void *parameter)
       Log->println(F("[DEBUG] webCfgTask is running"));
       webCfgLoopTs = espMillis();
     }
-    vTaskDelay(2 / portTICK_PERIOD_MS);
-    if (esp_task_wdt_status(webCfgTaskHandle) == ESP_OK)
-    {
-      esp_task_wdt_reset();
-    }
+    TaskWdtResetAndDelay(2);
   }
 }
 
@@ -388,6 +568,8 @@ void setupTasks()
   esp_chip_info_t info;
   esp_chip_info(&info);
   uint8_t espCores = info.cores;
+  Log->print("[DEBUG] Cores: ");
+  Log->println(espCores);
 
   esp_task_wdt_config_t twdt_config = {
       .timeout_ms = 300000,
@@ -493,9 +675,9 @@ void setupTasks()
 void logCoreDump()
 {
   coredumpPrinted = false;
-  delay(500);
+  TaskWdtResetAndDelay(500);
   Log->println(F("[INFO] Printing coredump and saving to coredump.hex on LittleFS"));
-  delay(5);
+  TaskWdtDelay(5);
 
   size_t size = 0;
   size_t address = 0;
@@ -517,7 +699,7 @@ void logCoreDump()
     }
 
     // Restart to allow a fresh core dump to be written if needed
-    delay(200);
+    TaskWdtResetAndDelay(200);
     restartEsp(RestartReason::EraseInvalidCoreDump);
 
     return;
@@ -693,7 +875,6 @@ void setup()
 
   deviceIdLock = new NukiDeviceId(preferences, preference_device_id_lock);
 
-  char16_t buffer_size = CHAR_BUFFER_SIZE;
   CharBuffer::initialize(buffer_size);
 
   importExport = new ImportExport(preferences);
@@ -716,6 +897,7 @@ void setup()
     // https://developer.nuki.io/t/bluetooth-specification-questions/1109/27
     bleScanner->initialize(DEVICE_NAME, true, 40, 40);
     bleScanner->setScanDuration(0);
+    bleScannerStarted = true;
   }
 
   Log->println(lockEnabled ? F("[INFO] Nuki Lock enabled") : F("[INFO] Nuki Lock disabled"));
@@ -723,14 +905,12 @@ void setup()
   {
     nuki = new NukiWrapper(DEVICE_NAME, deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
     nuki->initialize();
+    lockStarted = true;
   }
 
-  if (!disableNetwork && (forceEnableWebCfgServer || preferences->getBool(preference_webcfgserver_enabled, true)))
-  {
-    webCfgServer = new WebCfgServer(nuki, network, preferences, importExport);
-    Log->println(F("[INFO] Start to initialize WebCfgServer..."));
-    webCfgServer->initialize();
-  }
+  bleDone = true;
+
+  startWebCfgServer();
 
 #ifdef DEBUG_NUKIBRIDGE
   Log->printf(F("[DEBUG] Heap before setupTasks: %d bytes\r\n"), ESP.getFreeHeap());

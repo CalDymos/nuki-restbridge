@@ -1,8 +1,8 @@
 #pragma once
 
 #define NUKI_REST_BRIDGE_VERSION "1.4.1"
-#define NUKI_REST_BRIDGE_BUILD "main"
-#define NUKI_REST_BRIDGE_DATE "2026-01-12"
+#define NUKI_REST_BRIDGE_BUILD "fix/service-restart-architecture"
+#define NUKI_REST_BRIDGE_DATE "2026-01-13"
 #define NUKI_REST_BRIDGE_HW "OLIMEX ESP32-POE-ISO"
 
 #define NUKI_TASK_SIZE 8192

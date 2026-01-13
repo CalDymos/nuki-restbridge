@@ -502,7 +502,7 @@ void WebCfgServer::initialize()
                 }
                 buildConfirmHtml(this->_webServer, "Restarting. Connect to ESP access point (\"NukiRestBridge\" with password \"NukiBridgeESP32\") to reconfigure Wi-Fi.", 0);
                 waitAndProcess(false, 1000);
-                return _network->reconfigure();
+                return _network->reconfigureAdapter();
             }
             else
             {

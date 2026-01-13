@@ -7,7 +7,6 @@
 #include "PreferencesKeys.h"
 #include <LittleFS.h>
 #include <FS.h>
-#include "ArduinoJson.h"
 #include "ESP32_FTPClient.h"
 #include <Print.h>
 #include <atomic>
@@ -26,7 +25,7 @@ struct LogMessage
  * @brief Logger class for serial and file-based logging with support for multiple log levels.
  *
  * The Logger supports output to serial and to LittleFS (when not in DEBUG_NUKIBRIDGE mode),
- * including JSON log entries, FTP backup, and various print/println overloads.
+ * FTP backup, and various print/println overloads.
  */
 class Logger : public Print
 {
@@ -246,5 +245,5 @@ extern Logger *Log;
 
 /// External flag indicating SNTP synchronization
 extern bool timeSynced;
-/// External flag indicating if LittleFS was successfully mounted
+/// External flag indicating if file system (SPIFFS/LittleFS) was successfully mounted
 extern bool fsReady;
