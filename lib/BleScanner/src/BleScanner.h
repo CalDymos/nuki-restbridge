@@ -1,4 +1,4 @@
-#pragma message(">>> USING LOCAL BleScanner@1.1.0<<<")
+#pragma message(">>> USING LOCAL BleScanner@1.1.1<<<")
 #pragma once
 
 /**
