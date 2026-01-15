@@ -294,7 +294,6 @@ private:
     uint8_t fobActionToInt(const char *str);
     NukiLock::ButtonPressAction buttonPressActionToEnum(const char *str);
     Nuki::BatteryType batteryTypeToEnum(const char *str);
-    NukiLock::MotorSpeed motorSpeedToEnum(const char *str);
 
     std::string _deviceName;                       // Name of the smart lock device (user-defined identifier).
     NukiDeviceId *_deviceId = nullptr;             // Unique device ID stored in preferences.

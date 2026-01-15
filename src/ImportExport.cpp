@@ -94,16 +94,12 @@ void ImportExport::exportNukiBridgeJson(JsonDocument &json, bool redacted, bool 
             unsigned char authorizationId[4] = {0x00};
             unsigned char secretKeyK[32] = {0x00};
             uint16_t storedPincode = 0000;
-            uint32_t storedUltraPincode = 000000;
-            bool isUltra = false;
             Preferences nukiBlePref;
             nukiBlePref.begin(PREFERENCE_NAME, false);
             nukiBlePref.getBytes(Nuki::BLE_ADDRESS_STORE_NAME, currentBleAddress, 6);
             nukiBlePref.getBytes(Nuki::SECRET_KEY_STORE_NAME, secretKeyK, 32);
             nukiBlePref.getBytes(Nuki::AUTH_ID_STORE_NAME, authorizationId, 4);
             nukiBlePref.getBytes(Nuki::SECURITY_PINCODE_STORE_NAME, &storedPincode, 2);
-            nukiBlePref.getBytes(Nuki::ULTRA_PINCODE_STORE_NAME, &storedUltraPincode, 4);
-            isUltra = nukiBlePref.getBool(Nuki::ULTRA_STORE_NAME, false);
             nukiBlePref.end();
             char text[255];
             text[0] = '\0';
@@ -131,8 +127,6 @@ void ImportExport::exportNukiBridgeJson(JsonDocument &json, bool redacted, bool 
             json["authorizationIdLock"] = text;
             memset(text, 0, sizeof(text));
             json["securityPinCodeLock"] = storedPincode;
-            json["ultraPinCodeLock"] = storedUltraPincode;
-            json["isUltra"] = isUltra ? "1" : "0";
         }
     }
 
@@ -315,14 +309,6 @@ JsonDocument ImportExport::importJson(JsonDocument &doc)
             }
             json["authorizationIdLock"] = "changed";
             nukiBlePref.putBytes(Nuki::AUTH_ID_STORE_NAME, authorizationId, 4);
-        }
-    }
-    if(!doc["isUltra"].isNull())
-    {
-        if (doc["isUltra"].as<String>().length() >0)
-        {
-            json["isUltra"] = "changed";
-            nukiBlePref.putBool(Nuki::ULTRA_STORE_NAME, (doc["isUltra"].as<String>() == "1" ? true : false));
         }
     }
     if(!doc["securityPinCodeLock"].isNull())

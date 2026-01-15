@@ -363,7 +363,7 @@ Transmitted Value = Boolean as Integer (1 = battery low, 0 = OK)
 - **Keypad Critical (Query/Param)**: Query to report the value (e.g. `?value=`).  
 Transmitted Value = Boolean as Integer (1 = battery low, 0 = OK)
 
-> 📘 Only supported by Smart Lock 4th Generation and Ultra.
+> 📘 Only supported by Smart Lock 4th Generation.
 > - **Remote Access State Path**: URL path to report the current remote access state (e.g. `api/lock/remoteaccess`)
 > - **Remote Access State (Query/Param)**: Query to report the value (e.g. `?value=`).  
 > Transmitted Value = Bitmask as Integer. Each bit represents a specific remote access state:
@@ -380,7 +380,7 @@ Transmitted Value = Boolean as Integer (1 = battery low, 0 = OK)
 >
 >&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To extract specific state use bitwise operations, e.g. `value & 2` to check if the Bridge is paired.
 
-> 📘 Only supported by Smart Lock 4th Generation and Ultra.
+> 📘 Only supported by Smart Lock 4th Generation.
 > - **BLE Strength Path**: URL path to report BLE signal strength between Nuki  Bridge and Lock (e.g. `api/lock/blestrength`)
 > - **BLE Strength (Query/Param)**: Query to report the value (e.g. `?value=`).  
   Transmitted Value = RSSI in dBm or status code as Integer.
@@ -389,7 +389,7 @@ Transmitted Value = Boolean as Integer (1 = battery low, 0 = OK)
 >  |-----------|----------------------------------------------------------------|
 >  | `< 0`     | Raw RSSI value in dBm (e.g. `-75`)                             |
 >  | `0`       | Invalid RSSI value                                             |
->  | `1`       | Not supported (only Smart Lock 4.0 and Ultra return RSSI)     |
+>  | `1`       | Not supported (only Smart Lock 4.0 return RSSI)                |
 
 ---
 
@@ -723,8 +723,6 @@ decrypted = ((1929553 - 12345) * 410959) % 1000000 = 123456
 | autoLockEnabled                         | Whether auto lock is enabled.                                                                    | 1 = enabled, 0 = disabled                                         |`{ "autoLockEnabled": "1" }`        |
 | immediateAutoLockEnabled                | Whether auto lock should be performed immediately after the door has been closed.                | 1 = enabled, 0 = disabled                                        |`{ "immediateAutoLockEnabled": "1" }`|
 | autoUpdateEnabled                       | Whether automatic firmware updates should be enabled.                                            | 1 = enabled, 0 = disabled                                         |`{ "autoUpdateEnabled": "1" }`      |
-| motorSpeed                              | The desired motor speed (Ultra/5th gen Pro only)                                                 | "Standard", "Insane", "Gentle"                                    |`{ "motorSpeed": "Standard" }`      |
-| enableSlowSpeedDuringNightMode          | Whether the slow speed should be applied during Night Mode (Ultra/5th gen Pro only)              | 1 = enabled, 0 = disabled                            |`{ "enableSlowSpeedDuringNightMode": "1" }`      |
 | rebootNuki                              | Reboot the Nuki device immediately                                                               | 1 = reboot nuki                                                   |`{ "rebootNuki": "1" }`             |
 
 #### Lock Timecontrol Action (JSON)

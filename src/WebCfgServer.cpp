@@ -929,7 +929,6 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
         appendInputFieldRow(response, "LCKBLEADDR", "currentBleAddress", "", 12, "");
         appendInputFieldRow(response, "LCKSECRETK", "secretKeyK", "", 64, "");
         appendInputFieldRow(response, "LCKAUTHID", "authorizationId", "", 8, "");
-        appendCheckBoxRow(response, "LCKISULTRA", "isUltra", false, "", "");
     }
 
     if (_nuki != nullptr)

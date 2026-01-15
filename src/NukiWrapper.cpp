@@ -679,7 +679,7 @@ bool NukiWrapper::updateConfig()
             Nuki::CmdResult result = (Nuki::CmdResult)-1;
 
             // If the pin is 000000, it does not need to be checked.
-            if (_nukiLock.getSecurityPincode() > 0 || _nukiLock.getUltraPincode() > 0)
+            if (_nukiLock.getSecurityPincode() > 0)
             {
                 result = _nukiRetryHandler->retryComm([&]()
                                                       { return _nukiLock.verifySecurityPin(); });
@@ -1158,7 +1158,7 @@ void NukiWrapper::onConfigUpdateReceived(const char *value)
 
     Nuki::CmdResult cmdResult;
     const char *basicKeys[16] = {"name", "latitude", "longitude", "autoUnlatch", "pairingEnabled", "buttonEnabled", "ledEnabled", "ledBrightness", "timeZoneOffset", "dstMode", "fobAction1", "fobAction2", "fobAction3", "singleLock", "advertisingMode", "timeZone"};
-    const char *advancedKeys[25] = {"unlockedPositionOffsetDegrees", "lockedPositionOffsetDegrees", "singleLockedPositionOffsetDegrees", "unlockedToLockedTransitionOffsetDegrees", "lockNgoTimeout", "singleButtonPressAction", "doubleButtonPressAction", "detachedCylinder", "batteryType", "automaticBatteryTypeDetection", "unlatchDuration", "autoLockTimeOut", "autoUnLockDisabled", "nightModeEnabled", "nightModeStartTime", "nightModeEndTime", "nightModeAutoLockEnabled", "nightModeAutoUnlockDisabled", "nightModeImmediateLockOnStart", "autoLockEnabled", "immediateAutoLockEnabled", "autoUpdateEnabled", "rebootNuki", "motorSpeed", "enableSlowSpeedDuringNightMode"};
+    const char *advancedKeys[23] = {"unlockedPositionOffsetDegrees", "lockedPositionOffsetDegrees", "singleLockedPositionOffsetDegrees", "unlockedToLockedTransitionOffsetDegrees", "lockNgoTimeout", "singleButtonPressAction", "doubleButtonPressAction", "detachedCylinder", "batteryType", "automaticBatteryTypeDetection", "unlatchDuration", "autoLockTimeOut", "autoUnLockDisabled", "nightModeEnabled", "nightModeStartTime", "nightModeEndTime", "nightModeAutoLockEnabled", "nightModeAutoUnlockDisabled", "nightModeImmediateLockOnStart", "autoLockEnabled", "immediateAutoLockEnabled", "autoUpdateEnabled", "rebootNuki"};
     bool basicUpdated = false;
     bool advancedUpdated = false;
 
@@ -1550,7 +1550,7 @@ void NukiWrapper::onConfigUpdateReceived(const char *value)
         }
     }
 
-    for (int j = 0; j < 25; j++)
+    for (int j = 0; j < 23; j++)
     {
         if (json[advancedKeys[j]].is<JsonVariantConst>())
         {
@@ -2041,46 +2041,6 @@ void NukiWrapper::onConfigUpdateReceived(const char *value)
                         if (keyvalue == 1)
                         {
                             cmdResult = _nukiLock.requestReboot();
-                        }
-                        else
-                        {
-                            jsonResult[advancedKeys[j]] = "invalidValue";
-                        }
-                    }
-                    else if (strcmp(advancedKeys[j], "motorSpeed") == 0)
-                    {
-                        NukiLock::MotorSpeed motorSpeed = nukiInst->motorSpeedToEnum(jsonchar);
-
-                        if ((int)motorSpeed != 0xff)
-                        {
-                            if (_nukiAdvancedConfig.motorSpeed == motorSpeed)
-                            {
-                                jsonResult[advancedKeys[j]] = "unchanged";
-                            }
-                            else
-                            {
-                                cmdResult = _nukiLock.setMotorSpeed(motorSpeed);
-                            }
-                        }
-                        else
-                        {
-                            jsonResult[advancedKeys[j]] = "invalidValue";
-                        }
-                    }
-                    else if (strcmp(advancedKeys[j], "enableSlowSpeedDuringNightMode") == 0)
-                    {
-                        const uint8_t keyvalue = atoi(jsonchar);
-
-                        if (keyvalue == 0 || keyvalue == 1)
-                        {
-                            if (_nukiAdvancedConfig.enableSlowSpeedDuringNightMode == keyvalue)
-                            {
-                                jsonResult[advancedKeys[j]] = "unchanged";
-                            }
-                            else
-                            {
-                                cmdResult = _nukiLock.enableSlowSpeedDuringNightMode((keyvalue > 0));
-                            }
                         }
                         else
                         {
@@ -3413,23 +3373,6 @@ Nuki::BatteryType NukiWrapper::batteryTypeToEnum(const char *str)
         return Nuki::BatteryType::Lithium;
     }
     return (Nuki::BatteryType)0xff;
-}
-
-NukiLock::MotorSpeed NukiWrapper::motorSpeedToEnum(const char *str)
-{
-    if (strcmp(str, "Standard") == 0)
-    {
-        return NukiLock::MotorSpeed::Standard;
-    }
-    else if (strcmp(str, "Insane") == 0)
-    {
-        return NukiLock::MotorSpeed::Insane;
-    }
-    else if (strcmp(str, "Gentle") == 0)
-    {
-        return NukiLock::MotorSpeed::Gentle;
-    }
-    return (NukiLock::MotorSpeed)0xff;
 }
 
 void NukiWrapper::postponeBleWatchdog()
