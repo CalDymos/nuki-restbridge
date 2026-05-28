@@ -5,6 +5,8 @@
 #include <WiFi.h>
 #include "esp_wifi.h"
 #include <ETH.h>
+#include <Network.h>
+#include <SPI.h>
 #include <WebServer.h>
 #include <HTTPClient.h>
 #include <NetworkUdp.h>

@@ -1115,12 +1115,14 @@ void WebCfgServer::buildGetCoredumpFileHtml(WebServer *server)
 
 void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 {
+    auto hwOptions = getNetworkDetectionOptions();
+
     String response;
     reserveHtmlResponse(response,
-                        3, // Checkboxes
-                        6, // Input fields
-                        1, // Dropdowns
-                        3  // Dropdown options
+                        3,                // Checkboxes
+                        6,                // Input fields
+                        1,                // Dropdowns
+                        hwOptions.size()  // Dropdown options
     );
 
     buildHtmlHeader(response);
@@ -1130,7 +1132,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
     response += F("<table>");
 
     appendInputFieldRow(response, "HOSTNAME", "Hostname (needs to be unique)", _preferences->getString(preference_hostname).c_str(), 100, "");
-    appendDropDownRow(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), getNetworkDetectionOptions());
+    appendDropDownRow(response, "NWHW", "Network hardware", String(_preferences->getInt(preference_network_hardware)), hwOptions);
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
     appendInputFieldRow(response, "RSSI", "RSSI send interval (seconds; -1 to disable)", _preferences->getInt(preference_rssi_send_interval), 6, "");
@@ -2703,7 +2705,17 @@ const std::vector<std::pair<String, String>> WebCfgServer::getNetworkDetectionOp
     std::vector<std::pair<String, String>> options;
 
     options.push_back(std::make_pair("1", "Wi-Fi"));
-    options.push_back(std::make_pair("2", "LAN module"));
+    options.push_back(std::make_pair("2", "LAN module (LAN8720 / Olimex-compatible)"));
+    options.push_back(std::make_pair("4", "Olimex ESP32-POE/POE-ISO WROOM (LAN8720)"));
+    options.push_back(std::make_pair("20", "Olimex ESP32-POE/POE-ISO WROVER (LAN8720)"));
+    options.push_back(std::make_pair("5", "WT32-ETH01 (LAN8720)"));
+    options.push_back(std::make_pair("6", "M5Stack PoESP32 Unit (TLK110)"));
+    options.push_back(std::make_pair("7", "LilyGO T-ETH-POE (LAN8720)"));
+    options.push_back(std::make_pair("8", "GL-S10 (IP101)"));
+    options.push_back(std::make_pair("9", "ETH01-Evo (DM9051)"));
+    options.push_back(std::make_pair("12", "LilyGO T-ETH ELite (W5500)"));
+    options.push_back(std::make_pair("13", "Waveshare ESP32-S3-ETH / POE-ETH (W5500)"));
+    options.push_back(std::make_pair("14", "LilyGO T-ETH-Lite-ESP32S3 (W5500)"));
 
     return options;
 }

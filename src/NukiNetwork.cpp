@@ -8,6 +8,252 @@
 
 NukiNetwork *NukiNetwork::_inst = nullptr;
 
+namespace
+{
+    constexpr int NETWORK_HARDWARE_WIFI = 1;
+    constexpr int NETWORK_HARDWARE_LEGACY_LAN8720 = 2;
+    constexpr int NETWORK_HARDWARE_M5STACK_W5500 = 3;
+    constexpr int NETWORK_HARDWARE_OLIMEX_LAN8720 = 4;
+    constexpr int NETWORK_HARDWARE_WT32_LAN8720 = 5;
+    constexpr int NETWORK_HARDWARE_M5STACK_POE_TLK110 = 6;
+    constexpr int NETWORK_HARDWARE_LILYGO_T_ETH_POE = 7;
+    constexpr int NETWORK_HARDWARE_GL_S10_IP101 = 8;
+    constexpr int NETWORK_HARDWARE_ETH01_EVO_DM9051 = 9;
+    constexpr int NETWORK_HARDWARE_M5STACK_W5500_S3 = 10;
+    constexpr int NETWORK_HARDWARE_CUSTOM = 11;
+    constexpr int NETWORK_HARDWARE_LILYGO_T_ETH_ELITE = 12;
+    constexpr int NETWORK_HARDWARE_WAVESHARE_ESP32_S3_ETH = 13;
+    constexpr int NETWORK_HARDWARE_LILYGO_T_ETH_LITE_S3 = 14;
+    constexpr int NETWORK_HARDWARE_OLIMEX_LAN8720_WROVER = 20;
+
+#if !defined(CONFIG_IDF_TARGET_ESP32) && !defined(CONFIG_IDF_TARGET_ESP32P4)
+    typedef enum
+    {
+        ETH_CLOCK_GPIO0_IN = 0,
+        ETH_CLOCK_GPIO0_OUT = 1,
+        ETH_CLOCK_GPIO16_OUT = 2,
+        ETH_CLOCK_GPIO17_OUT = 3
+    } eth_clock_mode_t;
+#endif
+
+    enum class EthernetBusType
+    {
+        RMII,
+        SPI
+    };
+
+    struct EthernetDeviceConfig
+    {
+        int hardwareId;                    // Preference value used by the web configuration.
+        const char *deviceName;            // Human-readable device name for logging.
+        EthernetBusType busType;           // Ethernet bus type used by the device.
+        eth_phy_type_t phyType;            // Ethernet PHY type used by ETH.begin().
+        int32_t phyAddr;                   // Ethernet PHY address.
+        int powerPin;                      // RMII PHY power pin.
+        int mdcPin;                        // RMII MDC pin.
+        int mdioPin;                       // RMII MDIO pin.
+        eth_clock_mode_t clockMode;        // RMII clock mode.
+        int csPin;                         // SPI chip-select pin.
+        int irqPin;                        // SPI interrupt pin.
+        int resetPin;                      // SPI reset pin.
+        int spiSckPin;                     // SPI SCK pin.
+        int spiMisoPin;                    // SPI MISO pin.
+        int spiMosiPin;                    // SPI MOSI pin.
+    };
+
+    const EthernetDeviceConfig *findPresetEthernetDeviceConfig(int hardwareId)
+    {
+        static const EthernetDeviceConfig configs[] =
+        {
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32P4)
+            // Backward-compatible value for the former generic "LAN module" option.
+            {NETWORK_HARDWARE_LEGACY_LAN8720, "LAN module (LAN8720 / Olimex-compatible)", EthernetBusType::RMII, ETH_PHY_LAN8720, 0, 12, 23, 18, ETH_CLOCK_GPIO17_OUT, -1, -1, -1, -1, -1, -1},
+            {NETWORK_HARDWARE_OLIMEX_LAN8720, "Olimex ESP32-POE/POE-ISO WROOM (LAN8720)", EthernetBusType::RMII, ETH_PHY_LAN8720, 0, 12, 23, 18, ETH_CLOCK_GPIO17_OUT, -1, -1, -1, -1, -1, -1},
+            {NETWORK_HARDWARE_OLIMEX_LAN8720_WROVER, "Olimex ESP32-POE/POE-ISO WROVER (LAN8720)", EthernetBusType::RMII, ETH_PHY_LAN8720, 0, 12, 23, 18, ETH_CLOCK_GPIO0_OUT, -1, -1, -1, -1, -1, -1},
+            {NETWORK_HARDWARE_WT32_LAN8720, "WT32-ETH01 (LAN8720)", EthernetBusType::RMII, ETH_PHY_LAN8720, 1, 16, 23, 18, ETH_CLOCK_GPIO0_IN, -1, -1, -1, -1, -1, -1},
+            {NETWORK_HARDWARE_M5STACK_POE_TLK110, "M5Stack PoESP32 Unit (TLK110)", EthernetBusType::RMII, ETH_PHY_TLK110, 1, 5, 23, 18, ETH_CLOCK_GPIO0_IN, -1, -1, -1, -1, -1, -1},
+            {NETWORK_HARDWARE_LILYGO_T_ETH_POE, "LilyGO T-ETH-POE (LAN8720)", EthernetBusType::RMII, ETH_PHY_LAN8720, 0, -1, 23, 18, ETH_CLOCK_GPIO17_OUT, -1, -1, -1, -1, -1, -1},
+            {NETWORK_HARDWARE_GL_S10_IP101, "GL-S10 (IP101)", EthernetBusType::RMII, ETH_PHY_IP101, 1, 5, 23, 18, ETH_CLOCK_GPIO0_IN, -1, -1, -1, -1, -1, -1},
+#endif
+            {NETWORK_HARDWARE_M5STACK_W5500, "M5Stack Atom POE (W5500)", EthernetBusType::SPI, ETH_PHY_W5500, 1, -1, -1, -1, ETH_CLOCK_GPIO0_IN, 19, -1, -1, 22, 23, 33},
+            {NETWORK_HARDWARE_M5STACK_W5500_S3, "M5Stack Atom POE S3 (W5500)", EthernetBusType::SPI, ETH_PHY_W5500, 1, -1, -1, -1, ETH_CLOCK_GPIO0_IN, 6, -1, -1, 5, 7, 8},
+            {NETWORK_HARDWARE_ETH01_EVO_DM9051, "ETH01-Evo (DM9051)", EthernetBusType::SPI, ETH_PHY_DM9051, 1, -1, -1, -1, ETH_CLOCK_GPIO0_IN, 9, 8, 6, 7, 3, 10},
+            {NETWORK_HARDWARE_LILYGO_T_ETH_ELITE, "LilyGO T-ETH ELite (W5500)", EthernetBusType::SPI, ETH_PHY_W5500, 1, -1, -1, -1, ETH_CLOCK_GPIO0_IN, 45, 14, -1, 48, 47, 21},
+            {NETWORK_HARDWARE_WAVESHARE_ESP32_S3_ETH, "Waveshare ESP32-S3-ETH / POE-ETH (W5500)", EthernetBusType::SPI, ETH_PHY_W5500, 1, -1, -1, -1, ETH_CLOCK_GPIO0_IN, 14, 10, 9, 13, 12, 11},
+            {NETWORK_HARDWARE_LILYGO_T_ETH_LITE_S3, "LilyGO T-ETH-Lite-ESP32S3 (W5500)", EthernetBusType::SPI, ETH_PHY_W5500, 1, -1, -1, -1, ETH_CLOCK_GPIO0_IN, 9, 13, 14, 10, 11, 12}
+        };
+
+        for (const auto &config : configs)
+        {
+            if (config.hardwareId == hardwareId)
+            {
+                return &config;
+            }
+        }
+
+        return nullptr;
+    }
+
+    const char *getCustomEthernetDeviceName(int customPhy)
+    {
+        switch (customPhy)
+        {
+        case 1:
+            return "Custom (W5500)";
+        case 2:
+            return "Custom (DM9051)";
+        case 3:
+            return "Custom (KSZ8851SNL)";
+        case 4:
+            return "Custom (LAN8720)";
+        case 5:
+            return "Custom (RTL8201)";
+        case 6:
+            return "Custom (TLK110/IP101)";
+        case 7:
+            return "Custom (DP83848)";
+        case 8:
+            return "Custom (KSZ8041)";
+        case 9:
+            return "Custom (KSZ8081)";
+        default:
+            return "Custom Ethernet";
+        }
+    }
+
+    eth_phy_type_t getCustomEthernetPhyType(int customPhy)
+    {
+        switch (customPhy)
+        {
+        case 1:
+            return ETH_PHY_W5500;
+        case 2:
+            return ETH_PHY_DM9051;
+        case 3:
+            return ETH_PHY_KSZ8851;
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32P4)
+        case 4:
+            return ETH_PHY_LAN8720;
+        case 5:
+            return ETH_PHY_RTL8201;
+        case 6:
+            return ETH_PHY_TLK110;
+        case 7:
+            return ETH_PHY_DP83848;
+        case 8:
+            return ETH_PHY_KSZ8041;
+        case 9:
+            return ETH_PHY_KSZ8081;
+#endif
+        default:
+            return ETH_PHY_W5500;
+        }
+    }
+
+    eth_clock_mode_t getCustomEthernetClockMode(int clockPreference)
+    {
+        switch (clockPreference)
+        {
+        case 0:
+            return ETH_CLOCK_GPIO0_IN;
+        case 1:
+            return ETH_CLOCK_GPIO0_OUT;
+        case 2:
+            return ETH_CLOCK_GPIO16_OUT;
+        case 3:
+            return ETH_CLOCK_GPIO17_OUT;
+        default:
+            return ETH_CLOCK_GPIO17_OUT;
+        }
+    }
+
+    bool buildCustomEthernetDeviceConfig(Preferences *preferences, EthernetDeviceConfig &config)
+    {
+        const int customPhy = preferences->getInt(preference_network_custom_phy, 0);
+
+        if (customPhy >= 1 && customPhy <= 3)
+        {
+            config = {
+                NETWORK_HARDWARE_CUSTOM,
+                getCustomEthernetDeviceName(customPhy),
+                EthernetBusType::SPI,
+                getCustomEthernetPhyType(customPhy),
+                preferences->getInt(preference_network_custom_addr, -1),
+                -1,
+                -1,
+                -1,
+                ETH_CLOCK_GPIO0_IN,
+                preferences->getInt(preference_network_custom_cs, -1),
+                preferences->getInt(preference_network_custom_irq, -1),
+                preferences->getInt(preference_network_custom_rst, -1),
+                preferences->getInt(preference_network_custom_sck, -1),
+                preferences->getInt(preference_network_custom_miso, -1),
+                preferences->getInt(preference_network_custom_mosi, -1)};
+            return true;
+        }
+
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32P4)
+        if (customPhy >= 4 && customPhy <= 9)
+        {
+            config = {
+                NETWORK_HARDWARE_CUSTOM,
+                getCustomEthernetDeviceName(customPhy),
+                EthernetBusType::RMII,
+                getCustomEthernetPhyType(customPhy),
+                preferences->getInt(preference_network_custom_addr, -1),
+                preferences->getInt(preference_network_custom_pwr, -1),
+                preferences->getInt(preference_network_custom_mdc, -1),
+                preferences->getInt(preference_network_custom_mdio, -1),
+                getCustomEthernetClockMode(preferences->getInt(preference_network_custom_clk, 0)),
+                -1,
+                -1,
+                -1,
+                -1,
+                -1,
+                -1};
+            return true;
+        }
+#endif
+
+        return false;
+    }
+
+    bool resolveEthernetDeviceConfig(Preferences *preferences, EthernetDeviceConfig &config)
+    {
+        const int hardwareId = preferences->getInt(preference_network_hardware, NETWORK_HARDWARE_WIFI);
+
+        if (hardwareId == NETWORK_HARDWARE_CUSTOM)
+        {
+            return buildCustomEthernetDeviceConfig(preferences, config);
+        }
+
+        const EthernetDeviceConfig *presetConfig = findPresetEthernetDeviceConfig(hardwareId);
+        if (presetConfig == nullptr)
+        {
+            return false;
+        }
+
+        config = *presetConfig;
+        return true;
+    }
+
+    bool beginEthernetDevice(const EthernetDeviceConfig &config)
+    {
+        if (config.busType == EthernetBusType::SPI)
+        {
+            SPI.begin(config.spiSckPin, config.spiMisoPin, config.spiMosiPin);
+            return ETH.begin(config.phyType, config.phyAddr, config.csPin, config.irqPin, config.resetPin, SPI);
+        }
+
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32P4)
+        return ETH.begin(config.phyType, config.phyAddr, config.mdcPin, config.mdioPin, config.powerPin, config.clockMode);
+#else
+        return false;
+#endif
+    }
+}
+
+
 NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize, ImportExport* importExport)
     : _preferences(preferences),
       _buffer(buffer),
@@ -189,8 +435,10 @@ bool NukiNetwork::update()
                 ETH.config(_ipConfiguration->ipAddress(), _ipConfiguration->defaultGateway(), _ipConfiguration->subnet(), _ipConfiguration->dnsServer());
                 _checkIpTs = espMillis() + 5000;
             }
-
-            _checkIpTs = -1;
+            else
+            {
+                _checkIpTs = -1;
+            }
         }
         break;
     }
@@ -992,10 +1240,26 @@ void NukiNetwork::initializeEthernet()
         return;
     }
 
-    Log->println(F("[INFO] Init Ethernet"));
+    EthernetDeviceConfig ethernetConfig = {};
+    if (!resolveEthernetDeviceConfig(_preferences, ethernetConfig))
+    {
+        Log->println(F("[ERROR] Unsupported ethernet hardware configuration"));
+        Log->println(F("[ERROR] Network device has a critical failure, enable fallback to Wi-Fi and reboot."));
+        wifiFallback = true;
+        Log->disableFileLog();
+        TaskWdtResetAndDelay(200);
+        restartEsp(RestartReason::NetworkDeviceCriticalFailure);
+        return;
+    }
+
+    Log->print(F("[INFO] Init Ethernet: "));
+    Log->println(ethernetConfig.deviceName);
+
+    Network.onEvent([this](arduino_event_id_t event, arduino_event_info_t info)
+                    { this->onNetworkEvent(event, info); });
 
     ethCriticalFailure = true;
-    _hardwareInitialized = ETH.begin();
+    _hardwareInitialized = beginEthernetDevice(ethernetConfig);
     ethCriticalFailure = false;
 
     if (_hardwareInitialized)
@@ -1005,11 +1269,15 @@ void NukiNetwork::initializeEthernet()
 
         if (!_ipConfiguration->dhcpEnabled())
         {
-            ETH.config(_ipConfiguration->ipAddress(), _ipConfiguration->defaultGateway(), _ipConfiguration->subnet(), _ipConfiguration->dnsServer());
+            if (ethernetConfig.busType == EthernetBusType::SPI)
+            {
+                ETH.config(_ipConfiguration->ipAddress(), _ipConfiguration->defaultGateway(), _ipConfiguration->subnet(), _ipConfiguration->dnsServer());
+            }
+            else
+            {
+                _checkIpTs = espMillis() + 2000;
+            }
         }
-
-        WiFi.onEvent([this](arduino_event_id_t event, arduino_event_info_t info)
-                     { this->onNetworkEvent(event, info); });
     }
     else
     {
