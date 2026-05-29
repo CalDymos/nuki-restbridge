@@ -2,7 +2,7 @@
   "name": "ESP32 POE ISO",
   "vendor": "Olimex",
   "url": "https://www.olimex.com/Products/IoT/ESP32/ESP32-POE-ISO/open-source-hardware",
-  "frameworks": "arduino",
+  "frameworks": ["arduino", "espidf"],
   "platform": "espressif32",
 
   "build": {
