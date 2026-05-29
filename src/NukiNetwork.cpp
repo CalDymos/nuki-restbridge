@@ -268,7 +268,7 @@ NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSi
 
 NukiNetwork::~NukiNetwork()
 {
-    // Aufräumen, Webserver stoppen, etc.
+    // Clean up, stop the web server, etc.
     if (_server)
     {
         _server->stop();
