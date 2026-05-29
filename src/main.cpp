@@ -1,6 +1,7 @@
 #define IS_VALID_DETECT 0xa00ab00bc00bd00d;
 
 #include <Arduino.h>
+#include "esp_crt_bundle.h"
 #include "esp_http_client.h"
 #include "esp_task_wdt.h"
 #include "Config.h"
@@ -11,7 +12,7 @@
 #include "esp_core_dump.h"
 #include <FS.h>
 #include <LittleFS.h>
-#ifdef CONFIG_SOC_SPIRAM_SUPPORTED
+#if defined(CONFIG_SOC_SPIRAM_SUPPORTED) && defined(CONFIG_SPIRAM)
 #include "esp_psram.h"
 #endif
 #include "NukiWrapper.h"

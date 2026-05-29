@@ -6,7 +6,7 @@
 #include "PreferencesKeys.h"
 #include "RestartReason.h"
 #include "NetworkDeviceType.h"
-#ifdef CONFIG_SOC_SPIRAM_SUPPORTED
+#if defined(CONFIG_SOC_SPIRAM_SUPPORTED) && defined(CONFIG_SPIRAM)
 #include "esp_psram.h"
 #endif
 
@@ -1881,7 +1881,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += "\nFree internal heap: " + String(ESP.getFreeHeap());
     response += "\nTotal internal heap: " + String(ESP.getHeapSize());
 
-#ifdef CONFIG_SOC_SPIRAM_SUPPORTED
+#if defined(CONFIG_SOC_SPIRAM_SUPPORTED) && defined(CONFIG_SPIRAM)
     if (psramFound() && esp_psram_get_size() > 0)
     {
         response += F("\nPSRAM Available: Yes");
