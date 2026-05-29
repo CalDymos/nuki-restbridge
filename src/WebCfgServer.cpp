@@ -836,7 +836,7 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
     appendInputFieldRow(response, "RSBC", "Restart if Bluetooth beacons not received (seconds; -1 to disable)", _preferences->getInt(preference_restart_ble_beacon_lost), 10, "");
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
-    appendInputFieldRow(response, "TXPWR", "BLE transmit power in dB (minimum -12, maximum 9)", _preferences->getInt(preference_ble_tx_power, 9), 10, "");
+    appendInputFieldRow(response, "TXPWR", "BLE transmit power in dB (minimum -12, maximum 9)", _preferences->getInt(preference_ble_tx_power, 0), 10, "");
 #else
     appendInputFieldRow(response, "TXPWR", "BLE transmit power in dB (minimum -12, maximum 20)", _preferences->getInt(preference_ble_tx_power, 9), 10, "");
 #endif
