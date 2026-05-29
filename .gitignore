@@ -10,8 +10,8 @@ bin/*
 ota/*.bin
 webflash/*.bin
 .pio
-.pio-platforms
-.pio-packages
+.pkg
+.plt
 .vscode/*
 !.vscode/tasks.json
 .project
