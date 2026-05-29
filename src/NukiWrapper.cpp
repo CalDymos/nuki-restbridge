@@ -1158,7 +1158,7 @@ void NukiWrapper::onConfigUpdateReceived(const char *value)
 
     Nuki::CmdResult cmdResult;
     const char *basicKeys[16] = {"name", "latitude", "longitude", "autoUnlatch", "pairingEnabled", "buttonEnabled", "ledEnabled", "ledBrightness", "timeZoneOffset", "dstMode", "fobAction1", "fobAction2", "fobAction3", "singleLock", "advertisingMode", "timeZone"};
-    const char *advancedKeys[23] = {"unlockedPositionOffsetDegrees", "lockedPositionOffsetDegrees", "singleLockedPositionOffsetDegrees", "unlockedToLockedTransitionOffsetDegrees", "lockNgoTimeout", "singleButtonPressAction", "doubleButtonPressAction", "detachedCylinder", "batteryType", "automaticBatteryTypeDetection", "unlatchDuration", "autoLockTimeOut", "autoUnLockDisabled", "nightModeEnabled", "nightModeStartTime", "nightModeEndTime", "nightModeAutoLockEnabled", "nightModeAutoUnlockDisabled", "nightModeImmediateLockOnStart", "autoLockEnabled", "immediateAutoLockEnabled", "autoUpdateEnabled", "rebootNuki"};
+    const char *advancedKeys[26] = {"unlockedPositionOffsetDegrees", "lockedPositionOffsetDegrees", "singleLockedPositionOffsetDegrees", "unlockedToLockedTransitionOffsetDegrees", "lockNgoTimeout", "singleButtonPressAction", "doubleButtonPressAction", "detachedCylinder", "batteryType", "automaticBatteryTypeDetection", "unlatchDuration", "autoLockTimeOut", "autoUnLockDisabled", "nightModeEnabled", "nightModeStartTime", "nightModeEndTime", "nightModeAutoLockEnabled", "nightModeAutoUnlockDisabled", "nightModeImmediateLockOnStart", "autoLockEnabled", "immediateAutoLockEnabled", "autoUpdateEnabled", "rebootNuki", "motorSpeed", "enableSlowSpeedDuringNightMode", "recalibrateNuki"};
     bool basicUpdated = false;
     bool advancedUpdated = false;
 
@@ -1550,7 +1550,7 @@ void NukiWrapper::onConfigUpdateReceived(const char *value)
         }
     }
 
-    for (int j = 0; j < 23; j++)
+    for (int j = 0; j < 26; j++)
     {
         if (json[advancedKeys[j]].is<JsonVariantConst>())
         {
@@ -2041,6 +2041,19 @@ void NukiWrapper::onConfigUpdateReceived(const char *value)
                         if (keyvalue == 1)
                         {
                             cmdResult = _nukiLock.requestReboot();
+                        }
+                        else
+                        {
+                            jsonResult[advancedKeys[j]] = "invalidValue";
+                        }
+                    }
+                    else if(strcmp(advancedKeys[j], "recalibrateNuki") == 0)
+                    {
+                        const uint8_t keyvalue = atoi(jsonchar);
+
+                        if(keyvalue == 1)
+                        {
+                            cmdResult = _nukiLock.requestCalibration();
                         }
                         else
                         {

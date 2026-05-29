@@ -733,7 +733,7 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
     {
         uint32_t basicLockConfigAclPrefs[16];
         _preferences->getBytes(preference_conf_lock_basic_acl, &basicLockConfigAclPrefs, sizeof(basicLockConfigAclPrefs));
-        uint32_t advancedLockConfigAclPrefs[25];
+        uint32_t advancedLockConfigAclPrefs[26];
         _preferences->getBytes(preference_conf_lock_advanced_acl, &advancedLockConfigAclPrefs, sizeof(advancedLockConfigAclPrefs));
 
         response += F("<h3>Nuki Lock Access Control</h3>");
@@ -779,16 +779,16 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
             "CONFLCKSBPA", "CONFLCKDBPA", "CONFLCKDC", "CONFLCKBATT", "CONFLCKABTD",
             "CONFLCKUNLD", "CONFLCKALT", "CONFLCKAUNLD", "CONFLCKNMENA", "CONFLCKNMST",
             "CONFLCKNMET", "CONFLCKNMALENA", "CONFLCKNMAULD", "CONFLCKNMLOS", "CONFLCKALENA",
-            "CONFLCKIALENA", "CONFLCKAUENA", "CONFLCKRBTNUKI", "CONFLCKMTRSPD", "CONFLCKESSDNM"};
+            "CONFLCKIALENA", "CONFLCKAUENA", "CONFLCKRBTNUKI", "CONFLCKMTRSPD", "CONFLCKESSDNM", "CONFLCKRCBRTNUKI"};
 
         const char *advancedConfigDescriptions[] = {
             "Unlocked Position Offset Degrees", "Locked Position Offset Degrees", "Single Locked Position Offset Degrees", "Unlocked To Locked Transition Offset Degrees", "Lock n Go timeout",
             "Single button press action", "Double button press action", "Detached cylinder", "Battery type", "Automatic battery type detection",
             "Unlatch duration", "Auto lock timeout", "Auto unlock disabled", "Nightmode enabled", "Nightmode start time",
             "Nightmode end time", "Nightmode auto lock enabled", "Nightmode auto unlock disabled", "Nightmode immediate lock on start", "Auto lock enabled",
-            "Immediate auto lock enabled", "Auto update enabled", "Reboot Nuki", "Motor speed", "Enable slow speed during nightmode"};
+            "Immediate auto lock enabled", "Auto update enabled", "Reboot Nuki", "Motor speed", "Enable slow speed during nightmode", "Recalibrate Nuki"};
 
-        for (int i = 0; i < 25; i++)
+        for (int i = 0; i < 26; i++)
         {
             appendCheckBoxRow(response, advancedConfigActions[i], advancedConfigDescriptions[i], advancedLockConfigAclPrefs[i], "chk_config_lock");
         }
@@ -2182,7 +2182,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
 
     uint32_t basicLockConfigAclPrefs[16];
     _preferences->getBytes(preference_conf_lock_basic_acl, &basicLockConfigAclPrefs, sizeof(basicLockConfigAclPrefs));
-    uint32_t advancedLockConfigAclPrefs[25];
+    uint32_t advancedLockConfigAclPrefs[26];
     _preferences->getBytes(preference_conf_lock_advanced_acl, &advancedLockConfigAclPrefs, sizeof(advancedLockConfigAclPrefs));
     response += F("\n\n------------ NUKI LOCK ACL ------------");
     response += F("\nLock: ");
@@ -2288,6 +2288,8 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += ((int)advancedLockConfigAclPrefs[23]) ? F("Allowed") : F("Disallowed");
     response += F("\nEnable slow speed during nightmode: ");
     response += ((int)advancedLockConfigAclPrefs[24]) ? F("Allowed") : F("Disallowed");
+    response += F("\nRecalibrate Nuki: ");
+    response += ((int)advancedLockConfigAclPrefs[25]) ? F("Allowed") : F("Disallowed");
 
     if (_preferences->getBool(preference_show_secrets))
     {
@@ -2886,7 +2888,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
 
     uint32_t aclPrefs[17] = {0};
     uint32_t basicLockConfigAclPrefs[16] = {0};
-    uint32_t advancedLockConfigAclPrefs[25] = {0};
+    uint32_t advancedLockConfigAclPrefs[26] = {0};
 
     String pass1 = "";
     String pass2 = "";
@@ -4208,7 +4210,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
     {
         uint32_t curAclPrefs[17] = {0};
         uint32_t curBasicLockConfigAclPrefs[16] = {0};
-        uint32_t curAdvancedLockConfigAclPrefs[25] = {0};
+        uint32_t curAdvancedLockConfigAclPrefs[26] = {0};
         uint32_t curBasicOpenerConfigAclPrefs[14] = {0};
         uint32_t curAdvancedOpenerConfigAclPrefs[21] = {0};
 
@@ -4234,7 +4236,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 break;
             }
         }
-        for (int i = 0; i < 25; ++i)
+        for (int i = 0; i < 26; ++i)
         {
             if (curAdvancedLockConfigAclPrefs[i] != advancedLockConfigAclPrefs[i])
             {
