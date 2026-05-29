@@ -12,12 +12,13 @@ webflash/*.bin
 .pio
 .pio-platforms
 .pio-packages
-.vscode
+.vscode/*
+!.vscode/tasks.json
 .project
 managed_components
 dependencies.lock
-sdkconfig.esp32*
-sdkconfig.updater_esp32*
+sdkconfig.*
+!sdkconfig.defaults.*
 updater/src/*.cpp
 updater/src/*.h
 updater/src/networkDevices/*.cpp
