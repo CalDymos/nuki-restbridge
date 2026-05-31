@@ -416,9 +416,16 @@ void WebCfgServer::initialize()
             }
             else if (value == "export")
             {
+                // Admin Key → Export directly (with admin flag)
                 if(adminKeyValid)
                 {
                     return sendSettings(this->_webServer, true);
+                }
+
+                // No password set -> export directly
+                if(strlen(_credPassword) == 0)
+                {
+                    return sendSettings(this->_webServer);
                 }
 
                 const String clientIp = this->_webServer->client().localIP().toString();
@@ -429,6 +436,12 @@ void WebCfgServer::initialize()
                     _importExport->_sessionsOpts[approveKey] = false;
                     return sendSettings(this->_webServer);
                 }
+
+                // Password set but not yet confirmed -> show approval form
+                return buildApprovalHtml(this->_webServer,
+                                         "Confirm export",
+                                         "Re-enter your password to export the configuration.",
+                                         "approveexport");
             }
             else if (value == "impexpcfg")
             {
@@ -587,6 +600,50 @@ void WebCfgServer::initialize()
                 {
                     processFactoryReset(this->_webServer);
                     return;
+                }
+                else if (value == "approveexport")
+                {
+                    const String pw = this->_webServer->arg("password");
+                    if (pw == String(_credPassword))
+                    {
+                        const String approveKey = this->_webServer->client().localIP().toString() + "approve";
+                        _importExport->_sessionsOpts[approveKey] = true;
+                        this->_webServer->sendHeader(F("Cache-Control"), F("no-cache"));
+                        return this->redirect(this->_webServer, "/get?page=export", 302);
+                    }
+                    return buildConfirmHtml(this->_webServer, "Wrong password.", 3, true);
+                }
+                else if (value == "approveimport")
+                {
+                    const String pw = this->_webServer->arg("password");
+                    if (pw == String(_credPassword))
+                    {
+                        const String approveKey = this->_webServer->client().localIP().toString() + "approveimport";
+                        _importExport->_sessionsOpts[approveKey] = true;
+                        this->_webServer->sendHeader(F("Cache-Control"), F("no-cache"));
+                        return this->redirect(this->_webServer, "/get?page=impexpcfg", 302);
+                    }
+                    return buildConfirmHtml(this->_webServer, "Wrong password.", 3, true);
+                }
+                else if (value == "import")
+                {
+                    // No password set -> import directly
+                    if(strlen(_credPassword) > 0)
+                    {
+                        const String approveKey = this->_webServer->client().localIP().toString() + "approveimport";
+                        if(!_importExport->_sessionsOpts[approveKey])
+                        {
+                            return buildApprovalHtml(this->_webServer,
+                                                     "Confirm import",
+                                                     "Re-enter your password to import the configuration.",
+                                                     "approveimport");
+                        }
+                        _importExport->_sessionsOpts[approveKey] = false;
+                    }
+
+                    String message = "";
+                    bool restart = processImport(this->_webServer, message);
+                    return buildConfirmHtml(this->_webServer, message, 3, true);
                 }
                 else
                 {
@@ -2427,7 +2484,7 @@ void WebCfgServer::buildImportExportHtml(WebServer *server)
                         0,   // Dropdown options
                         0,   // Textareas
                         0,   // Parameter rows
-                        2,   // Buttons
+                        3,   // Buttons
                         0,   // menus
                         256  // extra bytes
     );
@@ -2443,7 +2500,82 @@ void WebCfgServer::buildImportExportHtml(WebServer *server)
     response += F("<br><br><button title=\"Export with redacted settings\" onclick=\" window.open('/get?page=export&redacted=1'); return false;\">Export with redacted settings</button>");
     response += F("<br><br><button title=\"Export with redacted settings and pairing data\" onclick=\" window.open('/get?page=export&redacted=1&pairing=1'); return false;\">Export with redacted settings and pairing data</button>");
     response += F("</div></body></html>");
+    appendHomeButton(response);
     server->send(200, F("text/html"), response);
+}
+
+void WebCfgServer::buildApprovalHtml(WebServer *server,
+                                      const char* title,
+                                      const char* description,
+                                      const char* approveTarget)
+{
+    String response;
+    reserveHtmlResponse(response,
+                        0,  // Checkbox
+                        1,  // Input fields (password)
+                        0,  // Dropdown
+                        0,  // Dropdown options
+                        0,  // Textareas
+                        0,  // Parameter rows
+                        1,  // Buttons
+                        0,  // menus
+                        128 // extra bytes
+    );
+
+    buildHtmlHeader(response);
+    response += F("<h4>");
+    response += title;
+    response += F("</h4>");
+    response += F("<p>");
+    response += description;
+    response += F("</p>");
+    response += F("<form class=\"adapt\" method=\"post\" action=\"post\">");
+    response += F("<input type=\"hidden\" name=\"page\" value=\"");
+    response += approveTarget;
+    response += F("\">");
+    response += F("<table>");
+    appendInputFieldRow(response, "password", "Password", "", 30, "", true);
+    response += F("</table><br>");
+    response += F("<input type=\"submit\" value=\"Confirm\">");
+    response += F("</form></body></html>");
+    server->send(200, F("text/html"), response);
+}
+
+bool WebCfgServer::processImport(WebServer *server, String &message)
+{
+    bool configChanged = false;
+    int params = server->args();
+
+    for(int index = 0; index < params; index++)
+    {
+        if(server->argName(index) == "importjson")
+        {
+            JsonDocument doc;
+
+            DeserializationError error = deserializeJson(doc, server->arg(index));
+            if (error)
+            {
+                Log->println(F("[ERROR] Invalid JSON for import"));
+                message = "Invalid JSON, config not changed";
+                return configChanged;
+            }
+
+            _importExport->importJson(doc);
+            configChanged = true;
+        }
+    }
+
+    if(configChanged)
+    {
+        message = "Configuration imported, reboot is required to apply.";
+        _rebootRequired = true;
+    }
+    else
+    {
+        message = "No valid import data found.";
+    }
+
+    return configChanged;
 }
 
 void WebCfgServer::appendNavigationMenuEntry(String &response, const char *title, const char *targetPath, const char *warningMessage, const char *onClick)

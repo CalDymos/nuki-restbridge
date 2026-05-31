@@ -230,6 +230,36 @@ private:
     void buildImportExportHtml(WebServer *server);
 
     /**
+     * @brief Builds a generic password-confirmation page for sensitive actions.
+     *
+     * Displays a form asking the user to re-enter their password before
+     * proceeding. On submission the form POSTs to the given approveTarget page.
+     *
+     * @param server         Pointer to the active WebServer instance.
+     * @param title          Heading shown on the page (e.g. "Confirm export").
+     * @param description    Explanatory text shown below the heading.
+     * @param approveTarget  Value of the hidden \"page\" field in the POST form
+     *                       (e.g. "approveexport").
+     */
+    void buildApprovalHtml(WebServer *server,
+                           const char* title,
+                           const char* description,
+                           const char* approveTarget);
+
+    /**
+     * @brief Processes an import request from the web interface.
+     *
+     * Parses the submitted JSON from the "importjson" form field and
+     * applies it via ImportExport::importJson(). Sets _rebootRequired
+     * if configuration was changed.
+     *
+     * @param server  Pointer to the active WebServer instance.
+     * @param message Output message describing the result of the import.
+     * @return True if configuration was changed and a reboot is required.
+     */
+    bool processImport(WebServer *server, String &message);
+
+    /**
      * @brief Handles waiting and asynchronous processing if requested.
      * @param blocking Whether the call should block until finished.
      * @param duration Timeout duration in milliseconds.
