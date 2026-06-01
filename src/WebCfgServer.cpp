@@ -587,6 +587,38 @@ void WebCfgServer::initialize()
                 }
                 else if (value == "savecfg")
                 {
+                    // If the form contains sensitive credential fields and a
+                    // password is set, require re-confirmation before saving.
+                    bool hasSensitiveChange = false;
+                    if(strlen(_credPassword) > 0)
+                    {
+                        if(this->_webServer->hasArg("CREDPASS") && this->_webServer->arg("CREDPASS") != "*")
+                        {
+                            hasSensitiveChange = true;
+                        }
+                        else if(this->_webServer->hasArg("CREDADMIN") && this->_webServer->arg("CREDADMIN") != "*")
+                        {
+                            hasSensitiveChange = true;
+                        }
+                        else if(this->_webServer->hasArg("NUKIPIN") && this->_webServer->arg("NUKIPIN") != "*")
+                        {
+                            hasSensitiveChange = true;
+                        }
+                    }
+
+                    if(hasSensitiveChange)
+                    {
+                        const String approveKey = this->_webServer->client().localIP().toString() + "approvecredentials";
+                        if(!_importExport->_sessionsOpts[approveKey])
+                        {
+                            return buildApprovalHtml(this->_webServer,
+                                                     "Confirm credential change",
+                                                     "Re-enter your current password to save the new credentials.",
+                                                     "approvecredentials");
+                        }
+                        _importExport->_sessionsOpts[approveKey] = false;
+                    }
+
                     String message = "";
                     bool restart = processArgs(this->_webServer, message);
                     return buildConfirmHtml(this->_webServer, message, 3, true);
@@ -611,7 +643,8 @@ void WebCfgServer::initialize()
                         this->_webServer->sendHeader(F("Cache-Control"), F("no-cache"));
                         return this->redirect(this->_webServer, "/get?page=export", 302);
                     }
-                    return buildConfirmHtml(this->_webServer, "Wrong password.", 3, true);
+                    clearSessions();
+                    return buildConfirmHtml(this->_webServer, "Wrong password.", 3, true, "/get?page=credentials");
                 }
                 else if (value == "approveimport")
                 {
@@ -623,7 +656,21 @@ void WebCfgServer::initialize()
                         this->_webServer->sendHeader(F("Cache-Control"), F("no-cache"));
                         return this->redirect(this->_webServer, "/get?page=impexpcfg", 302);
                     }
-                    return buildConfirmHtml(this->_webServer, "Wrong password.", 3, true);
+                    clearSessions();
+                    return buildConfirmHtml(this->_webServer, "Wrong password.", 3, true, "/get?page=credentials");
+                }
+                else if (value == "approvecredentials")
+                {
+                    const String pw = this->_webServer->arg("password");
+                    if (pw == String(_credPassword))
+                    {
+                        const String approveKey = this->_webServer->client().localIP().toString() + "approvecredentials";
+                        _importExport->_sessionsOpts[approveKey] = true;
+                        this->_webServer->sendHeader(F("Cache-Control"), F("no-cache"));
+                        return this->redirect(this->_webServer, "/get?page=credentials", 302);
+                    }
+                    clearSessions();
+                    return buildConfirmHtml(this->_webServer, "Wrong password.", 3, true, "/get?page=credentials");
                 }
                 else if (value == "import")
                 {
