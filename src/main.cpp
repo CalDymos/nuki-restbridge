@@ -299,7 +299,7 @@ void restartServices(bool reconnect)
             lockStarted = true;
         }
 
-        new NukiWrapper(DEVICE_NAME, deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
+        nuki = new NukiWrapper(DEVICE_NAME, deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
         nuki->initialize();
         bleScanner->whitelist(nuki->getBleAddress());
         Log->println("[DEBUG] Restarting Nuki lock done");
