@@ -1,4 +1,5 @@
 #include "NukiNetwork.h"
+#include "CharBuffer.h"
 #include "PreferencesKeys.h"
 #include "Logger.h"
 #include "Config.h"
@@ -254,15 +255,14 @@ namespace
 }
 
 
-NukiNetwork::NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize, ImportExport* importExport)
+NukiNetwork::NukiNetwork(Preferences *preferences, ImportExport* importExport)
     : _preferences(preferences),
-      _buffer(buffer),
-      _bufferSize(bufferSize),
       _importExport(importExport)
 {
     _inst = this;
     _webCfgEnabled = _preferences->getBool(preference_webcfgserver_enabled, true);
     _lockEnabled = preferences->getBool(preference_lock_enabled);
+    _restArgsBuffer = new char[REST_ARGS_BUFFER_SIZE];
     setupDevice();
 }
 
@@ -1118,8 +1118,14 @@ void NukiNetwork::sendResponse(JsonDocument &jsonResult, const char *message, in
     jsonResult[F("code")] = httpCode;
     jsonResult[F("message")] = message;
 
-    serializeJson(jsonResult, _buffer, _bufferSize);
-    _server->send(httpCode, F("application/json"), _buffer);
+    CharBufferGuard buf(CHAR_BUFFER_HTTP_TIMEOUT);
+    if (!buf) {
+        _server->send(503, F("application/json"),
+                      F("{\"code\":503,\"message\":\"buffer busy\"}"));
+        return;
+    }
+    serializeJson(jsonResult, buf.get(), buf.size());
+    _server->send(httpCode, F("application/json"), buf.get());
 }
 
 void NukiNetwork::sendResponse(const char *jsonResultStr)
@@ -1348,38 +1354,38 @@ void NukiNetwork::onRestDataReceivedCallback(const char *path, WebServer &server
 
 char *NukiNetwork::getArgs(WebServer &server)
 {
-    JsonDocument doc;
+    _restArgsBuffer[0] = '\0';
 
     if (server.args() == 2 && server.hasArg("val"))
     {
         // If there are only two arguments and one has the name "val",
         // only the value of "val" is saved (the other argument is always "token")
-        strncpy(_buffer, server.arg(0).c_str(), _bufferSize - 1);
+        strlcpy(_restArgsBuffer, server.arg(0).c_str(), sizeof(_restArgsBuffer));
+        return _restArgsBuffer;
     }
     else if (server.args() == 2)
     {
         // If there are only two arguments and one does not have the name "val",
         // only the name of the argument is saved (the other argument always has the name "token")
-        strncpy(_buffer, server.argName(0).c_str(), _bufferSize - 1);
+        strlcpy(_restArgsBuffer, server.argName(0).c_str(), sizeof(_restArgsBuffer));
+        return _restArgsBuffer;
     }
     // If there are more than two arguments, all arguments are returned as a json string, except "token"
     else if (server.args() > 2)
     {
+        JsonDocument doc;
         for (uint8_t i = 0; i < server.args(); i++)
         {
-            if (server.argName(i) != "token")
-                ;
-            doc[server.argName(i)] = server.arg(i); // Add argument to the JSON document
+        if (server.argName(i) != "token")
+            {
+                doc[server.argName(i)] = server.arg(i);
+            }
         }
-        // Serialization of the JSON to _buffer
-        serializeJson(doc, _buffer, _bufferSize);
+        serializeJson(doc, _restArgsBuffer, sizeof(_restArgsBuffer));
+        return _restArgsBuffer;
     }
-    else
-    {
-        _buffer[0] = '\0';
-    }
-
-    return _buffer; // Returns the global buffer as char*
+    
+    return _restArgsBuffer;;
 }
 
 void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
