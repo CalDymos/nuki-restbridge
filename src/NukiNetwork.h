@@ -26,6 +26,7 @@
 #include "QueryCommand.h"
 #include "LockActionResult.h"
 #include "ImportExport.h"
+#include "HarClient.h"
 
 /**
  * @brief Manages network interfaces (Wi-Fi, Ethernet), REST API, and Home Automation communication.
@@ -243,11 +244,6 @@ public:
     uint8_t queryCommands();
 
     /**
-     * @brief Sends arbitrary requests to Home Automation (e.g. to provide status values).
-     */
-    void sendDataToHA(const char *key, const char *param, const char *value);
-
-    /**
      * @brief Sende HTTP-Response as JSON-string to Client (on request of home automation).
      */
     void sendResponse(const char *jsonResultStr);
@@ -425,7 +421,6 @@ private:
     bool _ethConnected = false;                                               // Flag to temporarily store (ARDUINO_EVENT_ETH_CONNECTED)
     bool _lockEnabled = false;                                                // Whether lock control via API is enabled
     bool _hardwareInitialized = false;                                        // Flag indicating that network hardware is initialized
-    bool _sendDebugInfo = false;                                              // Whether extended debug info should be published
     bool _restartOnDisconnect = false;                                        // Whether the device should reboot on disconnect
     bool _firstTunerStateSent = true;                                         // Ensures the first lock state is always sent
     NetworkServiceState _networkServicesState = NetworkServiceState::UNKNOWN; // Current state of network services
@@ -441,30 +436,16 @@ private:
                                                                               //
     int64_t _checkIpTs = -1;                                                  // Last time IP was validated
     int64_t _lastConnectedTs = 0;                                             // Last time a successful connection occurred
-    int64_t _lastMaintenanceTs = 0;                                           // Last time maintenance was performed
     int64_t _lastNetworkServiceTs = 0;                                        // Last time services were checked
-    int64_t _publishedUpTime = 0;                                             // Last time uptime was sent
-    int64_t _lastRssiTs = 0;                                                  // Last time RSSI was transmitted
                                                                               //
     WebServer *_server = nullptr;                                             // REST API web server instance
-    HTTPClient *_httpClient = nullptr;                                        // HTTP client for sending Data to HA
-    NetworkUDP *_udpClient = nullptr;                                         // UDP client for sending Data to HA
     int _foundNetworks = 0;                                                   // Number of WiFi networks found during last scan
     int _networkTimeout = 0;                                                  // Timeout in ms for network operations
-    int _rssiSendInterval = 0;                                                // Interval for RSSI reporting
-    int _MaintenanceSendIntervall = 0;                                        // Interval for periodic maintenance
     int _networkServicesConnectCounter = 0;                                   // Counter for tracking connection attempts
                                                                               //
     NetworkDeviceType _networkDeviceType = NetworkDeviceType::UNDEFINED;      // WiFi or Ethernet
-    int8_t _lastRssi = 127;                                                   // Last known RSSI value
                                                                               //
-    bool _homeAutomationEnabled = false;                                      // Whether HA communication is enabled
-    String _homeAutomationAdress;                                             // Target IP or hostname of HA server
-    String _homeAutomationUser;                                               // Optional HA user name
-    String _homeAutomationPassword;                                           // Optional HA password
-    int _homeAutomationMode;                                                  // current Mode for data reporting to Ha (0=UDP/1=REST)
-    int _homeAutomationRestMode;                                              // Rest Mode (0=GET/1=POST)
-    int _homeAutomationPort;                                                  // Port for HA
+    HarClient* _harClient = nullptr;                                          // Home Automation Reporting client (owned)
                                                                               //
     char *_restArgsBuffer;                                                    // Shared buffer for response generation
     int _apiPort;                                                             // REST API server port
