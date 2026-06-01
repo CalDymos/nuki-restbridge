@@ -21,10 +21,10 @@ void ImportExport::exportNukiBridgeJson(JsonDocument &json, bool redacted, bool 
 {
     PreferencesKeyRegistry prefKeyRegistry;
 
-    const std::vector<char*> keysPrefs = prefKeyRegistry.getPreferencesKeys();
-    const std::vector<char*> boolPrefs = prefKeyRegistry.getPreferencesBoolKeys();
-    const std::vector<char*> redactedPrefs = prefKeyRegistry.getPreferencesRedactedKeys();
-    const std::vector<char*> bytePrefs = prefKeyRegistry.getPreferencesByteKeys();
+    const std::vector<const char*> keysPrefs = prefKeyRegistry.getPreferencesKeys();
+    const std::vector<const char*> boolPrefs = prefKeyRegistry.getPreferencesBoolKeys();
+    const std::vector<const char*> redactedPrefs = prefKeyRegistry.getPreferencesRedactedKeys();
+    const std::vector<const char*> bytePrefs = prefKeyRegistry.getPreferencesByteKeys();
 
     for(const auto& key : keysPrefs)
     {
@@ -168,12 +168,12 @@ JsonDocument ImportExport::importJson(JsonDocument &doc)
 
     PreferencesKeyRegistry prefKeyRegistry;
 
-    const std::vector<char*> keysPrefs = prefKeyRegistry.getPreferencesKeys();
-    const std::vector<char*> boolPrefs = prefKeyRegistry.getPreferencesBoolKeys();
-    const std::vector<char*> bytePrefs = prefKeyRegistry.getPreferencesByteKeys();
-    const std::vector<char*> intPrefs = prefKeyRegistry.getPreferencesIntKeys();
-    const std::vector<char*> uintPrefs = prefKeyRegistry.getPreferencesUIntKeys();
-    const std::vector<char*> uint64Prefs = prefKeyRegistry.getPreferencesUInt64Keys();
+    const std::vector<const char*> keysPrefs = prefKeyRegistry.getPreferencesKeys();
+    const std::vector<const char*> boolPrefs = prefKeyRegistry.getPreferencesBoolKeys();
+    const std::vector<const char*> bytePrefs = prefKeyRegistry.getPreferencesByteKeys();
+    const std::vector<const char*> intPrefs = prefKeyRegistry.getPreferencesIntKeys();
+    const std::vector<const char*> uintPrefs = prefKeyRegistry.getPreferencesUIntKeys();
+    const std::vector<const char*> uint64Prefs = prefKeyRegistry.getPreferencesUInt64Keys();
 
     for(const auto& key : keysPrefs)
     {
