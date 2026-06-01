@@ -540,11 +540,11 @@ bool NukiWrapper::updateKeyTurnerState()
     Log->println(F("[TRACE] Querying lock state"));
 
     result = _nukiRetryHandler->retryComm([&]()
-                                          { return _nukiLock.requestKeyTurnerState(&_keyTurnerState); });
+    { 
+        return _nukiLock.requestKeyTurnerState(&_keyTurnerState); 
+    });
 
-    char resultStr[15];
-    result = _nukiLock.requestKeyTurnerState(&_keyTurnerState);
-    memset(&resultStr, 0, sizeof(resultStr));
+    char resultStr[15] = {0};
     NukiLock::cmdResultToString(result, resultStr);
     Log->printf(F("[DEBUG] Result : %s"), resultStr);
 
