@@ -1,4 +1,5 @@
 #include "NukiWrapper.h"
+#include "CharBuffer.h"
 #include "PreferencesKeys.h"
 #include "Logger.h"
 #include "RestartReason.h"
@@ -10,15 +11,13 @@
 
 NukiWrapper *nukiInst = nullptr;
 
-NukiWrapper::NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, BleScanner::Scanner *scanner, NukiNetwork *network, Preferences *preferences, char *buffer, size_t bufferSize)
+NukiWrapper::NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, BleScanner::Scanner *scanner, NukiNetwork *network, Preferences *preferences)
     : _deviceName(deviceName),
       _deviceId(deviceId),
       _bleScanner(scanner),
       _nukiLock(deviceName, _deviceId->get()),
       _network(network),
-      _preferences(preferences),
-      _buffer(buffer),
-      _bufferSize(bufferSize)
+      _preferences(preferences)
 {
     Log->print(F("[DEBUG] Device id lock: "));
     Log->println(_deviceId->get());

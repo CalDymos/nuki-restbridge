@@ -44,11 +44,9 @@ public:
      * Initializes API configuration, webserver settings, and device type.
      *
      * @param preferences Pointer to the Preferences instance.
-     * @param buffer Reusable character buffer (e.g., for REST JSON responses).
-     * @param bufferSize Size of the buffer.
      * @param importExport Pointer to the ImportExport instance.
      */
-    NukiNetwork(Preferences *preferences, char *buffer, size_t bufferSize, ImportExport* importExport);
+    NukiNetwork(Preferences *preferences, ImportExport* importExport);
 
     /**
      * @brief Destroys the network instance and cleans up allocated resources.
@@ -468,8 +466,7 @@ private:
     int _homeAutomationRestMode;                                              // Rest Mode (0=GET/1=POST)
     int _homeAutomationPort;                                                  // Port for HA
                                                                               //
-    char *_buffer;                                                            // Shared buffer for response generation
-    const size_t _bufferSize;                                                 // Size of the shared buffer
+    char *_restArgsBuffer;                                                    // Shared buffer for response generation
     int _apiPort;                                                             // REST API server port
 
     // Callback handlers

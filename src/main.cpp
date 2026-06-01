@@ -17,7 +17,7 @@
 #endif
 #include "NukiWrapper.h"
 #include "NukiNetwork.h"
-#include "CharBuffer.hpp"
+#include "CharBuffer.h"
 #include "NukiDeviceId.hpp"
 #include "WebCfgServer.h"
 #include "Logger.h"
@@ -299,7 +299,7 @@ void restartServices(bool reconnect)
             lockStarted = true;
         }
 
-        nuki = new NukiWrapper(DEVICE_NAME, deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
+        nuki = new NukiWrapper(DEVICE_NAME, deviceIdLock, bleScanner, network, preferences);
         nuki->initialize();
         bleScanner->whitelist(nuki->getBleAddress());
         Log->println("[DEBUG] Restarting Nuki lock done");
@@ -880,7 +880,7 @@ void setup()
 
   importExport = new ImportExport(preferences);
 
-  network = new NukiNetwork(preferences, CharBuffer::get(), buffer_size, importExport);
+  network = new NukiNetwork(preferences, importExport);
   network->initialize();
 
   lockEnabled = preferences->getBool(preference_lock_enabled);
@@ -904,7 +904,7 @@ void setup()
   Log->println(lockEnabled ? F("[INFO] Nuki Lock enabled") : F("[INFO] Nuki Lock disabled"));
   if (lockEnabled)
   {
-    nuki = new NukiWrapper(DEVICE_NAME, deviceIdLock, bleScanner, network, preferences, CharBuffer::get(), buffer_size);
+    nuki = new NukiWrapper(DEVICE_NAME, deviceIdLock, bleScanner, network, preferences);
     nuki->initialize();
     lockStarted = true;
   }

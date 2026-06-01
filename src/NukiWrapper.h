@@ -22,10 +22,8 @@ public:
      * @param scanner      Pointer to the BLE scanner instance.
      * @param network      Pointer to the NukiNetwork instance for communication.
      * @param preferences  Pointer to the Preferences instance for persistent settings.
-     * @param buffer       Pointer to a data buffer used for communication or state serialization.
-     * @param bufferSize   Size of the provided buffer in bytes.
      */
-    NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, BleScanner::Scanner *scanner, NukiNetwork *network, Preferences *preferences, char *buffer, size_t bufferSize);
+    NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, BleScanner::Scanner *scanner, NukiNetwork *network, Preferences *preferences);
 
     /**
      * @brief Standard destructor.
@@ -304,8 +302,6 @@ private:
     Preferences *_preferences;                     // Pointer to the ESP32 preferences for persistent storage.
     NukiRetryHandler *_nukiRetryHandler = nullptr; // Retry handler for Nuki communication.
 
-    char *_buffer;                                                                             // Shared data buffer for building requests or storing responses.
-    const size_t _bufferSize;                                                                  // Size of the shared buffer in bytes.
                                                                                                //
     NukiLock::KeyTurnerState _lastKeyTurnerState;                                              // Previously known KeyTurnerState.
     NukiLock::KeyTurnerState _keyTurnerState;                                                  // Most recent KeyTurnerState from the device.
