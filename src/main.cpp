@@ -445,7 +445,7 @@ void networkTask(void *parameter)
     }
 
     network->update();
-    TaskWdtResetAndDelay(50);
+    TaskWdtResetAndDelay(10);
     netwConnected = network->isConnected();
 
     if (netwConnected && updateTime)

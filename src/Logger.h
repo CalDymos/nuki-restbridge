@@ -14,7 +14,7 @@
 #include <queue>
 #include <freertos/queue.h>
 
-#define LOGGER_FILENAME (char *)"nukiBridge.log"
+#define LOGGER_FILENAME "nukiBridge.log"
 
 struct LogMessage
 {
