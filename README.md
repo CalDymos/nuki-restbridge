@@ -16,7 +16,7 @@
   - [Installation](#installation)
   - [Initial Network Setup](#initial-network-setup)
   - [Pairing with Nuki Lock](#pairing-with-a-nuki-lock-10-to-40)
-- [Configuration](#-configuration)
+- [Configuration](#️-configuration)
   - [Network Configuration](#network-configuration)
     - [General Settings](#general-settings)
     - [IP Address assignment](#ip-address-assignment)
@@ -34,7 +34,7 @@
       - [Using the Comexio API](#using-the-comexio-api)
       - [Using Comexio Marker Variables](#using-comexio-marker-variables)
   - [Nuki Configuration](#nuki-configuration)
-    - [Basic Nuki Configuration](#basic-configuration)
+    - [Basic Nuki Configuration](#basic-nuki-configuration)
     - [Advanced Nuki Configuration](#advanced-nuki-configuration)
   - [Access Level Configuration](#access-level-configuration)
     - [Nuki General Access Control](#nuki-general-access-control)
@@ -44,7 +44,7 @@
     - [Unpair Nuki Lock](#unpair-nuki-lock)
     - [Factory reset Nuki Bridge](#factory-reset-nuki-bridge)
   - [Advanced Configuartion](#advanced-configuration)
-- [REST API Enpoints](#rest-api-endpoints) 
+- [REST API Enpoints](#rest-api-endpoints)
   - [Authentication](#authentication)
   - [Bridge Control](#bridge-control)
   - [Nuki Lock](#nuki-lock)
@@ -71,8 +71,8 @@
 
 ### ESP32 Boards (Wi-Fi + BLE)
 
-| ✅ Supported | ❌ Not Supported |
-|-------------|------------------|
+| ✅ Supported                                                                                | ❌ Not Supported  |
+|---------------------------------------------------------------------------------------------|-------------------|
 | All dual-core ESP32 boards with Wi-Fi + BLE supported by ESP-IDF 5.4.1 / Arduino Core 3.2.0 | ESP32-S2 (no BLE) |
 
 ---
@@ -268,20 +268,20 @@ Transmitted Value = dBm as Integer (e.g. -40)
 - **Lock State (Query/Param)**: Query to report the value (e.g. `?value=`).  
 Transmitted Value = State as Integer:
 
-  | Value | Meaning         |
-  |-------|------------------|
-  | 0     | Uncalibrated     |
-  | 1     | Locked           |
-  | 2     | Unlocking        |
-  | 3     | Unlocked         |
-  | 4     | Locking          |
-  | 5     | Unlatched        |
+  | Value | Meaning                |
+  |-------|------------------      |
+  | 0     | Uncalibrated           |
+  | 1     | Locked                 |
+  | 2     | Unlocking              |
+  | 3     | Unlocked               |
+  | 4     | Locking                |
+  | 5     | Unlatched              |
   | 6     | Unlocked (Lock ’n’ Go) |
-  | 7     | Unlatching       |
-  | 252   | Calibration      |
-  | 253   | Boot Run         |
-  | 254   | Motor Blocked    |
-  | 255   | Undefined        |
+  | 7     | Unlatching             |
+  | 252   | Calibration            |
+  | 253   | Boot Run               |
+  | 254   | Motor Blocked          |
+  | 255   | Undefined              |
 
 - **Lock 'N' Go State Path**: URL path to report if a Lock ’n’ Go action was triggered (e.g. `api/lock/lockngo`)
 - **Lock 'N' Go State (Query/Param)**: Query to report the value (e.g. `?value=`).  
@@ -311,7 +311,7 @@ Transmitted Value = Boolean as Integer (1 = active, 0 = inactive)
 - **Process Status (Query/Param)**: Query to report the value (e.g. `?value=`).  
 Transmitted Value = Status As Integer:
 
-  | Value | Meaning              |
+  | Value | Meaning               |
   |-------|-----------------------|
   | 0     | Success               |
   | 1     | Motor Blocked         |
@@ -343,7 +343,7 @@ Transmitted Value = Boolean as Integer (1 = charging, 0 = not charging)
 - **Door Sensor State (Query/Param)**: Query to report the value (e.g. `?value=`)
 Transmitted Value = State as Integer:
 
-  | Value | Meaning             |
+  | Value | Meaning              |
   |-------|----------------------|
   | 0     | Unavailable          |
   | 1     | Deactivated          |
@@ -363,33 +363,35 @@ Transmitted Value = Boolean as Integer (1 = battery low, 0 = OK)
 - **Keypad Critical (Query/Param)**: Query to report the value (e.g. `?value=`).  
 Transmitted Value = Boolean as Integer (1 = battery low, 0 = OK)
 
-> 📘 Only supported by Smart Lock 4th Generation.
+> 📘 Only supported by Smart Lock 4th Generation.  
+>
 > - **Remote Access State Path**: URL path to report the current remote access state (e.g. `api/lock/remoteaccess`)
 > - **Remote Access State (Query/Param)**: Query to report the value (e.g. `?value=`).  
-> Transmitted Value = Bitmask as Integer. Each bit represents a specific remote access state:
-> 
->  | Bit | Mask | Meaning                                |
->  |-----|------|----------------------------------------|
->  | 0   | 1    | Remote access enabled                  |
->  | 1   | 2    | Bridge paired                          |
->  | 2   | 4    | SSE connected via Wi-Fi                |
->  | 3   | 8    | SSE connection established             |
->  | 4   | 16   | SSE connected via Thread               |
->  | 5   | 32   | Thread SSE uplink enabled by user      |
->  | 6   | 64   | NAT64 available via Thread             |
->
->&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To extract specific state use bitwise operations, e.g. `value & 2` to check if the Bridge is paired.
+  Transmitted Value = Bitmask as Integer. Each bit represents a specific remote access state:
+>  
+>   | Bit | Mask | Meaning                                |
+>   |-----|------|----------------------------------------|
+>   | 0   | 1    | Remote access enabled                  |
+>   | 1   | 2    | Bridge paired                          |
+>   | 2   | 4    | SSE connected via Wi-Fi                |
+>   | 3   | 8    | SSE connection established             |
+>   | 4   | 16   | SSE connected via Thread               |
+>   | 5   | 32   | Thread SSE uplink enabled by user      |
+>   | 6   | 64   | NAT64 available via Thread             |  
+
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To extract specific state use bitwise operations, e.g. `value & 2` to check if the Bridge is paired.  
 
 > 📘 Only supported by Smart Lock 4th Generation.
+>
 > - **BLE Strength Path**: URL path to report BLE signal strength between Nuki  Bridge and Lock (e.g. `api/lock/blestrength`)
 > - **BLE Strength (Query/Param)**: Query to report the value (e.g. `?value=`).  
   Transmitted Value = RSSI in dBm or status code as Integer.
 >
->  | Value     | Meaning                                                        |
->  |-----------|----------------------------------------------------------------|
->  | `< 0`     | Raw RSSI value in dBm (e.g. `-75`)                             |
->  | `0`       | Invalid RSSI value                                             |
->  | `1`       | Not supported (only Smart Lock 4.0 return RSSI)                |
+>   | Value     | Meaning                                                        |
+>   |-----------|----------------------------------------------------------------|
+>   | `< 0`     | Raw RSSI value in dBm (e.g. `-75`)                             |
+>   | `0`       | Invalid RSSI value                                             |
+>   | `1`       | Not supported (only Smart Lock 4.0 return RSSI)                |
 
 ---
 
@@ -483,7 +485,7 @@ You can set markers via the API as follows:
 #### Basic Nuki Configuration
 
 - **Nuki Smartlock enabled**: Enable if you want Nuki Bridge to connect to a Nuki Lock (1.0-4.0)
-- **New Nuki Bluetooth connection mode**: Enable to use the latest Nuki BLE connection mode (recommended). 
+- **New Nuki Bluetooth connection mode**: Enable to use the latest Nuki BLE connection mode (recommended).  
     > 📘 **Note:** Disable if you have issues communicating with the lock
 
 ---
@@ -512,17 +514,20 @@ You can set markers via the API as follows:
 ### Access Level Configuration
 
 #### Nuki General Access Control
+
 - **Modify Nuki Bridge configuration over REST API**: Allow changing Nuki Bridge settings using REST API.
   > 🚨 **Important:** For security reasons, not all configurations can be changed via the REST API.
 
 ---
 
 #### Nuki Lock Access Control
+
 - **Enable or disable executing each available lock action for the Nuki Lock through REST API**
 
 ---
 
 #### Nuki Lock Config Control
+
 - **Enable or disable changing each available configuration setting for the Nuki Lock through REST API**
   > 📘 **Note:** Changing configuration settings requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
 
@@ -560,8 +565,8 @@ You can set markers via the API as follows:
 
 ### Advanced Configuration
 
-The advanced configuration menu is not reachable from the main menu of the web configurator by default.<br>
-You can reach the menu directly by browsing to http://NUKIHUBIP/get?page=advanced or enable showing it in the main menu by browsing to http://NUKIHUBIP/get?page=debugon once (http://NUKIHUBIP/get?page=debugoff to disable).
+The advanced configuration menu is not reachable from the main menu of the web configurator by default.  
+You can reach the menu directly by browsing to <http://NUKIHUBIP/get?page=advanced> or enable showing it in the main menu by browsing to <http://NUKIHUBIP/get?page=debugon> once (<http://NUKIHUBIP/get?page=debugoff> to disable).
 
 >⚠️ **Warning:** that the following options can break Nuki Hub and cause bootloops that will require you to erase your ESP and reflash following the instructions for first-time flashing.
 
@@ -604,28 +609,28 @@ Every request must include the access token as HTTP query parameter: `?token=<ap
 
 ### Bridge Control
 
-| Endpoint           | Paramter | Value | Method | Description                                   |
-|--------------------|----------|-------|--------|-----------------------------------------------|
-| `bridge/disableApi`      |    -     |   -   |   GET  | deactivates the REST API <br> (if the API is deactivated, it can only be activated via the web configurator)|
-| `bridge/shutdown`        |    -     |   -   |   GET  | Powers down the ESP32 (no token required).    |
-| `bridge/reboot`          |    -     |   -   |   GET  | Restarts the ESP32 immediately.               |
-| `bridge/enableWebServer` |   val    |  0/1  |   GET  | 0 = Deactivate the web configurator / 1 = Activate the web configurator <br> (reboot is performed after the action)|
+| Endpoint                 | Paramter | Value | Method | Description                                                                                                         |
+|--------------------------|----------|-------|--------|---------------------------------------------------------------------------------------------------------------------|
+| `bridge/disableApi`      | -        | -     | GET    | deactivates the REST API <br> (if the API is deactivated, it can only be activated via the web configurator)        |
+| `bridge/shutdown`        | -        | -     | GET    | Powers down the ESP32 (no token required).                                                                          |
+| `bridge/reboot`          | -        | -     | GET    | Restarts the ESP32 immediately.                                                                                     |
+| `bridge/enableWebServer` | val      | 0/1   | GET    | 0 = Deactivate the web configurator / 1 = Activate the web configurator <br> (reboot is performed after the action) |
+
 ---
 
 ### Nuki Lock
 
-| Endpoint                      | Parameter | Value        | Method | Description |
-|-------------------------------|-----------|--------------|--------|-------------|
-| `lock/action`                | "unlock", "lock", "unlatch", "lockNgo", "lockNgoUnlatch", "fullLock", "fobAction1", "fobAction2", "fobAction3" |      1       | GET | Executes a lock action.|
-| `lock/keypad/command`         |   JSON<br>(see [Lock Keypad command](#lock-keypad-command-json))| various<br>(see [Lock Keypad command](#lock-keypad-command-json))|  GET| Submits a complete keypad command as json string.|
-| `lock/query/config`               | val       |  1           | GET    | Requests configuration state from the lock. (Triggers a HAR report for this query) |
-| `lock/query/lockstate`            | val       |  1           | GET    | Requests current lock state from lock. (Triggers a HAR report for this query)|
-| `lock/query/keypad`               | val       |  1           | GET    | Requests keypad status / entries from lock. (Triggers a HAR report for this query)|
-| `lock/query/battery`              | val       |  1           | GET    | Requests battery status from lock. (Triggers a HAR report for this query)|
-| `lock/config/action`              | JSON<br>(see [Lock config action](#lock-config-action-json))      | various<br>(see [Lock config action](#lock-config-action-json))     | GET    | Updates lock configuration values.<br> See [Nuki Bluetooh API](https://developer.nuki.io/t/bluetooth-api/27) for more information on the available settings.<br> Changing settings has to enabled first in the configuration portal.<br> Check the settings you want to be able to change under "Nuki Lock Config Control" in "Access Level Configuration" and save the configuration.|
-| `lock/timecontrol/action`         | JSON      | various      | GET    | Sends time control schedule commands.<br>See [Lock Timecontrol Action (JSON)](#lock-timecontrol-action-json) |
-| `lock/authorization/action`       | JSON      | various      | GET    | Sends authorization updates (e.g. new users).<br>See [Lock Authorization action (JSON)](#lock-authorization-action-json) |
-
+| Endpoint                    | Parameter                                                                                                      | Value                                                             | Method | Description                                                                                                                                                                                                                                                                                                                                                                            |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `lock/action`               | "unlock", "lock", "unlatch", "lockNgo", "lockNgoUnlatch", "fullLock", "fobAction1", "fobAction2", "fobAction3" | 1                                                                 | GET    | Executes a lock action.                                                                                                                                                                                                                                                                                                                                                                |
+| `lock/keypad/command`       | JSON<br>(see [Lock Keypad command](#lock-keypad-command-json))                                                 | various<br>(see [Lock Keypad command](#lock-keypad-command-json)) | GET    | Submits a complete keypad command as json string.                                                                                                                                                                                                                                                                                                                                      |
+| `lock/query/config`         | val                                                                                                            | 1                                                                 | GET    | Requests configuration state from the lock. (Triggers a HAR report for this query)                                                                                                                                                                                                                                                                                                     |
+| `lock/query/lockstate`      | val                                                                                                            | 1                                                                 | GET    | Requests current lock state from lock. (Triggers a HAR report for this query)                                                                                                                                                                                                                                                                                                          |
+| `lock/query/keypad`         | val                                                                                                            | 1                                                                 | GET    | Requests keypad status / entries from lock. (Triggers a HAR report for this query)                                                                                                                                                                                                                                                                                                     |
+| `lock/query/battery`        | val                                                                                                            | 1                                                                 | GET    | Requests battery status from lock. (Triggers a HAR report for this query)                                                                                                                                                                                                                                                                                                              |
+| `lock/config/action`        | JSON<br>(see [Lock config action](#lock-config-action-json))                                                   | various<br>(see [Lock config action](#lock-config-action-json))   | GET    | Updates lock configuration values.<br> See [Nuki Bluetooh API](https://developer.nuki.io/t/bluetooth-api/27) for more information on the available settings.<br> Changing settings has to enabled first in the configuration portal.<br> Check the settings you want to be able to change under "Nuki Lock Config Control" in "Access Level Configuration" and save the configuration. |
+| `lock/timecontrol/action`   | JSON                                                                                                           | various                                                           | GET    | Sends time control schedule commands.<br>See [Lock Timecontrol Action (JSON)](#lock-timecontrol-action-json)                                                                                                                                                                                                                                                                           |
+| `lock/authorization/action` | JSON                                                                                                           | various                                                           | GET    | Sends authorization updates (e.g. new users).<br>See [Lock Authorization action (JSON)](#lock-authorization-action-json)                                                                                                                                                                                                                                                               |
 
 #### Lock Keypad Command (JSON)
 
@@ -633,16 +638,16 @@ If a keypad is connected to the lock, keypad codes can be added, updated and rem
 
 To change the Nuki Lock keypad settings via JSON string, the JSON-formatted string must contain the following nodes.
 
-| Node             | Delete   | Add      | Update   |  Check   | Usage                                                                                                            | Possible values                        |
-|------------------|----------|----------|----------|----------|------------------------------------------------------------------------------------------------------------------|----------------------------------------|
-| action           | Required | Required | Required | Required | The action to execute                                                                                            | "delete", "add", "update"     |
-| codeId           | Required | Not used | Required | Required | The code ID of the existing code to delete or update found in Web Configurator                                                            | Integer                                |
-| code             | Not used | Required | Optional | Required | The code to create or update                                                                       | 6-digit Integer without zero's, can't start with "12"|
-| enabled          | Not used | Not used | Optional | Not used | Enable or disable the code, always enabled on add                                                                | 1 = enabled, 0 = disabled              |
-| name             | Not used | Required | Optional | Not used | The name of the code to create or update                                                                         | String, max 20 chars                   |
-
+| Node    | Delete   | Add      | Update   | Check    | Usage                                                                          | Possible values                                       |
+|---------|----------|----------|----------|----------|--------------------------------------------------------------------------------|-------------------------------------------------------|
+| action  | Required | Required | Required | Required | The action to execute                                                          | "delete", "add", "update"                             |
+| codeId  | Required | Not used | Required | Required | The code ID of the existing code to delete or update found in Web Configurator | Integer                                               |
+| code    | Not used | Required | Optional | Required | The code to create or update                                                   | 6-digit Integer without zero's, can't start with "12" |
+| enabled | Not used | Not used | Optional | Not used | Enable or disable the code, always enabled on add                              | 1 = enabled, 0 = disabled                             |
+| name    | Not used | Required | Optional | Not used | The name of the code to create or update                                       | String, max 20 chars                                  |
 
 Examples:
+
 - Delete: `{ "action": "delete", "codeId": "1234" }`
 - Add: `{ "action": "add", "code": "589472", "name": "Test", "enabled": "0" }`
 - Update: `{ "action": "update", "codeId": "1234", "enabled": "1", "name": "Test" }`
@@ -668,6 +673,7 @@ The following formulas are used for
 ---
 
 **example for the values**:
+
 - multiplier = 73
 - offset = 12345
 - modulus = 1000000
@@ -683,47 +689,47 @@ decrypted = ((1929553 - 12345) * 410959) % 1000000 = 123456
 
 #### Lock Config Action (JSON)
 
-| Setting                                 | Usage                                                                                            | Possible values                                                   | Example                            |
-|-----------------------------------------|--------------------------------------------------------------------------------------------------|-------------------------------------------------------------------|------------------------------------|
-| name                                    | The name of the Smart Lock.                                                                      | Alphanumeric string, max length 32 chars                          |`{ "name": "Frontdoor" }`           |
-| latitude                                | The latitude of the Smart Locks geoposition.                                                     | Float                                                             |`{ "latitude": "48.858093" }`       |
-| longitude                               | The longitude of the Smart Locks geoposition                                                     | Float                                                             |`{ "longitude": "2.294694" }`       |
-| autoUnlatch                             | Whether or not the door shall be unlatched by manually operating a door handle from the outside. | 1 = enabled, 0 = disabled                                         |`{ "autoUnlatch": "1" }`            |
-| pairingEnabled                          | Whether or not activating the pairing mode via button should be enabled.                         | 1 = enabled, 0 = disabled                                         |`{ "pairingEnabled": "0" }`         |
-| buttonEnabled                           | Whether or not the button should be enabled.                                                     | 1 = enabled, 0 = disabled                                         |`{ "buttonEnabled": "1" }`          |
-| ledEnabled                              | Whether or not the flashing LED should be enabled to signal an unlocked door.                    | 1 = enabled, 0 = disabled                                         |`{ "ledEnabled": "1" }`             |
-| ledBrightness                           | The LED brightness level                                                                         | 0 = off, …, 5 = max                                               |`{ "ledBrightness": "2" }`          |
-| timeZoneOffset                          | The timezone offset (UTC) in minutes                                                             | Integer between 0 and 60                                          |`{ "timeZoneOffset": "0" }`         |
-| dstMode                                 | The desired daylight saving time mode.                                                           | 0 = disabled, 1 = European                                        |`{ "dstMode": "0" }`                |
-| fobAction1                              | The desired action, if a Nuki Fob is pressed once.                                               | "No Action", "Unlock", "Lock", "Lock n Go", "Intelligent"         |`{ "fobAction1": "Lock n Go" }`     |
-| fobAction2                              | The desired action, if a Nuki Fob is pressed twice.                                              | "No Action", "Unlock", "Lock", "Lock n Go", "Intelligent"         |`{ "fobAction2": "Intelligent" }`   |
-| fobAction3                              | The desired action, if a Nuki Fob is pressed three times.                                        | "No Action", "Unlock", "Lock", "Lock n Go", "Intelligent"         |`{ "fobAction3": "Unlock" }`        |
-| singleLock                              | Whether only a single lock or double lock should be performed                                    | 0 = double lock, 1 = single lock                                  |`{ "singleLock": "0" }`             |
-| advertisingMode                         | The desired advertising mode.                                                                    | "Automatic", "Normal", "Slow", "Slowest"                          |`{ "advertisingMode": "Normal" }`   |
-| timeZone                                | The current timezone or "None" if timezones are not supported                                    | "None" or one of the timezones from [Nuki Bluetooh API](https://developer.nuki.io/t/bluetooth-api/27)                                                                                                                                                                              |`{ "timeZone": "Europe/Berlin" }`   |
-| unlockedPositionOffsetDegrees           | Offset that alters the unlocked position in degrees.                                             | Integer between -90 and 180                              |`{ "unlockedPositionOffsetDegrees": "-90" }` |
-| lockedPositionOffsetDegrees             | Offset that alters the locked position in degrees.                                               | Integer between -180 and 90                                 |`{ "lockedPositionOffsetDegrees": "80" }` |
-| singleLockedPositionOffsetDegrees       | Offset that alters the single locked position in degrees.                                        | Integer between -180 and 180                         |`{ "singleLockedPositionOffsetDegrees": "120" }` |
-| unlockedToLockedTransitionOffsetDegrees | Offset that alters the position where transition from unlocked to locked happens in degrees.     | Integer between -180 and 180                   |`{ "unlockedToLockedTransitionOffsetDegrees": "180" }` |
-| lockNgoTimeout                          | Timeout for lock ‘n’ go in seconds                                                               | Integer between 5 and 60                                          |`{ "lockNgoTimeout": "60" }`        |
-| singleButtonPressAction                 | The desired action, if the button is pressed once.                  | "No Action", "Intelligent", "Unlock", "Lock", "Unlatch", "Lock n Go", "Show Status"   |`{ "singleButtonPressAction": "Lock n Go" }` |
-| doubleButtonPressAction                 | The desired action, if the button is pressed twice.                 | "No Action", "Intelligent", "Unlock", "Lock", "Unlatch", "Lock n Go", "Show Status" |`{ "doubleButtonPressAction": "Show Status" }` |
-| detachedCylinder                        | Wheter the inner side of the used cylinder is detached from the outer side.                      | 0 = not detached, 1 = detached                                    |`{ "detachedCylinder": "1" }`       |
-| batteryType                             | The type of the batteries present in the smart lock.                                             | "Alkali", "Accumulators", "Lithium"                               |`{ "batteryType": "Accumulators" }` |
-| automaticBatteryTypeDetection           | Whether the automatic detection of the battery type is enabled.                                  | 1 = enabled, 0 = disabled                          |`{ "automaticBatteryTypeDetection": "Lock n Go" }` |
-| unlatchDuration                         | Duration in seconds for holding the latch in unlatched position.                                 | Integer between 1 and 30                                          |`{ "unlatchDuration": "3" }`        |
-| autoLockTimeOut                         | Seconds until the smart lock relocks itself after it has been unlocked.                          | Integer between 30 and 1800                                       |`{ "autoLockTimeOut": "60" }`       |
-| autoUnLockDisabled                      | Whether auto unlock should be disabled in general.                                               | 1 = auto unlock disabled, 0 = auto unlock enabled                 |`{ "autoUnLockDisabled": "1" }`     |
-| nightModeEnabled                        | Whether nightmode is enabled.                                                                    | 1 = enabled, 0 = disabled                                         |`{ "nightModeEnabled": "1" }`       |
-| nightModeStartTime                      | Start time for nightmode if enabled.                                                             | Time in "HH:MM" format                                            |`{ "nightModeStartTime": "22:00" }` |
-| nightModeEndTime                        | End time for nightmode if enabled.                                                               | Time in "HH:MM" format                                            |`{ "nightModeEndTime": "07:00" }`   |
-| nightModeAutoLockEnabled                | Whether auto lock should be enabled during nightmode.                                            | 1 = enabled, 0 = disabled                                        |`{ "nightModeAutoLockEnabled": "1" }`|
-| nightModeAutoUnlockDisabled             | Whether auto unlock should be disabled during nightmode.                                         | 1 = auto unlock disabled, 0 = auto unlock enabled             |`{ "nightModeAutoUnlockDisabled": "1" }`|
-| nightModeImmediateLockOnStart           | Whether the door should be immediately locked on nightmode start.                                | 1 = enabled, 0 = disabled                                   |`{ "nightModeImmediateLockOnStart": "1" }`|
-| autoLockEnabled                         | Whether auto lock is enabled.                                                                    | 1 = enabled, 0 = disabled                                         |`{ "autoLockEnabled": "1" }`        |
-| immediateAutoLockEnabled                | Whether auto lock should be performed immediately after the door has been closed.                | 1 = enabled, 0 = disabled                                        |`{ "immediateAutoLockEnabled": "1" }`|
-| autoUpdateEnabled                       | Whether automatic firmware updates should be enabled.                                            | 1 = enabled, 0 = disabled                                         |`{ "autoUpdateEnabled": "1" }`      |
-| rebootNuki                              | Reboot the Nuki device immediately                                                               | 1 = reboot nuki                                                   |`{ "rebootNuki": "1" }`             |
+| Setting                                 | Usage                                                                                            | Possible values                                                                                       | Example                                                |
+|-----------------------------------------|--------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
+| name                                    | The name of the Smart Lock.                                                                      | Alphanumeric string, max length 32 chars                                                              | `{ "name": "Frontdoor" }`                              |
+| latitude                                | The latitude of the Smart Locks geoposition.                                                     | Float                                                                                                 | `{ "latitude": "48.858093" }`                          |
+| longitude                               | The longitude of the Smart Locks geoposition                                                     | Float                                                                                                 | `{ "longitude": "2.294694" }`                          |
+| autoUnlatch                             | Whether or not the door shall be unlatched by manually operating a door handle from the outside. | 1 = enabled, 0 = disabled                                                                             | `{ "autoUnlatch": "1" }`                               |
+| pairingEnabled                          | Whether or not activating the pairing mode via button should be enabled.                         | 1 = enabled, 0 = disabled                                                                             | `{ "pairingEnabled": "0" }`                            |
+| buttonEnabled                           | Whether or not the button should be enabled.                                                     | 1 = enabled, 0 = disabled                                                                             | `{ "buttonEnabled": "1" }`                             |
+| ledEnabled                              | Whether or not the flashing LED should be enabled to signal an unlocked door.                    | 1 = enabled, 0 = disabled                                                                             | `{ "ledEnabled": "1" }`                                |
+| ledBrightness                           | The LED brightness level                                                                         | 0 = off, …, 5 = max                                                                                   | `{ "ledBrightness": "2" }`                             |
+| timeZoneOffset                          | The timezone offset (UTC) in minutes                                                             | Integer between 0 and 60                                                                              | `{ "timeZoneOffset": "0" }`                            |
+| dstMode                                 | The desired daylight saving time mode.                                                           | 0 = disabled, 1 = European                                                                            | `{ "dstMode": "0" }`                                   |
+| fobAction1                              | The desired action, if a Nuki Fob is pressed once.                                               | "No Action", "Unlock", "Lock", "Lock n Go", "Intelligent"                                             | `{ "fobAction1": "Lock n Go" }`                        |
+| fobAction2                              | The desired action, if a Nuki Fob is pressed twice.                                              | "No Action", "Unlock", "Lock", "Lock n Go", "Intelligent"                                             | `{ "fobAction2": "Intelligent" }`                      |
+| fobAction3                              | The desired action, if a Nuki Fob is pressed three times.                                        | "No Action", "Unlock", "Lock", "Lock n Go", "Intelligent"                                             | `{ "fobAction3": "Unlock" }`                           |
+| singleLock                              | Whether only a single lock or double lock should be performed                                    | 0 = double lock, 1 = single lock                                                                      | `{ "singleLock": "0" }`                                |
+| advertisingMode                         | The desired advertising mode.                                                                    | "Automatic", "Normal", "Slow", "Slowest"                                                              | `{ "advertisingMode": "Normal" }`                      |
+| timeZone                                | The current timezone or "None" if timezones are not supported                                    | "None" or one of the timezones from [Nuki Bluetooh API](https://developer.nuki.io/t/bluetooth-api/27) | `{ "timeZone": "Europe/Berlin" }`                      |
+| unlockedPositionOffsetDegrees           | Offset that alters the unlocked position in degrees.                                             | Integer between -90 and 180                                                                           | `{ "unlockedPositionOffsetDegrees": "-90" }`           |
+| lockedPositionOffsetDegrees             | Offset that alters the locked position in degrees.                                               | Integer between -180 and 90                                                                           | `{ "lockedPositionOffsetDegrees": "80" }`              |
+| singleLockedPositionOffsetDegrees       | Offset that alters the single locked position in degrees.                                        | Integer between -180 and 180                                                                          | `{ "singleLockedPositionOffsetDegrees": "120" }`       |
+| unlockedToLockedTransitionOffsetDegrees | Offset that alters the position where transition from unlocked to locked happens in degrees.     | Integer between -180 and 180                                                                          | `{ "unlockedToLockedTransitionOffsetDegrees": "180" }` |
+| lockNgoTimeout                          | Timeout for lock ‘n’ go in seconds                                                               | Integer between 5 and 60                                                                              | `{ "lockNgoTimeout": "60" }`                           |
+| singleButtonPressAction                 | The desired action, if the button is pressed once.                                               | "No Action", "Intelligent", "Unlock", "Lock", "Unlatch", "Lock n Go", "Show Status"                   | `{ "singleButtonPressAction": "Lock n Go" }`           |
+| doubleButtonPressAction                 | The desired action, if the button is pressed twice.                                              | "No Action", "Intelligent", "Unlock", "Lock", "Unlatch", "Lock n Go", "Show Status"                   | `{ "doubleButtonPressAction": "Show Status" }`         |
+| detachedCylinder                        | Wheter the inner side of the used cylinder is detached from the outer side.                      | 0 = not detached, 1 = detached                                                                        | `{ "detachedCylinder": "1" }`                          |
+| batteryType                             | The type of the batteries present in the smart lock.                                             | "Alkali", "Accumulators", "Lithium"                                                                   | `{ "batteryType": "Accumulators" }`                    |
+| automaticBatteryTypeDetection           | Whether the automatic detection of the battery type is enabled.                                  | 1 = enabled, 0 = disabled                                                                             | `{ "automaticBatteryTypeDetection": "Lock n Go" }`     |
+| unlatchDuration                         | Duration in seconds for holding the latch in unlatched position.                                 | Integer between 1 and 30                                                                              | `{ "unlatchDuration": "3" }`                           |
+| autoLockTimeOut                         | Seconds until the smart lock relocks itself after it has been unlocked.                          | Integer between 30 and 1800                                                                           | `{ "autoLockTimeOut": "60" }`                          |
+| autoUnLockDisabled                      | Whether auto unlock should be disabled in general.                                               | 1 = auto unlock disabled, 0 = auto unlock enabled                                                     | `{ "autoUnLockDisabled": "1" }`                        |
+| nightModeEnabled                        | Whether nightmode is enabled.                                                                    | 1 = enabled, 0 = disabled                                                                             | `{ "nightModeEnabled": "1" }`                          |
+| nightModeStartTime                      | Start time for nightmode if enabled.                                                             | Time in "HH:MM" format                                                                                | `{ "nightModeStartTime": "22:00" }`                    |
+| nightModeEndTime                        | End time for nightmode if enabled.                                                               | Time in "HH:MM" format                                                                                | `{ "nightModeEndTime": "07:00" }`                      |
+| nightModeAutoLockEnabled                | Whether auto lock should be enabled during nightmode.                                            | 1 = enabled, 0 = disabled                                                                             | `{ "nightModeAutoLockEnabled": "1" }`                  |
+| nightModeAutoUnlockDisabled             | Whether auto unlock should be disabled during nightmode.                                         | 1 = auto unlock disabled, 0 = auto unlock enabled                                                     | `{ "nightModeAutoUnlockDisabled": "1" }`               |
+| nightModeImmediateLockOnStart           | Whether the door should be immediately locked on nightmode start.                                | 1 = enabled, 0 = disabled                                                                             | `{ "nightModeImmediateLockOnStart": "1" }`             |
+| autoLockEnabled                         | Whether auto lock is enabled.                                                                    | 1 = enabled, 0 = disabled                                                                             | `{ "autoLockEnabled": "1" }`                           |
+| immediateAutoLockEnabled                | Whether auto lock should be performed immediately after the door has been closed.                | 1 = enabled, 0 = disabled                                                                             | `{ "immediateAutoLockEnabled": "1" }`                  |
+| autoUpdateEnabled                       | Whether automatic firmware updates should be enabled.                                            | 1 = enabled, 0 = disabled                                                                             | `{ "autoUpdateEnabled": "1" }`                         |
+| rebootNuki                              | Reboot the Nuki device immediately                                                               | 1 = reboot nuki                                                                                       | `{ "rebootNuki": "1" }`                                |
 
 #### Lock Timecontrol Action (JSON)
 
@@ -731,16 +737,17 @@ Timecontrol entries can be added, updated and removed. This has to enabled first
 
 To change Nuki Lock timecontrol settings send to `lock/timecontrol/actionJson` a JSON formatted string containing the following nodes.
 
-| Node             | Delete   | Add      | Update   | Usage                                                                                    | Possible values                                                |
-|------------------|----------|----------|----------|------------------------------------------------------------------------------------------|----------------------------------------------------------------|
-| action           | Required | Required | Required | The action to execute                                                                    | "delete", "add", "update"                                      |
-| entryId          | Required | Not used | Required | The entry ID of the existing entry to delete or update                                   | Integer                                                        |
-| enabled          | Not used | Not used | Optional | Enable or disable the entry, always enabled on add                                       | 1 = enabled, 0 = disabled                                      |
-| weekdays         | Not used | Optional | Optional | Weekdays on which the chosen lock action should be exectued (requires enabled = 1)       | Array of days: "mon", "tue", "wed", "thu" , "fri" "sat", "sun" |
-| time             | Not used | Required | Optional | The time on which the chosen lock action should be executed (requires enabled = 1)       | "HH:MM"                                                        |
-| lockAction       | Not used | Required | Optional | The lock action that should be executed on the chosen weekdays at the chosen time (requires enabled = 1) | For the Nuki lock: "Unlock", "Lock", "Unlatch", "LockNgo", "LockNgoUnlatch", "FullLock". For the Nuki Opener: "ActivateRTO", "DeactivateRTO", "ElectricStrikeActuation", "ActivateCM", "DeactivateCM |
+| Node       | Delete   | Add      | Update   | Usage                                                                                                    | Possible values                                                                                                                                                                                      |
+|------------|----------|----------|----------|----------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| action     | Required | Required | Required | The action to execute                                                                                    | "delete", "add", "update"                                                                                                                                                                            |
+| entryId    | Required | Not used | Required | The entry ID of the existing entry to delete or update                                                   | Integer                                                                                                                                                                                              |
+| enabled    | Not used | Not used | Optional | Enable or disable the entry, always enabled on add                                                       | 1 = enabled, 0 = disabled                                                                                                                                                                            |
+| weekdays   | Not used | Optional | Optional | Weekdays on which the chosen lock action should be exectued (requires enabled = 1)                       | Array of days: "mon", "tue", "wed", "thu" , "fri" "sat", "sun"                                                                                                                                       |
+| time       | Not used | Required | Optional | The time on which the chosen lock action should be executed (requires enabled = 1)                       | "HH:MM"                                                                                                                                                                                              |
+| lockAction | Not used | Required | Optional | The lock action that should be executed on the chosen weekdays at the chosen time (requires enabled = 1) | For the Nuki lock: "Unlock", "Lock", "Unlatch", "LockNgo", "LockNgoUnlatch", "FullLock". For the Nuki Opener: "ActivateRTO", "DeactivateRTO", "ElectricStrikeActuation", "ActivateCM", "DeactivateCM |
 
 Examples:
+
 - Delete: `{ "action": "delete", "entryId": "1234" }`
 - Add: `{ "action": "add", "weekdays": [ "wed", "thu", "fri" ], "time": "08:00", "lockAction": "Unlock" }`
 - Update: `{ "action": "update", "entryId": "1234", "enabled": "1", "weekdays": [ "mon", "tue", "sat", "sun" ], "time": "08:00", "lockAction": "Lock" }`
@@ -752,26 +759,26 @@ It is currently not (yet) possible to add authorization entries this way.
 
 To change Nuki Lock authorization settings send to `lock/authorization/action` a JSON formatted string containing the following nodes.
 
-| Node             | Delete   | Add      | Update   | Usage                                                                                                            | Possible values                        |
-|------------------|----------|----------|----------|------------------------------------------------------------------------------------------------------------------|----------------------------------------|
-| action           | Required | Required | Required | The action to execute                                                                                            | "delete", "add", "update"              |
-| authId           | Required | Not used | Required | The auth ID of the existing entry to delete or update                                                            | Integer                                |
-| enabled          | Not used | Not used | Optional | Enable or disable the authorization, always enabled on add                                                       | 1 = enabled, 0 = disabled              |
-| name             | Not used | Required | Optional | The name of the authorization to create or update                                                                | String, max 20 chars                   |
-| remoteAllowed    | Not used | Optional | Optional | If this authorization is allowed remote access, requires enabled = 1                                             | 1 = enabled, 0 = disabled              |
-| timeLimited      | Not used | Optional | Optional | If this authorization is restricted to access only at certain times, requires enabled = 1                        | 1 = enabled, 0 = disabled              |
-| allowedFrom      | Not used | Optional | Optional | The start timestamp from which access should be allowed (requires enabled = 1 and timeLimited = 1)               | "YYYY-MM-DD HH:MM:SS"                  |
-| allowedUntil     | Not used | Optional | Optional | The end timestamp until access should be allowed (requires enabled = 1 and timeLimited = 1)                      | "YYYY-MM-DD HH:MM:SS"                  |
-| allowedWeekdays  | Not used | Optional | Optional | Weekdays on which access should be allowed (requires enabled = 1 and timeLimited = 1)     | Array of days: "mon", "tue", "wed", "thu" , "fri" "sat", "sun"|
-| allowedFromTime  | Not used | Optional | Optional | The start time per day from which access should be allowed (requires enabled = 1 and timeLimited = 1)            | "HH:MM"                                |
-| allowedUntilTime | Not used | Optional | Optional | The end time per day until access should be allowed (requires enabled = 1 and timeLimited = 1)                   | "HH:MM"                                |
+| Node             | Delete   | Add      | Update   | Usage                                                                                                 | Possible values                                                |
+|------------------|----------|----------|----------|-------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| action           | Required | Required | Required | The action to execute                                                                                 | "delete", "add", "update"                                      |
+| authId           | Required | Not used | Required | The auth ID of the existing entry to delete or update                                                 | Integer                                                        |
+| enabled          | Not used | Not used | Optional | Enable or disable the authorization, always enabled on add                                            | 1 = enabled, 0 = disabled                                      |
+| name             | Not used | Required | Optional | The name of the authorization to create or update                                                     | String, max 20 chars                                           |
+| remoteAllowed    | Not used | Optional | Optional | If this authorization is allowed remote access, requires enabled = 1                                  | 1 = enabled, 0 = disabled                                      |
+| timeLimited      | Not used | Optional | Optional | If this authorization is restricted to access only at certain times, requires enabled = 1             | 1 = enabled, 0 = disabled                                      |
+| allowedFrom      | Not used | Optional | Optional | The start timestamp from which access should be allowed (requires enabled = 1 and timeLimited = 1)    | "YYYY-MM-DD HH:MM:SS"                                          |
+| allowedUntil     | Not used | Optional | Optional | The end timestamp until access should be allowed (requires enabled = 1 and timeLimited = 1)           | "YYYY-MM-DD HH:MM:SS"                                          |
+| allowedWeekdays  | Not used | Optional | Optional | Weekdays on which access should be allowed (requires enabled = 1 and timeLimited = 1)                 | Array of days: "mon", "tue", "wed", "thu" , "fri" "sat", "sun" |
+| allowedFromTime  | Not used | Optional | Optional | The start time per day from which access should be allowed (requires enabled = 1 and timeLimited = 1) | "HH:MM"                                                        |
+| allowedUntilTime | Not used | Optional | Optional | The end time per day until access should be allowed (requires enabled = 1 and timeLimited = 1)        | "HH:MM"                                                        |
 
 Examples:
+
 - Delete: `{ "action": "delete", "authId": "1234" }`
 - Update: `{ "action": "update", "authId": "1234", "enabled": "1", "name": "Test", "timeLimited": "1", "allowedFrom": "2024-04-12 10:00:00", "allowedUntil": "2034-04-12 10:00:00", "allowedWeekdays": [ "mon", "tue", "sat", "sun" ], "allowedFromTime": "08:00", "allowedUntilTime": "16:00" }`
 
 ---
-
 
 ## Recommended LAN Setup
 
@@ -779,20 +786,18 @@ Examples:
 > While this poses only a minimal risk in secured home environments, proper precautions should still be taken.  
 > The following steps help minimize that risk when HTTP is the only available method. They do not replace encryption but reduce exposure within a trusted LAN.
 
-
-| Setting                                | Device / Layer                | Recommended Action                                                                 |
-|----------------------------------------|-------------------------------|------------------------------------------------------------------------------------|
-| **Prefer wired connections (LAN)**     | Network design                | Use Ethernet wherever possible for improved stability and security                |
-|**Enable secure WiFi (WPA2/WPA3) if WLAN is used**      | Router / Access Point         | Use WPA3 if supported, otherwise WPA2 with a strong password (no open WiFi)       |
-| **Use static IP addresses**            | Router / DHCP Server          | Assign fixed IPs for ESP32 devices and the Home Automation server                 |
-| **Restrict internet access for ESP32** | Router / Firewall             | Block outbound internet for ESP32 devices (via IP/MAC filtering or ACLs)          |
-| **Isolate ESP32 in its own VLAN**      | Managed Switch / Router       | Place ESP32 devices and the HA server in a dedicated VLAN                         |
-| **Restrict inter-VLAN traffic**        | Router / Layer 3 Switch       | Only allow ESP32 ↔ HA server communication, block access to other devices         |
-| **Assign dedicated VLAN ports**        | Managed Switch                | Use port-based VLANs if tagging is unsupported or complex                         |
-| **Limit API permissions**              | Home Automation System        | Create a separate user with minimal privileges for each ESP32 device              |
-| **Avoid hardcoding credentials in URL**| ESP32 firmware                | Use POST requests where possible; avoid GET with sensitive data in query strings  |
-| **Use VPN for remote access**          | Router / Gateway              | Avoid exposing devices to the internet – connect remotely via VPN only            |
-| **Set up a separate Guest LAN**        | Router / Access Point         | Create an isolated guest WiFi/LAN for visitors to prevent access to internal devices |
-| **Monitor network traffic**            | Firewall / Network Monitor    | Log or alert on unusual traffic from/to ESP32 IPs                                 |
-| **Use strong admin passwords**         | Router / HA System            | Set secure, unique passwords for admin access to router and Home Automation UI    |
-
+| Setting                                            | Device / Layer             | Recommended Action                                                                   |
+|----------------------------------------------------|----------------------------|--------------------------------------------------------------------------------------|
+| **Prefer wired connections (LAN)**                 | Network design             | Use Ethernet wherever possible for improved stability and security                   |
+| **Enable secure WiFi (WPA2/WPA3) if WLAN is used** | Router / Access Point      | Use WPA3 if supported, otherwise WPA2 with a strong password (no open WiFi)          |
+| **Use static IP addresses**                        | Router / DHCP Server       | Assign fixed IPs for ESP32 devices and the Home Automation server                    |
+| **Restrict internet access for ESP32**             | Router / Firewall          | Block outbound internet for ESP32 devices (via IP/MAC filtering or ACLs)             |
+| **Isolate ESP32 in its own VLAN**                  | Managed Switch / Router    | Place ESP32 devices and the HA server in a dedicated VLAN                            |
+| **Restrict inter-VLAN traffic**                    | Router / Layer 3 Switch    | Only allow ESP32 ↔ HA server communication, block access to other devices            |
+| **Assign dedicated VLAN ports**                    | Managed Switch             | Use port-based VLANs if tagging is unsupported or complex                            |
+| **Limit API permissions**                          | Home Automation System     | Create a separate user with minimal privileges for each ESP32 device                 |
+| **Avoid hardcoding credentials in URL**            | ESP32 firmware             | Use POST requests where possible; avoid GET with sensitive data in query strings     |
+| **Use VPN for remote access**                      | Router / Gateway           | Avoid exposing devices to the internet – connect remotely via VPN only               |
+| **Set up a separate Guest LAN**                    | Router / Access Point      | Create an isolated guest WiFi/LAN for visitors to prevent access to internal devices |
+| **Monitor network traffic**                        | Firewall / Network Monitor | Log or alert on unusual traffic from/to ESP32 IPs                                    |
+| **Use strong admin passwords**                     | Router / HA System         | Set secure, unique passwords for admin access to router and Home Automation UI       |
