@@ -475,12 +475,13 @@ void NukiWrapper::updateAuthData(bool retrieved)
     if (!retrieved)
     {
         Nuki::CmdResult result = (Nuki::CmdResult)-1;
-        int retryCount = 0;
 
         Log->print(F("[TRACE] Retrieve log entries: "));
 
         result = _nukiRetryHandler->retryComm([&]()
-                                              { return _nukiLock.retrieveLogEntries(0, _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG), 1, false); });
+            { return _nukiLock.retrieveLogEntries(0,
+                _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG),
+                1, false); });
 
         printCommandResult(result);
         if (result == Nuki::CmdResult::Success)
@@ -488,16 +489,19 @@ void NukiWrapper::updateAuthData(bool retrieved)
             _waitAuthLogUpdateTs = espMillis() + 5000;
             TaskWdtResetAndDelay(100);
 
-            std::list<NukiLock::LogEntry> log;
+            const int maxEntries = _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG);
+            std::vector<NukiLock::LogEntry> log;
+            log.reserve(maxEntries);
             _nukiLock.getLogEntries(&log);
 
-            if (log.size() > _preferences->getInt(preference_authlog_max_entries, 3))
+            if ((int)log.size() > maxEntries)
             {
-                log.resize(_preferences->getInt(preference_authlog_max_entries, 3));
+                log.resize(maxEntries);
             }
 
-            log.sort([](const NukiLock::LogEntry &a, const NukiLock::LogEntry &b)
-                     { return a.index < b.index; });
+            std::sort(log.begin(), log.end(),
+                [](const NukiLock::LogEntry &a, const NukiLock::LogEntry &b)
+                { return a.index < b.index; });
 
             if (log.size() > 0)
             {
@@ -507,16 +511,19 @@ void NukiWrapper::updateAuthData(bool retrieved)
     }
     else
     {
-        std::list<NukiLock::LogEntry> log;
+        const int maxEntries = _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG);
+        std::vector<NukiLock::LogEntry> log;
+        log.reserve(maxEntries);
         _nukiLock.getLogEntries(&log);
 
-        if (log.size() > _preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG))
+        if ((int)log.size() > maxEntries)
         {
-            log.resize(_preferences->getInt(preference_authlog_max_entries, MAX_AUTHLOG));
+            log.resize(maxEntries);
         }
 
-        log.sort([](const NukiLock::LogEntry &a, const NukiLock::LogEntry &b)
-                 { return a.index < b.index; });
+        std::sort(log.begin(), log.end(),
+            [](const NukiLock::LogEntry &a, const NukiLock::LogEntry &b)
+            { return a.index < b.index; });
 
         Log->print(F("[DEBUG] Log size: "));
         Log->println(log.size());
