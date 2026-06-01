@@ -19,24 +19,17 @@ void BridgeApiToken::assignToken(const char *token) {
 }
 
 void BridgeApiToken::assignNewToken() {
-  assignToken(getRandomToken());
-}
+    char newToken[21] = {0};
 
-char* BridgeApiToken::getRandomToken() {
+    // use ESP32 Hardware-TRNG
+    esp_fill_random(newToken, 20);
 
-  static char Apitoken[21] = {0};
-  char rndNum;
-  char rndLetter;
-
-  for (int i = 0; i < 20; i++) {
-    rndNum = random(48, 57);
-    rndLetter = random(97, 122);
-    if (random(1, 2) == 1) {
-      Apitoken[i] = rndNum;
-    } else {
-      Apitoken[i] = rndLetter;
+    // Map to printable ASCII characters (a–z, 0–9 = 36 characters)
+    static const char charset[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+    for (int i = 0; i < 20; i++) {
+        newToken[i] = charset[(uint8_t)newToken[i] % sizeof(charset)];
     }
-  }
-  Apitoken[20] = '\0';
-  return Apitoken;
+    newToken[20] = '\0';
+
+    assignToken(newToken);
 }

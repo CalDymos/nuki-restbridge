@@ -38,13 +38,6 @@ public:
 
 private:
 
-    /**
-     * Generates a new random token consisting of digits and lowercase letters.
-     *
-     * @return Pointer to a newly generated token (20 characters + null terminator).
-     */
-    char *getRandomToken();
-
     Preferences *_preferences;
     const std::string _preferencesId;
     char _apiToken[21] = {0};
