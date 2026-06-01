@@ -71,6 +71,8 @@ TaskHandle_t nukiTaskHandle = nullptr;    // Handle for BLE/Nuki lock task.
 TaskHandle_t networkTaskHandle = nullptr; // Handle for network-related task.
 TaskHandle_t webCfgTaskHandle = nullptr;  // Handle for web config server task.
 
+SemaphoreHandle_t webCfgServerMutex = nullptr; // Mutex to synchronize access to web configuration server instance.
+
 #ifdef DEBUG_NUKIBRIDGE
 /**
  * @brief Recursively lists files in a directory and optionally deletes large files.
@@ -140,6 +142,7 @@ bool initializeFileSystem()
   Serial.println(F("[ERROR] LittleFS init failed."));
   return false;
 }
+
 /**
  * @brief Starts the web configuration server if not already started.
  */
@@ -162,31 +165,47 @@ void startWebCfgServer()
     Log->println("[INFO] Starting web server");
   }
 
-  if (webCfgServer == nullptr)
+  if (xSemaphoreTake(webCfgServerMutex, pdMS_TO_TICKS(500)) == pdTRUE)
   {
-    webCfgServer = new WebCfgServer(nuki, network, preferences, importExport);
-    Log->println(F("[INFO] Initializing WebCfgServer"));
-    webCfgServer->initialize();
-    webCfgStarted = true;
-    Log->println("[INFO] (Re-)Starting web server done");
+    if (webCfgServer == nullptr)
+    {
+      webCfgServer = new WebCfgServer(nuki, network, preferences, importExport);
+      Log->println(F("[INFO] Initializing WebCfgServer"));
+      webCfgServer->initialize();
+      webCfgStarted = true;
+      Log->println("[INFO] (Re-)Starting web server done");
+    }
+    else
+    {
+      Log->println("[WARNING] (Re-)starting not possible, WebCfgServer is still running");
+    }
+    xSemaphoreGive(webCfgServerMutex);
   }
   else
   {
-    Log->println("[WARNING] (Re-)starting not possible, WebCfgServer is still running");
+    Log->println(F("[ERROR] startWebCfgServer: could not acquire mutex"));
   }
 }
+
 /**
  * @brief Stops the web configuration server if running.
  */
 static void stopWebCfgServer()
 {
-  
-  if (webCfgServer != nullptr)
+  if (xSemaphoreTake(webCfgServerMutex, pdMS_TO_TICKS(500)) == pdTRUE) 
   {
-    Log->println("[DEBUG] Deleting webCfgServer");
-    delete webCfgServer;
-    webCfgServer = nullptr;
-    Log->println("[DEBUG] Deleting webCfgServer done");
+    if (webCfgServer != nullptr)
+    {
+      Log->println("[DEBUG] Deleting webCfgServer");
+      delete webCfgServer;
+      webCfgServer = nullptr;
+      Log->println("[DEBUG] Deleting webCfgServer done");
+    }
+    xSemaphoreGive(webCfgServerMutex);
+  }
+  else
+  {
+    Log->println(F("[ERROR] stopWebCfgServer: could not acquire mutex"));
   }
 }
 
@@ -508,9 +527,13 @@ void webCfgTask(void *parameter)
   while (true)
   {
 
-    if (webCfgServer != nullptr)
+    if (xSemaphoreTake(webCfgServerMutex, pdMS_TO_TICKS(10)) == pdTRUE) 
     {
-      webCfgServer->handleClient();
+      if (webCfgServer != nullptr)
+      {
+        webCfgServer->handleClient();
+      }
+      xSemaphoreGive(webCfgServerMutex);
     }
     if (espMillis() - webCfgLoopTs > 120000)
     {
