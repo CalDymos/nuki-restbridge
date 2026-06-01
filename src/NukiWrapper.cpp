@@ -26,10 +26,10 @@ NukiWrapper::NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, 
     nukiInst = this;
 
     // KeyTurnerState und BatteryReport initialisieren
-    memset(&_lastKeyTurnerState, sizeof(NukiLock::KeyTurnerState), 0);
-    memset(&_lastBatteryReport, sizeof(NukiLock::BatteryReport), 0);
-    memset(&_keyTurnerState, sizeof(NukiLock::KeyTurnerState), 0);
-    memset(&_batteryReport, sizeof(NukiLock::BatteryReport), 0);
+    NukiLock::KeyTurnerState _lastKeyTurnerState{};  // zero-initialized
+    NukiLock::KeyTurnerState _keyTurnerState{};
+    NukiLock::BatteryReport  _lastBatteryReport{};
+    NukiLock::BatteryReport  _batteryReport{};
     _keyTurnerState.lockState = NukiLock::LockState::Undefined;
 
     network->setLockActionReceivedCallback(nukiInst->onLockActionReceivedCallback);
