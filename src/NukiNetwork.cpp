@@ -6,9 +6,9 @@
 #include "RestartReason.h"
 #include "hal/wdt_hal.h"
 #include "util/TaskUtils.h"
+#include <esp_mac.h>
 #include "HarClient.h"
-
-NukiNetwork *NukiNetwork::_inst = nullptr;
+#include "RestApiServer.h"
 
 namespace
 {
@@ -260,22 +260,22 @@ NukiNetwork::NukiNetwork(Preferences *preferences, ImportExport* importExport)
     : _preferences(preferences),
       _importExport(importExport)
 {
-    _inst = this;
     _webCfgEnabled = _preferences->getBool(preference_webcfgserver_enabled, true);
-    _lockEnabled = preferences->getBool(preference_lock_enabled);
-    _restArgsBuffer = new char[REST_ARGS_BUFFER_SIZE];
     _harClient = new HarClient(_preferences);
+    _restApiServer = new RestApiServer(
+        _preferences,
+        [this]() { _harClient->disable(); },       // disableHarFn
+        [this]() { clearWifiFallback(); }          // clearWifiFallbackFn
+    );
     setupDevice();
 }
 
 NukiNetwork::~NukiNetwork()
 {
-    // Clean up, stop the web server, etc.
-    if (_server)
+    if (_restApiServer)
     {
-        _server->stop();
-        delete _server;
-        _server = nullptr;
+        delete _restApiServer;
+        _restApiServer = nullptr;
     }
     if (_harClient)
     {
@@ -328,9 +328,7 @@ void NukiNetwork::initialize()
 {
     if (!disableNetwork)
     {
-        _apiPort = _preferences->getInt(preference_api_port, REST_SERVER_PORT);
-        _apitoken = new BridgeApiToken(_preferences, preference_api_token);
-        _apiEnabled = _preferences->getBool(preference_api_enabled);
+        _restApiServer->initialize();
         
         _hostname = _preferences->getString(preference_hostname, "");
 
@@ -423,7 +421,7 @@ bool NukiNetwork::update()
         break;
     }
 
-    if (disableNetwork || (!_harClient->isEnabled() && !_apiEnabled) || isApOpen())
+    if (disableNetwork || (!_harClient->isEnabled() && !_restApiServer->isEnabled()) || isApOpen())
     {
         return false;
     }
@@ -440,15 +438,15 @@ bool NukiNetwork::update()
         }
     }
 
-    if (isConnected() && (_apiEnabled || _harClient->isEnabled()))
+    if (isConnected() && (_restApiServer->isEnabled() || _harClient->isEnabled()))
     {
         if (ts - _lastNetworkServiceTs > 30000)
         { // test all 30 seconds
             _lastNetworkServiceTs = ts;
             _networkServicesState = testNetworkServices();
 
-            bool svcBothDown = _harClient->isEnabled() && _apiEnabled && _networkServicesState != NetworkServiceState::OK;
-            bool svcHADown = !_apiEnabled && _networkServicesState != NetworkServiceState::ERROR_REST_API_SERVER;
+            bool svcBothDown = _harClient->isEnabled() && _restApiServer->isEnabled() && _networkServicesState != NetworkServiceState::OK;
+            bool svcHADown = !_restApiServer->isEnabled() && _networkServicesState != NetworkServiceState::ERROR_REST_API_SERVER;
             bool svcAPIDown = !_harClient->isEnabled() && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT;
 
             if (svcBothDown || svcHADown || svcAPIDown)
@@ -458,9 +456,9 @@ bool NukiNetwork::update()
                 _networkServicesState = testNetworkServices(); // test network services again
 
                 bool expectedStateOk =
-                    (_harClient->isEnabled() && _apiEnabled && _networkServicesState == NetworkServiceState::OK) ||
-                    (_harClient->isEnabled() && !_apiEnabled && _networkServicesState == NetworkServiceState::ERROR_REST_API_SERVER) ||
-                    (!_harClient->isEnabled() && _apiEnabled && _networkServicesState == NetworkServiceState::ERROR_HAR_CLIENT);
+                    (_harClient->isEnabled() && _restApiServer->isEnabled() && _networkServicesState == NetworkServiceState::OK) ||
+                    (_harClient->isEnabled() && !_restApiServer->isEnabled() && _networkServicesState == NetworkServiceState::ERROR_REST_API_SERVER) ||
+                    (!_harClient->isEnabled() && _restApiServer->isEnabled() && _networkServicesState == NetworkServiceState::ERROR_HAR_CLIENT);
 
                 if (!expectedStateOk)
                 {
@@ -505,6 +503,8 @@ bool NukiNetwork::update()
     _lastConnectedTs = ts;
 
     _harClient->update(ts, signalStrength());
+
+    _restApiServer->handleClient();
 
     return true;
 }
@@ -616,7 +616,7 @@ void NukiNetwork::disableAutoRestarts()
 
 void NukiNetwork::disableAPI()
 {
-    _apiEnabled = false;
+    _restApiServer->disable();
 }
 void NukiNetwork::disableHAR()
 {
@@ -630,9 +630,7 @@ NetworkServiceState NukiNetwork::networkServicesState()
 
 uint8_t NukiNetwork::queryCommands()
 {
-    uint8_t qc = _queryCommands;
-    _queryCommands = 0;
-    return qc;
+    return _restApiServer->queryCommands();
 }
 
 void NukiNetwork::sendToHAFloat(const char *path, const char *param, const float value, uint8_t precision)
@@ -692,47 +690,37 @@ void NukiNetwork::sendToHAKeyTurnerState(const NukiLock::KeyTurnerState &keyTurn
 
 void NukiNetwork::sendResponse(JsonDocument &jsonResult, const char *message, int httpCode)
 {
-    jsonResult[F("code")] = httpCode;
-    jsonResult[F("message")] = message;
-
-    CharBufferGuard buf(CHAR_BUFFER_HTTP_TIMEOUT);
-    if (!buf) {
-        _server->send(503, F("application/json"),
-                      F("{\"code\":503,\"message\":\"buffer busy\"}"));
-        return;
-    }
-    serializeJson(jsonResult, buf.get(), buf.size());
-    _server->send(httpCode, F("application/json"), buf.get());
+    _restApiServer->sendResponse(jsonResult, message, httpCode);
 }
 
 void NukiNetwork::sendResponse(const char *jsonResultStr)
 {
-    _server->send(200, F("application/json"), jsonResultStr);
+    _restApiServer->sendResponse(jsonResultStr);
 }
 
-void NukiNetwork::setLockActionReceivedCallback(LockActionResult (*lockActionReceivedCallback)(const char *value))
+void NukiNetwork::setLockActionReceivedCallback(LockActionResult (*cb)(const char *value))
 {
-    _lockActionReceivedCallback = lockActionReceivedCallback;
+    _restApiServer->setLockActionReceivedCallback(cb);
 }
 
-void NukiNetwork::setConfigUpdateReceivedCallback(void (*configUpdateReceivedCallback)(const char *value))
+void NukiNetwork::setConfigUpdateReceivedCallback(void (*cb)(const char *value))
 {
-    _configUpdateReceivedCallback = configUpdateReceivedCallback;
+    _restApiServer->setConfigUpdateReceivedCallback(cb);
 }
 
-void NukiNetwork::setKeypadCommandReceivedCallback(void (*keypadCommandReceivedReceivedCallback)(const char *command, const uint &id, const String &name, const String &code, const int &enabled))
+void NukiNetwork::setKeypadCommandReceivedCallback(void (*cb)(const char *command, const uint &id, const String &name, const String &code, const int &enabled))
 {
-    _keypadCommandReceivedReceivedCallback = keypadCommandReceivedReceivedCallback;
+    _restApiServer->setKeypadCommandReceivedCallback(cb);
 }
 
-void NukiNetwork::setTimeControlCommandReceivedCallback(void (*timeControlCommandReceivedReceivedCallback)(const char *value))
+void NukiNetwork::setTimeControlCommandReceivedCallback(void (*cb)(const char *value))
 {
-    _timeControlCommandReceivedReceivedCallback = timeControlCommandReceivedReceivedCallback;
+    _restApiServer->setTimeControlCommandReceivedCallback(cb);
 }
 
-void NukiNetwork::setAuthCommandReceivedCallback(void (*authCommandReceivedReceivedCallback)(const char *value))
+void NukiNetwork::setAuthCommandReceivedCallback(void (*cb)(const char *value))
 {
-    _authCommandReceivedReceivedCallback = authCommandReceivedReceivedCallback;
+    _restApiServer->setAuthCommandReceivedCallback(cb);
 }
 
 void NukiNetwork::readSettings()
@@ -871,373 +859,26 @@ void NukiNetwork::startNetworkServices()
 {
     _harClient->start();
 
-    if (_apiEnabled && localIP() != "0.0.0.0")
-    {
-        Log->println(F("[INFO] start REST API Server"));
-        _server = new WebServer(_apiPort);
-        if (_server)
-        {
-            _server->onNotFound([this]()
-                                { onRestDataReceivedCallback(this->_server->uri().c_str(), *this->_server); });
-            _server->begin();
-            Log->println("[INFO] REST WebServer started on http://" + localIP() + ":" + String(_apiPort));
-        }
-    }
-}
-
-void NukiNetwork::onRestDataReceivedCallback(const char *path, WebServer &server)
-{
-
-    if (_inst)
-    {
-        if (!_inst->_apiEnabled)
-            return;
-
-        if ((_inst->_networkServicesState == NetworkServiceState::ERROR_REST_API_SERVER) || (_inst->_networkServicesState == NetworkServiceState::ERROR_BOTH))
-        {
-            return;
-        }
-
-        if (_inst->comparePrefixedPath(path, api_path_bridge, api_path_shutdown))
-        {
-            _inst->onShutdownReceived(path, server);
-            return;
-        }
-
-        if (!server.hasArg("token") || server.arg("token") != _inst->_apitoken->get())
-        {
-            server.send(401, F("text/html"), "");
-            return;
-        }
-
-        _inst->onRestDataReceived(path, server);
-    }
-}
-
-char *NukiNetwork::getArgs(WebServer &server)
-{
-    _restArgsBuffer[0] = '\0';
-
-    if (server.args() == 2 && server.hasArg("val"))
-    {
-        // If there are only two arguments and one has the name "val",
-        // only the value of "val" is saved (the other argument is always "token")
-        strlcpy(_restArgsBuffer, server.arg(0).c_str(), sizeof(_restArgsBuffer));
-        return _restArgsBuffer;
-    }
-    else if (server.args() == 2)
-    {
-        // If there are only two arguments and one does not have the name "val",
-        // only the name of the argument is saved (the other argument always has the name "token")
-        strlcpy(_restArgsBuffer, server.argName(0).c_str(), sizeof(_restArgsBuffer));
-        return _restArgsBuffer;
-    }
-    // If there are more than two arguments, all arguments are returned as a json string, except "token"
-    else if (server.args() > 2)
-    {
-        JsonDocument doc;
-        for (uint8_t i = 0; i < server.args(); i++)
-        {
-        if (server.argName(i) != "token")
-            {
-                doc[server.argName(i)] = server.arg(i);
-            }
-        }
-        serializeJson(doc, _restArgsBuffer, sizeof(_restArgsBuffer));
-        return _restArgsBuffer;
-    }
-    
-    return _restArgsBuffer;;
-}
-
-void NukiNetwork::onRestDataReceived(const char *path, WebServer &server)
-{
-    JsonDocument jsonResult;
-
-    char *data = getArgs(server);
-
-    // Bridge Rest API Requests
-    if (comparePrefixedPath(path, api_path_bridge, api_path_disable_api))
-    {
-
-        Log->println(F("[INFO] (REST API) Disable REST API"));
-        _apiEnabled = false;
-        _preferences->putBool(preference_api_enabled, _apiEnabled);
-        sendResponse(jsonResult);
-    }
-    else if (comparePrefixedPath(path, api_path_bridge, api_path_reboot))
-    {
-        Log->println(F("[INFO] (REST API) Reboot requested"));
-        TaskWdtResetAndDelay(200);
-        sendResponse(jsonResult);
-        Log->disableFileLog();
-        TaskWdtResetAndDelay(500);
-        restartEsp(RestartReason::RequestedViaApi);
-    }
-    else if (comparePrefixedPath(path, api_path_bridge, api_path_enable_web_server))
-    {
-        if (!data || !*data)
-        {
-            sendResponse(jsonResult, "missing data", 400);
-            return;
-        }
-
-        if (atoi(data) == 0)
-        {
-            if (!_preferences->getBool(preference_webcfgserver_enabled, true) && !forceEnableWebCfgServer)
-            {
-                return;
-            }
-            Log->println(F("[INFO] (REST API) Disable Config Web Server, restarting"));
-            _preferences->putBool(preference_webcfgserver_enabled, false);
-        }
-        else
-        {
-            if (_preferences->getBool(preference_webcfgserver_enabled, true) || forceEnableWebCfgServer)
-            {
-                return;
-            }
-            Log->println(F("[INFO] (REST API) Enable Config Web Server, restarting"));
-            _preferences->putBool(preference_webcfgserver_enabled, true);
-        }
-        sendResponse(jsonResult);
-
-        clearWifiFallback();
-        Log->disableFileLog();
-        TaskWdtResetAndDelay(200);
-        restartEsp(RestartReason::ReconfigureWebCfgServer);
-
-        // "Lock" Rest API Requests
-    }
-    else if (_lockEnabled)
-    {
-        if (comparePrefixedPath(path, api_path_lock, api_path_action))
-        {
-
-            if (!data || !*data)
-            {
-                sendResponse(jsonResult, "missing data", 400);
-            }
-            return;
-
-            Log->println(F("[INFO] (REST API) Lock action received: "));
-            Log->printf(F("[INFO] %s\n"), data);
-
-            LockActionResult lockActionResult = LockActionResult::Failed;
-            if (_lockActionReceivedCallback != NULL)
-            {
-                lockActionResult = _lockActionReceivedCallback(data);
-            }
-
-            switch (lockActionResult)
-            {
-            case LockActionResult::Success:
-                sendResponse(jsonResult);
-                break;
-            case LockActionResult::UnknownAction:
-                sendResponse(jsonResult, "unknown_action", 404);
-                break;
-            case LockActionResult::AccessDenied:
-                sendResponse(jsonResult, "denied", 403);
-                break;
-            case LockActionResult::Failed:
-                sendResponse(jsonResult, "error", 500);
-                break;
-            }
-            return;
-        }
-
-        if (comparePrefixedPath(path, api_path_lock, api_path_keypad_command))
-        {
-            if (_keypadCommandReceivedReceivedCallback != nullptr)
-            {
-                if (!data || !*data)
-                {
-                    sendResponse(jsonResult, "missing data", 400);
-                    return;
-                }
-
-                JsonDocument json;
-
-                DeserializationError jsonError = deserializeJson(json, data);
-
-                if (jsonError)
-                {
-                    sendResponse(jsonResult, "invalid data", 400);
-                    return;
-                }
-
-                const char *command = json.containsKey("command") ? json["command"].as<const char *>() : nullptr;
-                _keypadCommandId = json.containsKey("id") ? json["id"].as<unsigned int>() : 0;
-                _keypadCommandName = json.containsKey("name") ? json["name"].as<String>() : "";
-                _keypadCommandEncCode = json.containsKey("code") ? json["code"].as<String>() : "";
-                _keypadCommandEnabled = json.containsKey("enabled") ? json["enabled"].as<int>() : 0;
-
-                if (!command || !*command)
-                {
-                    sendResponse(jsonResult, "invalid data", 400);
-                    return;
-                }
-
-                _keypadCommandReceivedReceivedCallback(command, _keypadCommandId, _keypadCommandName, _keypadCommandEncCode, _keypadCommandEnabled);
-
-                _keypadCommandId = 0;
-                _keypadCommandName = "";
-                _keypadCommandEncCode = "000000";
-                _keypadCommandEnabled = 1;
-
-                return;
-            }
-        }
-
-        bool queryCmdSet = false;
-        if (strcmp(data, "1") == 0)
-        {
-            if (comparePrefixedPath(path, api_path_lock, api_path_query_config))
-            {
-                _queryCommands = _queryCommands | QUERY_COMMAND_CONFIG;
-                queryCmdSet = true;
-            }
-            else if (comparePrefixedPath(path, api_path_lock, api_path_query_lockstate))
-            {
-                _queryCommands = _queryCommands | QUERY_COMMAND_LOCKSTATE;
-                queryCmdSet = true;
-            }
-            else if (comparePrefixedPath(path, api_path_lock, api_path_query_keypad))
-            {
-                _queryCommands = _queryCommands | QUERY_COMMAND_KEYPAD;
-                queryCmdSet = true;
-            }
-            else if (comparePrefixedPath(path, api_path_lock, api_path_query_battery))
-            {
-                _queryCommands = _queryCommands | QUERY_COMMAND_BATTERY;
-                queryCmdSet = true;
-            }
-            if (queryCmdSet)
-            {
-                sendResponse(jsonResult);
-                return;
-            }
-        }
-
-        if (comparePrefixedPath(path, api_path_lock, api_path_config_action))
-        {
-
-            if (!data || !*data)
-            {
-                sendResponse(jsonResult, "missing data", 400);
-                return;
-            }
-
-            if (_configUpdateReceivedCallback != NULL)
-            {
-                _configUpdateReceivedCallback(data);
-            }
-            return;
-        }
-
-        if (comparePrefixedPath(path, api_path_lock, api_path_timecontrol_action))
-        {
-            if (!data || !*data)
-            {
-                sendResponse(jsonResult, "missing data", 400);
-                return;
-            }
-
-            if (_timeControlCommandReceivedReceivedCallback != NULL)
-            {
-                _timeControlCommandReceivedReceivedCallback(data);
-            }
-            return;
-        }
-
-        if (comparePrefixedPath(path, api_path_lock, api_path_auth_action))
-        {
-            if (!data || !*data)
-            {
-                sendResponse(jsonResult, "missing data", 400);
-                return;
-            }
-
-            if (_authCommandReceivedReceivedCallback != NULL)
-            {
-                _authCommandReceivedReceivedCallback(data);
-            }
-            return;
-        }
-    }
-}
-
-void NukiNetwork::onShutdownReceived(const char *path, WebServer &server)
-{
-    Log->println("[INFO] (REST API) Shutdown request received");
-    Log->disableFileLog();
-    TaskWdtResetAndDelay(10);
-    disableHAR();
-    disableAPI();
-    _preferences->end();
-    safeShutdownESP(RestartReason::SafeShutdownRequestViaApi);
+    _restApiServer->start(localIP());
 }
 
 NetworkServiceState NukiNetwork::testNetworkServices()
 {
-    bool apiServerOk = true;
+    bool apiOk = _restApiServer->test(localIP());
+    _restApiServer->setOk(apiOk);
 
-    bool haClientOk = _harClient->test();
-    _harClient->setOk(haClientOk);
+    bool harOk = _harClient->test();
+    _harClient->setOk(harOk);
 
-    if (_apiEnabled)
-    {
-        // 4. check whether Rest Server (_server) exists
-        if (_server == nullptr)
-        {
-            Log->println(F("[DEBUG] _server is NULL!"));
-            apiServerOk = false;
-        }
-
-        if (apiServerOk)
-        {
-            WiFiClient client;
-            IPAddress ip;
-            // 5. test whether the local REST web server can be reached on the port
-            if (localIP() == "0.0.0.0" || !ip.fromString(localIP()))
-            {
-                Log->printf(F("[ERROR] Invalid IP address for REST WebServer: %s\r\n"), localIP().c_str());
-                apiServerOk = false;
-            }
-            //
-            // The following block attempts to verify if the internal REST WebServer is responsive
-            // by connecting a local HTTP client to the Ethernet interface using the device's own IP.
-            // This typically fails on ESP32 due to missing loopback routing in LWIP,
-            // unless special loopback flags are enabled (e.g., LWIP_NETIF_LOOPBACK).
-            // As such, this check is disabled to avoid false negatives.
-            //
-            /*             else if (!client.connect(ip, _apiPort))
-                        {
-                            Log->printf(F("[ERROR] REST WebServer is not responding (%s:%d)!\r\n"), localIP().c_str(), _apiPort);
-                            apiServerOk = false;
-                        }
-                        else
-                        {
-                            Log->println(F("[DEBUG] REST WebServer is responding."));
-                            client.stop();
-                        } */
-        }
-    }
-
-    // 6. return error code
-    if (apiServerOk && haClientOk)
-        return NetworkServiceState::OK; // all OK
-    if (!apiServerOk && haClientOk)
-        return NetworkServiceState::ERROR_REST_API_SERVER; // _server not reachable
-    if (apiServerOk && !haClientOk)
-        return NetworkServiceState::ERROR_HAR_CLIENT; // _httpClient / Home Automation not reachable
-    return NetworkServiceState::ERROR_BOTH;           // Both _server and _httpClient not reachable
+    if ( apiOk &&  harOk) return NetworkServiceState::OK;
+    if (!apiOk &&  harOk) return NetworkServiceState::ERROR_REST_API_SERVER;
+    if ( apiOk && !harOk) return NetworkServiceState::ERROR_HAR_CLIENT;
+    return NetworkServiceState::ERROR_BOTH;
 }
 
 void NukiNetwork::restartNetworkServices(NetworkServiceState status)
 {
-    if (!_harClient->isEnabled() && !_apiEnabled)
+    if (!_harClient->isEnabled() && !_restApiServer->isEnabled())
         return;
 
     if (status == NetworkServiceState::UNKNOWN)
@@ -1263,33 +904,12 @@ void NukiNetwork::restartNetworkServices(NetworkServiceState status)
     }
 
     // If the REST web server cannot be reached (-1 or -3), restart it
-    if (_apiEnabled)
+    if (_restApiServer->isEnabled())
     {
-        if (status == NetworkServiceState::ERROR_REST_API_SERVER || status == NetworkServiceState::ERROR_BOTH)
+        if (status == NetworkServiceState::ERROR_REST_API_SERVER ||
+            status == NetworkServiceState::ERROR_BOTH)
         {
-            if (_server)
-            {
-                Log->println(F("[INFO] Restarting the REST WebServer..."));
-                _server->stop();
-                delete _server;
-                _server = nullptr;
-            }
-            else
-            {
-                Log->println(F("[INFO] start REST API Server"));
-            }
-            _server = new WebServer(_apiPort);
-            if (_server)
-            {
-                _server->onNotFound([this]()
-                                    { onRestDataReceivedCallback(this->_server->uri().c_str(), *this->_server); });
-                _server->begin();
-                Log->println("[INFO] REST WebServer started on http://" + localIP() + ":" + String(_apiPort));
-            }
-            else
-            {
-                Log->println(F("[ERROR] REST Web Server cannot be initialized."));
-            }
+            _restApiServer->restart(localIP());
         }
     }
     Log->println(F("[DEBUG] Network services have been checked and reinit/restarted if necessary."));
@@ -1603,30 +1223,13 @@ void NukiNetwork::onDisconnected()
     }
 }
 
-bool NukiNetwork::comparePrefixedPath(const char *fullPath, const char *mainPath, const char *subPath)
-{
-    char prefixedPath[385];
-    buildApiPath(mainPath, subPath, prefixedPath);
-    return strcmp(fullPath, prefixedPath) == 0;
-}
-
-void NukiNetwork::buildApiPath(const char *mainPath, const char *subPath, char *outPath)
-{
-    // Copy (mainPath) to outPath
-    strncpy(outPath, mainPath, 384);
-    outPath[384] = '\0'; // Zero terminate to be on the safe side
-
-    // Append the (path) zo outPath
-    strncat(outPath, subPath, 384 - strlen(outPath));
-}
-
 void NukiNetwork::assignNewApiToken()
 {
-    _apitoken->assignNewToken();
+    _restApiServer->assignNewApiToken();
 }
 
 char *NukiNetwork::getApiToken()
 {
 
-    return _apitoken->get();
+    return _restApiServer->getApiToken();
 }

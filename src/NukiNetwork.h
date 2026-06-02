@@ -7,26 +7,17 @@
 #include <ETH.h>
 #include <Network.h>
 #include <SPI.h>
-#include <WebServer.h>
-#include <HTTPClient.h>
-#include <NetworkUdp.h>
-#include <WiFiClient.h>
-#include "ESP32Ping.h"
-#include <esp_mac.h>
-#include <ArduinoJson.h>
 
 #include "NukiConstants.h"
 #include "NukiLockConstants.h"
-#include "RestApiPaths.h"
 #include "IPConfiguration.h"
 #include "NetworkDeviceType.h"
-#include "BridgeApiToken.h"
 #include "NetworkServiceState.h"
 #include "ServiceRestartRequest.h"
-#include "QueryCommand.h"
 #include "LockActionResult.h"
 #include "ImportExport.h"
 #include "HarClient.h"
+#include "RestApiServer.h"
 
 /**
  * @brief Manages network interfaces (Wi-Fi, Ethernet), REST API, and Home Automation communication.
@@ -328,27 +319,6 @@ private:
     void startNetworkServices();
 
     /**
-     * @brief Static entry point for REST request processing (WebServer handler).
-     * @param path Full request URI path.
-     * @param server Reference to the WebServer instance.
-     */
-    static void onRestDataReceivedCallback(const char *path, WebServer &server);
-
-    /**
-     * @brief Handles the logic for REST requests internally.
-     * @param path Full request URI path.
-     * @param server Reference to the WebServer instance.
-     */
-    void onRestDataReceived(const char *path, WebServer &server);
-
-    /**
-     * @brief Handles logic for shutdown REST request.
-     * @param path Full request URI path.
-     * @param server Reference to the WebServer instance.
-     */
-    void onShutdownReceived(const char *path, WebServer &server);
-
-    /**
      * @brief Runs tests for WebServer (API) and HTTPClient (HAR) (e.g., ping).
      */
     NetworkServiceState testNetworkServices();
@@ -378,31 +348,6 @@ private:
      */
     void onDisconnected();
 
-    /**
-     * @brief Checks whether a REST path starts with the configured bridge path.
-     * @param fullPath Full path received from the request.
-     * @param subPath Path to compare with.
-     * @return True if prefixed path matches.
-     */
-    bool comparePrefixedPath(const char *fullPath, const char *mainPath, const char *subPath);
-
-    /**
-     * @brief Combines bridge path with the subpath.
-     * @param path Path to append.
-     * @param outPath Output buffer.
-     */
-    void buildApiPath(const char *mainPath, const char *path, char *outPath);
-
-    /**
-     * @brief Extracts and serializes HTTP arguments from the REST request into the internal buffer.
-     * @param server Reference to the WebServer instance.
-     * @return Pointer to the serialized argument string (JSON or plain text).
-     */
-    char *getArgs(WebServer &server);
-
-    // Singleton instance
-    static NukiNetwork *_inst;
-
     Preferences *_preferences;                                                // Preferences handler for NVS access
     ImportExport* _importExport;                                              // Import/Export handler                                                                 //
     IPConfiguration *_ipConfiguration = nullptr;                              // IP configuration helper (DHCP/static)
@@ -410,35 +355,23 @@ private:
     String _WiFissid;                                                         // Stored WiFi SSID
     String _WiFipass;                                                         // Stored WiFi password
                                                                               //
-    BridgeApiToken *_apitoken = nullptr;                                      // Token used for REST API authentication
     bool _firstBootAfterDeviceChange = false;                                 // True after switching from WiFi to Ethernet or vice versa
     bool _webCfgEnabled = true;                                               // Whether the Web Config interface is enabled
-    bool _apiEnabled = false;                                                 // Whether REST API is enabled
     bool _openAP = false;                                                     // Whether Access Point mode is active
     bool _APisReady = false;                                                  // True if AP is initialized and ready
     bool _startAP = true;                                                     // True if AP should be started due to no WiFi
     bool _connected = false;                                                  // Network connection state
     bool _ethConnected = false;                                               // Flag to temporarily store (ARDUINO_EVENT_ETH_CONNECTED)
-    bool _lockEnabled = false;                                                // Whether lock control via API is enabled
     bool _hardwareInitialized = false;                                        // Flag indicating that network hardware is initialized
     bool _restartOnDisconnect = false;                                        // Whether the device should reboot on disconnect
-    bool _firstTunerStateSent = true;                                         // Ensures the first lock state is always sent
     NetworkServiceState _networkServicesState = NetworkServiceState::UNKNOWN; // Current state of network services
                                                                               //
     ServiceRestartRequest _pendingServiceRestart = ServiceRestartRequest::None;  // Pending service restart request
-                                                                              //
-    String _keypadCommandName = "";                                           // Temporary buffer for keypad command name
-    String _keypadCommandEncCode = "";                                        // Temporary buffer for encrypted keypad command code
-    uint _keypadCommandId = 0;                                                // Temporary buffer for keypad command ID
-    int _keypadCommandEnabled = 1;                                            // Temporary buffer for keypad enabled state
-                                                                              //
-    uint8_t _queryCommands = 0;                                               // Bitmask of active QUERY_COMMAND_* values
                                                                               //
     int64_t _checkIpTs = -1;                                                  // Last time IP was validated
     int64_t _lastConnectedTs = 0;                                             // Last time a successful connection occurred
     int64_t _lastNetworkServiceTs = 0;                                        // Last time services were checked
                                                                               //
-    WebServer *_server = nullptr;                                             // REST API web server instance
     int _foundNetworks = 0;                                                   // Number of WiFi networks found during last scan
     int _networkTimeout = 0;                                                  // Timeout in ms for network operations
     int _networkServicesConnectCounter = 0;                                   // Counter for tracking connection attempts
@@ -446,16 +379,8 @@ private:
     NetworkDeviceType _networkDeviceType = NetworkDeviceType::UNDEFINED;      // WiFi or Ethernet
                                                                               //
     HarClient* _harClient = nullptr;                                          // Home Automation Reporting client (owned)
-                                                                              //
-    char *_restArgsBuffer;                                                    // Shared buffer for response generation
-    int _apiPort;                                                             // REST API server port
+    RestApiServer* _restApiServer = nullptr;                                  // REST API server (owned)     
 
-    // Callback handlers
-    LockActionResult (*_lockActionReceivedCallback)(const char *value) = nullptr;                                                                              // Lock command handler
-    void (*_configUpdateReceivedCallback)(const char *value) = nullptr;                                                                                        // Config update handler
-    void (*_keypadCommandReceivedReceivedCallback)(const char *command, const uint &id, const String &name, const String &code, const int &enabled) = nullptr; // Keypad handler
-    void (*_timeControlCommandReceivedReceivedCallback)(const char *value) = nullptr;                                                                          // Time control handler
-    void (*_authCommandReceivedReceivedCallback)(const char *value) = nullptr;                                                                                 // Auth command handler
 };
 
 // Globale oder externe Variablen
