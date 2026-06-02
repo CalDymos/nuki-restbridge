@@ -70,7 +70,6 @@ WebCfgServer::WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences 
     }
     _hostname = _preferences->getString(preference_hostname, "");
     String str = _preferences->getString(preference_cred_user, "");
-    str = _preferences->getString(preference_cred_user, "");
     _allowRestartToPortal = (network->networkDeviceType() == NetworkDeviceType::WiFi);
 
     if (str.length() > 0)
@@ -78,12 +77,11 @@ WebCfgServer::WebCfgServer(NukiWrapper *nuki, NukiNetwork *network, Preferences 
         memset(&_credUser, 0, sizeof(_credUser));
         memset(&_credPassword, 0, sizeof(_credPassword));
 
-        const char *user = str.c_str();
-        memcpy(&_credUser, user, str.length());
+        // strlcpy instead of memcpy: always null-terminates, respects buffer size
+        strlcpy(_credUser, str.c_str(), sizeof(_credUser));
 
         str = _preferences->getString(preference_cred_password, "");
-        const char *pass = str.c_str();
-        memcpy(&_credPassword, pass, str.length());
+        strlcpy(_credPassword, str.c_str(), sizeof(_credPassword));
 
         if (_preferences->getInt(preference_http_auth_type, 0) == 2)
         {
