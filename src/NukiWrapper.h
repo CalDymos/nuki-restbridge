@@ -303,8 +303,8 @@ private:
     NukiRetryHandler *_nukiRetryHandler = nullptr; // Retry handler for Nuki communication.
 
                                                                                                //
-    NukiLock::KeyTurnerState _lastKeyTurnerState;                                              // Previously known KeyTurnerState.
-    NukiLock::KeyTurnerState _keyTurnerState;                                                  // Most recent KeyTurnerState from the device.
+    NukiLock::KeyTurnerState _lastKeyTurnerState{};                                            // Previously known KeyTurnerState.
+    NukiLock::KeyTurnerState _keyTurnerState{};                                                // Most recent KeyTurnerState from the device.
                                                                                                //
     std::vector<uint16_t> _keypadCodeIds;                                                      // IDs of configured keypad codes.
     std::vector<uint32_t> _keypadCodes;                                                        // Keypad code hashes (or representations).
@@ -325,11 +325,11 @@ private:
     NukiLock::AdvancedConfig _nukiAdvancedConfig = {0};                                        // Advanced configuration.
     bool _nukiConfigValid = false;                                                             // Whether the basic configuration is valid.
     bool _nukiAdvancedConfigValid = false;                                                     // Whether the advanced configuration is valid.
-    uint32_t _basicLockConfigaclPrefs[16];                                                     // Stored preference bitfields for access control of basic lock configuration (persisted per ACL entry).
-    uint32_t _advancedLockConfigaclPrefs[26];                                                  // Stored preference bitfields for access control of advanced lock configuration (persisted per ACL entry).
+    uint32_t _basicLockConfigaclPrefs[16] = {};                                                // Stored preference bitfields for access control of basic lock configuration (persisted per ACL entry).
+    uint32_t _advancedLockConfigaclPrefs[26] = {};                                             // Stored preference bitfields for access control of advanced lock configuration (persisted per ACL entry).
                                                                                                //
-    NukiLock::BatteryReport _batteryReport;                                                    // Latest battery status reported by the lock.
-    NukiLock::BatteryReport _lastBatteryReport;                                                // Previously stored battery report.
+    NukiLock::BatteryReport _batteryReport{};                                                  // Latest battery status reported by the lock.
+    NukiLock::BatteryReport _lastBatteryReport{};                                              // Previously stored battery report.
                                                                                                //
     int _intervalLockstate = 0;                                                                // Update interval for lock state polling (seconds).
     int _intervalBattery = 0;                                                                  // Update interval for battery checks (seconds).

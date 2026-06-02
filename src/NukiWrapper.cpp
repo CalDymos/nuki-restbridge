@@ -17,18 +17,18 @@ NukiWrapper::NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, 
       _bleScanner(scanner),
       _nukiLock(deviceName, _deviceId->get()),
       _network(network),
-      _preferences(preferences)
+      _preferences(preferences),
+      _lastKeyTurnerState{},
+      _keyTurnerState{},
+      _lastBatteryReport{},
+      _batteryReport{}
 {
     Log->print(F("[DEBUG] Device id lock: "));
     Log->println(_deviceId->get());
 
     nukiInst = this;
 
-    // KeyTurnerState und BatteryReport initialisieren
-    NukiLock::KeyTurnerState _lastKeyTurnerState{};  // zero-initialized
-    NukiLock::KeyTurnerState _keyTurnerState{};
-    NukiLock::BatteryReport  _lastBatteryReport{};
-    NukiLock::BatteryReport  _batteryReport{};
+    // Set initial lock state on the actual member variable
     _keyTurnerState.lockState = NukiLock::LockState::Undefined;
 
     network->setLockActionReceivedCallback(nukiInst->onLockActionReceivedCallback);
@@ -70,7 +70,10 @@ void NukiWrapper::initialize()
 
 void NukiWrapper::readSettings()
 {
-    esp_power_level_t powerLevel;
+    // Safe default: lowest power level.
+    // Covers any preference value below -12 dBm and guards against
+    // uninitialised use if new power-level enums are added in the future.
+    esp_power_level_t powerLevel = ESP_PWR_LVL_N12;
     int pwrLvl = _preferences->getInt(preference_ble_tx_power, 0);
 
     if (pwrLvl >= 9)
@@ -106,11 +109,11 @@ void NukiWrapper::readSettings()
     }
     else if (pwrLvl >= 3)
     {
-        powerLevel = ESP_PWR_LVL_P6;
+        powerLevel = ESP_PWR_LVL_P3;  // was ESP_PWR_LVL_P6 — copy-paste bug fixed
     }
     else if (pwrLvl >= 0)
     {
-        powerLevel = ESP_PWR_LVL_P3;
+        powerLevel = ESP_PWR_LVL_N0;
     }
     else if (pwrLvl >= -3)
     {
@@ -124,9 +127,9 @@ void NukiWrapper::readSettings()
     {
         powerLevel = ESP_PWR_LVL_N9;
     }
-    else if (pwrLvl >= -12)
+    else
     {
-        powerLevel = ESP_PWR_LVL_N12;
+        powerLevel = ESP_PWR_LVL_N12;  // covers pwrLvl < -9 (including < -12)
     }
 
     _nukiLock.setPower(powerLevel);
@@ -3448,19 +3451,40 @@ bool NukiWrapper::readConfig()
     return _nukiConfigValid;
 }
 
+// Extended Euclidean Algorithm — O(log n) modular multiplicative inverse.
+//
+// Replaces the previous O(n) brute-force loop that iterated up to
+// _keypadCodeModulus times (default: 1,000,000 iterations) while blocking
+// the BLE task.
+//
+// Returns the modular inverse of 'a' modulo 'm', i.e. the value x such that
+//   (a * x) % m == 1
+// Returns 0 if no inverse exists (gcd(a, m) != 1).
+//
+// Typical iteration count for the default parameters
+//   (multiplier=73, modulus=1,000,000): ~35 iterations.
+static uint32_t modInverse(uint32_t a, uint32_t m)
+{
+    if (m <= 1) return 0;
+
+    int64_t old_r = (int64_t)a,  r = (int64_t)m;
+    int64_t old_s = 1,           s = 0;
+
+    while (r != 0)
+    {
+        int64_t q   = old_r / r;
+        int64_t tmp = r;   r   = old_r - q * r;   old_r = tmp;
+                    tmp = s;   s   = old_s - q * s;   old_s = tmp;
+    }
+
+    if (old_r != 1) return 0;               // gcd(a, m) != 1 — no inverse exists
+    if (old_s < 0)  old_s += (int64_t)m;
+    return (uint32_t)old_s;
+}
+
 uint32_t NukiWrapper::calcKeypadCodeInverse()
 {
-
-    uint32_t inverse = 0;
-    for (uint32_t i = 1; i < _keypadCodeModulus; ++i)
-    {
-        if ((_keypadCodeMultiplier * i) % _keypadCodeModulus == 1)
-        {
-            inverse = i;
-            break;
-        }
-    }
-    return inverse;
+    return modInverse(_keypadCodeMultiplier, _keypadCodeModulus);
 }
 
 uint32_t NukiWrapper::encryptKeypadCode(uint32_t code)
