@@ -318,8 +318,8 @@ private:
     bool _forceId = false;                                                                     // Force assignment of a specific device ID.
     bool _keypadInfoEnabled = false;                                                           // Indicates if the keypad info is currently active.
                                                                                                //
-    bool _authInfoEnabled = false;                                                             // Indicates if the keypad info is currently active.
-    bool _timeCtrlInfoEnabled = false;                                                         // Indicates if the keypad info is currently active.
+    bool _authInfoEnabled = false;                                                             // Indicates if authorization info reporting is currently active.
+    bool _timeCtrlInfoEnabled = false;                                                         // Indicates if time control info reporting is currently active.
                                                                                                //
     NukiLock::Config _nukiConfig = {0};                                                        // Basic configuration of the lock.
     NukiLock::AdvancedConfig _nukiAdvancedConfig = {0};                                        // Advanced configuration.
