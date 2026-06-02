@@ -2,12 +2,9 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
-#include <WiFi.h>
-#include "esp_wifi.h"
-#include <ETH.h>
-#include <Network.h>
-#include <SPI.h>
 
+#include "networkDevices/NetworkDevice.h"
+#include "networkDevices/NetworkDeviceFactory.h"
 #include "NukiConstants.h"
 #include "NukiLockConstants.h"
 #include "IPConfiguration.h"
@@ -293,6 +290,16 @@ public:
      */
     void requestServiceRestart(bool reconnect = false);
 
+    /**
+     * @brief Tests the validity of Wi-Fi credentials.
+     *
+     * @param ssid  Wi-Fi network name.
+     * @param pass  Wi-Fi password.
+     * @return true  if the credentials are valid and a connection can be established within the timeout.
+     * @return false if the connection failed or the device is not Wi-Fi.
+     * @param timeoutMs  Time in milliseconds to wait for a successful connection.
+     */
+    bool testWifiCredentials(const String& ssid, const String& pass, uint32_t timeoutMs);
 
 private:
     /**
@@ -304,16 +311,6 @@ private:
     void setupDevice();
 
     /**
-     * @brief Initializes WiFi (and optionally calls connect()).
-     */
-    void initializeWiFi();
-
-    /**
-     * @brief Initializes Ethernet (DHCP or static IP).
-     */
-    void initializeEthernet();
-
-    /**
      * @brief Starts WebServer (API) and HTTPClient (HAR) if necessary.
      */
     void startNetworkServices();
@@ -323,59 +320,25 @@ private:
      */
     NetworkServiceState testNetworkServices();
 
-    /**
-     * @brief Handles network-related events (WiFi/Ethernet callback).
-     */
-    void onNetworkEvent(arduino_event_id_t event, arduino_event_info_t info);
-
-    /**
-     * @brief Internal callback when a network connection is successfully established.
-     */
-    void onConnected();
-
-    /**
-     * @brief Connects using saved SSID/password or opens access point.
-     */
-    bool connect();
-
-    /**
-     * @brief Opens an access point if no SSID is configured.
-     */
-    void openAP();
-
-    /**
-     * @brief Handles disconnect if WiFi or Ethernet connection is lost.
-     */
-    void onDisconnected();
-
     Preferences *_preferences;                                                // Preferences handler for NVS access
     ImportExport* _importExport;                                              // Import/Export handler                                                                 //
     IPConfiguration *_ipConfiguration = nullptr;                              // IP configuration helper (DHCP/static)
     String _hostname;                                                         // Hostname used on the network (WiFi or Ethernet)
-    String _WiFissid;                                                         // Stored WiFi SSID
-    String _WiFipass;                                                         // Stored WiFi password
                                                                               //
     bool _firstBootAfterDeviceChange = false;                                 // True after switching from WiFi to Ethernet or vice versa
     bool _webCfgEnabled = true;                                               // Whether the Web Config interface is enabled
-    bool _openAP = false;                                                     // Whether Access Point mode is active
-    bool _APisReady = false;                                                  // True if AP is initialized and ready
-    bool _startAP = true;                                                     // True if AP should be started due to no WiFi
-    bool _connected = false;                                                  // Network connection state
-    bool _ethConnected = false;                                               // Flag to temporarily store (ARDUINO_EVENT_ETH_CONNECTED)
-    bool _hardwareInitialized = false;                                        // Flag indicating that network hardware is initialized
     bool _restartOnDisconnect = false;                                        // Whether the device should reboot on disconnect
     NetworkServiceState _networkServicesState = NetworkServiceState::UNKNOWN; // Current state of network services
                                                                               //
     ServiceRestartRequest _pendingServiceRestart = ServiceRestartRequest::None;  // Pending service restart request
                                                                               //
-    int64_t _checkIpTs = -1;                                                  // Last time IP was validated
     int64_t _lastConnectedTs = 0;                                             // Last time a successful connection occurred
     int64_t _lastNetworkServiceTs = 0;                                        // Last time services were checked
                                                                               //
-    int _foundNetworks = 0;                                                   // Number of WiFi networks found during last scan
     int _networkTimeout = 0;                                                  // Timeout in ms for network operations
     int _networkServicesConnectCounter = 0;                                   // Counter for tracking connection attempts
                                                                               //
+    NetworkDevice* _device = nullptr;                                         // Owned - is created in initialize()
     NetworkDeviceType _networkDeviceType = NetworkDeviceType::UNDEFINED;      // WiFi or Ethernet
                                                                               //
     HarClient* _harClient = nullptr;                                          // Home Automation Reporting client (owned)
