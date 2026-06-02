@@ -125,6 +125,8 @@ void NukiNetwork::initialize()
                 TaskWdtResetAndDelay(200);
                 restartEsp(RestartReason::NetworkDeviceCriticalFailure);
             }
+
+            return;
         }
 
         Log->print(F("[DEBUG] Host name: "));
@@ -137,9 +139,9 @@ void NukiNetwork::initialize()
         // Give the network time to get an IP
         const int64_t startMillis = espMillis();
         // Wait until there is a connection or 10 seconds have elapsed
-        while (!isConnected() && (espMillis() - startMillis < 10000))
+        while (!isConnected() && !isApOpen() && (espMillis() - startMillis < 10000))
         {
-            yield();
+            TaskWdtResetAndDelay(100);
         }
 
         startNetworkServices();
