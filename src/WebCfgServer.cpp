@@ -604,6 +604,11 @@ void WebCfgServer::initialize()
                         {
                             hasSensitiveChange = true;
                         }
+                        else if(this->_webServer->hasArg("APIALLOWIP") &&
+                                this->_webServer->arg("APIALLOWIP") != _preferences->getString(preference_api_allowed_ip, ""))
+                        {
+                            hasSensitiveChange = true;
+                        }
                     }
 
                     if(hasSensitiveChange)
@@ -1479,7 +1484,7 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
     String response;
     reserveHtmlResponse(response,
                         1, // Checkbox
-                        1, // Input fields
+                        2, // Input fields (APIPORT + APIALLOWIP)
                         0, // Dropdown
                         0, // Dropdown options
                         0, // Textareas
@@ -1496,6 +1501,7 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
 
     appendCheckBoxRow(response, "APIENA", "Enable REST API", _preferences->getBool(preference_api_enabled, false), "", "");
     appendInputFieldRow(response, "APIPORT", "API Port", _preferences->getInt(preference_api_port, 8080), 6, "");
+    appendInputFieldRow(response, "APIALLOWIP", "Allowed IP (e.g. Loxone Miniserver)", _preferences->getString(preference_api_allowed_ip, "").c_str(), 39, "");
 
     const char *currentToken = _network->getApiToken();
 
@@ -1505,6 +1511,7 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
     response += F("\" readonly>");
     response += F("&nbsp;<a href=\"/get?page=apiconfig&genapitoken=1\"><input type=\"button\" value=\"Generate new token\"></a>");
     response += F("</td></tr>");
+    response += F("<tr><td colspan=\"2\"><small class=\"warning\">Security: only the configured IP may call the REST API. Leave empty to allow all hosts.</small></td></tr>");
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
 
@@ -2179,6 +2186,11 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += String(_preferences->getInt(preference_api_port, 0));
     response += F("\nAPI auth token: ");
     response += _preferences->getString(preference_api_token).length() > 0 ? F("***") : F("Not set");
+    response += F("\nAPI allowed IP: ");
+    {
+        String allowedIp = _preferences->getString(preference_api_allowed_ip, "");
+        response += allowedIp.length() > 0 ? allowedIp : F("All hosts (no restriction)");
+    }
 
     // HomeAutomation
     response += F("\n\n------------ HOME AUTOMATION REPORTING ------------");
@@ -3438,6 +3450,16 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 _preferences->putInt(preference_api_port, value.toInt());
                 Log->print("Setting changed: ");
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "APIALLOWIP")
+        {
+            if (_preferences->getString(preference_api_allowed_ip, "") != value)
+            {
+                _preferences->putString(preference_api_allowed_ip, value);
+                Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;
             }
