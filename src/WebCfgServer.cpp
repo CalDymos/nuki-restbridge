@@ -4539,28 +4539,9 @@ bool WebCfgServer::processConnectionSettings(WebServer *server, String &message,
 
         if (ssid.length() > 0 && pass.length() > 0)
         {
-            if (_preferences->getBool(preference_ip_dhcp_enabled, true) &&
-                _preferences->getString(preference_ip_address, "").isEmpty())
-            {
-                const IPConfiguration *_ipConfig = new IPConfiguration(_preferences);
+            bool connected = _network->testWifiCredentials(ssid, pass, 15000);
 
-                if (!_ipConfig->dhcpEnabled())
-                {
-                    WiFi.config(_ipConfig->ipAddress(), _ipConfig->dnsServer(), _ipConfig->defaultGateway(), _ipConfig->subnet());
-                }
-                delete _ipConfig;
-            }
-
-            WiFi.begin(ssid, pass);
-
-            int loop = 0;
-            while (!_network->isConnected() && loop < 150)
-            {
-                delay(100);
-                loop++;
-            }
-
-            if (_network->isConnected())
+            if (connected)
             {
                 _preferences->putString(preference_wifi_ssid, ssid);
                 _preferences->putString(preference_wifi_pass, pass);
@@ -4569,7 +4550,8 @@ bool WebCfgServer::processConnectionSettings(WebServer *server, String &message,
             }
             else
             {
-                message = "Failed to connect to the given SSID with the given secret key, credentials not saved<br/>";
+                message = "Failed to connect to the given SSID with the given secret key, "
+                        "credentials not saved<br/>";
                 result = false;
             }
         }
