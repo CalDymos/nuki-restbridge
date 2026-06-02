@@ -1,4 +1,9 @@
 Import("env")  # type: ignore
+
+# Native tests do not use an ESP32 board or sdkconfig files.
+if env.subst("$PIOENV") == "native": # type: ignore
+    Return() # type: ignore
+    
 import re, shutil, os
 from datetime import datetime, timezone
 
