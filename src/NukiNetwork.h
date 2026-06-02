@@ -7,7 +7,7 @@
 #include "networkDevices/NetworkDeviceFactory.h"
 #include "NukiConstants.h"
 #include "NukiLockConstants.h"
-#include "IPConfiguration.h"
+#include "networkDevices/IPConfiguration.h"
 #include "NetworkDeviceType.h"
 #include "NetworkServiceState.h"
 #include "ServiceRestartRequest.h"
