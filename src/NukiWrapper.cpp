@@ -281,7 +281,7 @@ void NukiWrapper::update(bool reboot)
 
     _nukiLock.updateConnectionState();
 
-    if (_nextLockAction != (NukiLock::LockAction)0xff)
+    if (_nextLockAction != kNoLockAction)
     {
         int retryCount = 0;
         Nuki::CmdResult cmdResult = _nukiRetryHandler->retryComm([&]()
@@ -303,7 +303,7 @@ void NukiWrapper::update(bool reboot)
 
         if (cmdResult == Nuki::CmdResult::Success)
         {
-            _nextLockAction = (NukiLock::LockAction)0xff;
+            _nextLockAction = kNoLockAction;
 
             retryCount = 0;
             _statusUpdated = true;
@@ -319,8 +319,7 @@ void NukiWrapper::update(bool reboot)
         {
             Log->println(F("[WARNING] Lock: Maximum number of retries exceeded, aborting."));
 
-            retryCount = 0;
-            _nextLockAction = (NukiLock::LockAction)0xff;
+            _nextLockAction = kNoLockAction;
         }
     }
     if (_statusUpdated || _nextLockStateUpdateTs == 0 || ts >= _nextLockStateUpdateTs || (queryCommands & QUERY_COMMAND_LOCKSTATE) > 0)
@@ -591,23 +590,29 @@ bool NukiWrapper::updateKeyTurnerState()
         _statusUpdatedTs = espMillis();
     }
 
-    if (lockState == NukiLock::LockState::Locked ||
-        lockState == NukiLock::LockState::Unlocked ||
-        lockState == NukiLock::LockState::Calibration ||
-        lockState == NukiLock::LockState::BootRun ||
-        lockState == NukiLock::LockState::MotorBlocked)
+    // Terminal states (Locked, Unlocked, Calibration, BootRun, MotorBlocked)
+    // need no further rapid polling — updateStatus stays false.
+    // All other states (intermediate transitions, Undefined) are handled below.
+    const bool isTerminalState =
+        lockState == NukiLock::LockState::Locked      ||
+        lockState == NukiLock::LockState::Unlocked     ||
+        lockState == NukiLock::LockState::Calibration  ||
+        lockState == NukiLock::LockState::BootRun      ||
+        lockState == NukiLock::LockState::MotorBlocked;
+
+    if (!isTerminalState)
     {
-    }
-    else if (espMillis() < _statusUpdatedTs + 10000)
-    {
-        updateStatus = true;
-        Log->println("[DEBUG] Lock: Keep updating status on intermediate lock state");
-    }
-    else if (lockState == NukiLock::LockState::Undefined)
-    {
-        if (_nextLockStateUpdateTs > espMillis() + 60000)
+        if (espMillis() < _statusUpdatedTs + 10000)
         {
-            _nextLockStateUpdateTs = espMillis() + 60000;
+            updateStatus = true;
+            Log->println("[DEBUG] Lock: Keep updating status on intermediate lock state");
+        }
+        else if (lockState == NukiLock::LockState::Undefined)
+        {
+            if (_nextLockStateUpdateTs > espMillis() + 60000)
+            {
+                _nextLockStateUpdateTs = espMillis() + 60000;
+            }
         }
     }
     _network->sendToHAKeyTurnerState(_keyTurnerState, _lastKeyTurnerState);
@@ -849,7 +854,7 @@ void NukiWrapper::updateAuth(bool retrieved)
         printCommandResult(result);
         if (result == Nuki::CmdResult::Success)
         {
-            _waitAuthUpdateTs = millis() + 5000;
+            _waitAuthUpdateTs = espMillis() + 5000;
         }
         else
         {
@@ -1090,7 +1095,7 @@ NukiLock::LockAction NukiWrapper::lockActionToEnum(const char *str)
     {
         return NukiLock::LockAction::FobAction3;
     }
-    return (NukiLock::LockAction)0xff;
+    return kNoLockAction;
 }
 
 LockActionResult NukiWrapper::onLockActionReceivedCallback(const char *value)
@@ -1107,7 +1112,7 @@ LockActionResult NukiWrapper::onLockActionReceived(const char *value)
         if (strlen(value) > 0)
         {
             action = nukiInst->lockActionToEnum(value);
-            if ((int)action == 0xff)
+            if (action == kNoLockAction)
             {
                 return LockActionResult::UnknownAction;
             }

@@ -135,10 +135,9 @@ void NukiNetwork::initialize()
         readSettings();
 
         // Give the network time to get an IP
-        unsigned long startMillis;
-        startMillis = millis();
+        const int64_t startMillis = espMillis();
         // Wait until there is a connection or 10 seconds have elapsed
-        while (!isConnected() && (millis() - startMillis < 10000))
+        while (!isConnected() && (espMillis() - startMillis < 10000))
         {
             yield();
         }

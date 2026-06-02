@@ -11,6 +11,11 @@
 #include "RestartReason.h"
 #include "BleControllerRestartReason.h"
 
+/// Sentinel value meaning "no lock action pending".
+/// Used to initialise and reset _nextLockAction.
+/// 0xff is outside the defined NukiLock::LockAction enum range.
+static constexpr NukiLock::LockAction kNoLockAction = (NukiLock::LockAction)0xff;
+
 class NukiWrapper : public Nuki::SmartlockEventHandler
 {
 public:
@@ -380,5 +385,5 @@ private:
     int64_t _lastCodeCheck = 0;                                                                // Last time the PIN codes were checked.
     int64_t _lastRssi = 0;                                                                     // Last known RSSI value.
                                                                                                //
-    volatile NukiLock::LockAction _nextLockAction = (NukiLock::LockAction)0xff;                // Next lock action to be performed via API.
+    volatile NukiLock::LockAction _nextLockAction = kNoLockAction;                             // Next lock action to be performed via API. kNoLockAction = none pending.
 };

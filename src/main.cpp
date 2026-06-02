@@ -960,7 +960,10 @@ void setup()
 
 void loop()
 {
-  Log->println(F("[DEBUG] run loop()"));
-  // deletes the Arduino loop task
+  // The Arduino loop() task is not used — all work runs in dedicated FreeRTOS
+  // tasks (nukiTask, networkTask, webCfgTask). Delete this task immediately.
+#ifdef DEBUG_NUKIBRIDGE
+  Log->println(F("[DEBUG] loop() reached — deleting Arduino loop task"));
+#endif
   vTaskDelete(NULL);
 }
