@@ -1,4 +1,3 @@
-#define IS_VALID_DETECT 0xa00ab00bc00bd00d;
 
 #include <Arduino.h>
 #include "esp_crt_bundle.h"
@@ -215,21 +214,24 @@ static void stopWebCfgServer()
  */
 void bootloopDetection()
 {
-  uint64_t cmp = IS_VALID_DETECT;
-  bool bootloopIsValid = (bootloopValidDetect == cmp);
+  // Use the shared magic constant from RestartReason.h (replaces the local
+  // IS_VALID_DETECT macro that was a duplicate).
+  bool bootloopIsValid = (bootloopValidDetect == RESTART_REASON_VALID_DETECT);
   Log->printf(F("[DEBUG] %d\n"), bootloopIsValid);
 
   if (!bootloopIsValid)
   {
     bootloopCounter = (int8_t)0;
-    bootloopValidDetect = IS_VALID_DETECT;
+    bootloopValidDetect = RESTART_REASON_VALID_DETECT;
     return;
   }
 
-  if (esp_reset_reason() == esp_reset_reason_t::ESP_RST_PANIC ||
-      esp_reset_reason() == esp_reset_reason_t::ESP_RST_INT_WDT ||
-      esp_reset_reason() == esp_reset_reason_t::ESP_RST_TASK_WDT ||
-      esp_reset_reason() == esp_reset_reason_t::ESP_RST_WDT)
+  // Cache once — esp_reset_reason() is an IPC call.
+  const esp_reset_reason_t resetReason = esp_reset_reason();
+  if (resetReason == esp_reset_reason_t::ESP_RST_PANIC ||
+      resetReason == esp_reset_reason_t::ESP_RST_INT_WDT ||
+      resetReason == esp_reset_reason_t::ESP_RST_TASK_WDT ||
+      resetReason == esp_reset_reason_t::ESP_RST_WDT)
   {
     bootloopCounter++;
     Log->printf(F("[DEBUG] Bootloop counter incremented: %d\n"), bootloopCounter);
