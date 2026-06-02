@@ -859,6 +859,14 @@ void setup()
   Log = new Logger(&Serial, preferences);
   Log->setLevel((Logger::msgtype)preferences->getInt(preference_log_level, Logger::MSG_INFO));
 
+  webCfgServerMutex = xSemaphoreCreateMutex();
+  if (webCfgServerMutex == nullptr)
+  {
+    Log->println(F("[CRITICAL] Failed to create webCfgServerMutex"));
+    delay(2000);
+    ESP.restart();
+  }
+
   initializeRestartReason();
 
   esp_reset_reason_t reason = esp_reset_reason();
