@@ -8,6 +8,7 @@
 #include "hal/wdt_hal.h"
 #include <time.h>
 #include "util/TaskUtils.h"
+#include "util/CryptoUtils.h"
 
 NukiWrapper *nukiInst = nullptr;
 
@@ -3439,7 +3440,6 @@ void NukiWrapper::notify(Nuki::EventType eventType)
 bool NukiWrapper::readConfig()
 {
     Nuki::CmdResult result = (Nuki::CmdResult)-1;
-    int retryCount = 0;
 
     result = _nukiRetryHandler->retryComm([&]()
     { 
@@ -3456,36 +3456,7 @@ bool NukiWrapper::readConfig()
     return _nukiConfigValid;
 }
 
-// Extended Euclidean Algorithm — O(log n) modular multiplicative inverse.
-//
-// Replaces the previous O(n) brute-force loop that iterated up to
-// _keypadCodeModulus times (default: 1,000,000 iterations) while blocking
-// the BLE task.
-//
-// Returns the modular inverse of 'a' modulo 'm', i.e. the value x such that
-//   (a * x) % m == 1
-// Returns 0 if no inverse exists (gcd(a, m) != 1).
-//
-// Typical iteration count for the default parameters
-//   (multiplier=73, modulus=1,000,000): ~35 iterations.
-static uint32_t modInverse(uint32_t a, uint32_t m)
-{
-    if (m <= 1) return 0;
-
-    int64_t old_r = (int64_t)a,  r = (int64_t)m;
-    int64_t old_s = 1,           s = 0;
-
-    while (r != 0)
-    {
-        int64_t q   = old_r / r;
-        int64_t tmp = r;   r   = old_r - q * r;   old_r = tmp;
-                    tmp = s;   s   = old_s - q * s;   old_s = tmp;
-    }
-
-    if (old_r != 1) return 0;               // gcd(a, m) != 1 — no inverse exists
-    if (old_s < 0)  old_s += (int64_t)m;
-    return (uint32_t)old_s;
-}
+// modInverse() is now in util/CryptoUtils.h (inline, testable natively).
 
 uint32_t NukiWrapper::calcKeypadCodeInverse()
 {
@@ -3494,19 +3465,12 @@ uint32_t NukiWrapper::calcKeypadCodeInverse()
 
 uint32_t NukiWrapper::encryptKeypadCode(uint32_t code)
 {
-    return ((code * _keypadCodeMultiplier + _keypadCodeOffset) % _keypadCodeModulus) + _keypadCodeModulus;
+    return ::encryptKeypadCode(code, _keypadCodeMultiplier, _keypadCodeOffset, _keypadCodeModulus);
 }
 
 uint32_t NukiWrapper::decryptKeypadCode(uint32_t encryptedCode)
 {
-
-    if (_keypadCodeInverse == 0)
-    {
-        // Error: no inverse
-        return 0;
-    }
-
-    return ((encryptedCode - _keypadCodeOffset) * _keypadCodeInverse) % _keypadCodeModulus;
+    return ::decryptKeypadCode(encryptedCode, _keypadCodeInverse, _keypadCodeOffset, _keypadCodeModulus);
 }
 
 bool NukiWrapper::readAdvancedConfig()

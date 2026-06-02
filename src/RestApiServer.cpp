@@ -4,6 +4,7 @@
 #include "Logger.h"
 #include "RestartReason.h"
 #include "util/TaskUtils.h"
+#include "util/AuthUtils.h"
 
 // -----------------------------------------------------------------------
 // Constructor / Destructor
@@ -580,26 +581,7 @@ char* RestApiServer::getArgs(WebServer& server)
 // Token authentication helper
 // -----------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Constant-time string comparison — prevents timing-based token reconstruction.
-// Returns true only if both strings are identical in both length and content.
-// ---------------------------------------------------------------------------
-static bool constTimeStrEqual(const char* a, const char* b)
-{
-    const size_t lenA = strlen(a);
-    const size_t lenB = strlen(b);
-    // Compare the full longer string so execution time is independent of
-    // where the first difference occurs.
-    const size_t maxLen = (lenA > lenB) ? lenA : lenB;
-    uint8_t diff = (uint8_t)(lenA ^ lenB); // non-zero if lengths differ
-    for (size_t i = 0; i < maxLen; i++)
-    {
-        uint8_t ca = (i < lenA) ? (uint8_t)a[i] : 0;
-        uint8_t cb = (i < lenB) ? (uint8_t)b[i] : 0;
-        diff |= ca ^ cb;
-    }
-    return diff == 0;
-}
+// constTimeStrEqual() is now in util/AuthUtils.h (inline, testable natively).
 
 bool RestApiServer::isAuthenticated(WebServer& server) const
 {
