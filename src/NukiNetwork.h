@@ -347,7 +347,6 @@ private:
 };
 
 // Globale oder externe Variablen
-extern bool ethCriticalFailure;
 extern bool wifiFallback;
 extern bool disableNetwork;
 extern bool forceEnableWebCfgServer;

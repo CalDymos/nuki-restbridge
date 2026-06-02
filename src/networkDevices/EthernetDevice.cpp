@@ -5,6 +5,15 @@
 #include "EspMillis.h"
 #include "util/TaskUtils.h"
 
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32P4)
+#include "esp_private/esp_gpio_reserve.h"
+#include <bootloader_common.h>
+#if defined(CONFIG_SOC_SPIRAM_SUPPORTED) && defined(CONFIG_SPIRAM)
+#include "esp_psram.h"
+#endif
+#include "esp32-hal.h"
+#endif
+
 // ethCriticalFailure and wifiFallback are defined in main.cpp
 extern bool ethCriticalFailure;
 extern bool wifiFallback;
@@ -153,6 +162,23 @@ String EthernetDevice::deviceName() const
     return _config.deviceName;
 }
 
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32P4)
+static void revokeReservedGpiosForRmii()
+{
+    // Release reserved GPIO pins on older ESP32 packages before RMII Ethernet init.
+    uint32_t pkgVersion = bootloader_common_get_chip_ver_pkg();
+
+#if defined(CONFIG_SOC_SPIRAM_SUPPORTED) && defined(CONFIG_SPIRAM)
+    if (esp_psram_get_size() <= 0 && pkgVersion <= 3)
+#else
+    if (pkgVersion <= 3)
+#endif
+    {
+        esp_gpio_revoke(0xFFFFFFFFFFFFFFFFULL);
+    }
+}
+#endif
+
 // -----------------------------------------------------------------------
 // Internal: beginEthernetDevice()
 // -----------------------------------------------------------------------
@@ -171,6 +197,8 @@ bool EthernetDevice::beginEthernetDevice()
     }
 
 #if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32P4)
+    revokeReservedGpiosForRmii();
+
     return ETH.begin(_config.phyType,
                      _config.phyAddr,
                      _config.mdcPin,

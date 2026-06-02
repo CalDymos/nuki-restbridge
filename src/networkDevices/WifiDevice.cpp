@@ -415,8 +415,6 @@ void WifiDevice::onWifiEvent(arduino_event_id_t event, arduino_event_info_t info
 
     case ARDUINO_EVENT_WIFI_STA_CONNECTED:
         Log->println(F("[DEBUG] Connected to access point"));
-        if (!_openAP)
-            onConnected();
         break;
 
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
@@ -500,5 +498,12 @@ void WifiDevice::onDisconnected()
 
     _connected = false;
     Log->println(F("[INFO] Wi-Fi disconnected"));
+
+    if (!_autoRestartEnabled)
+    {
+        Log->println(F("[DEBUG] Wi-Fi reconnect skipped because auto restarts are disabled"));
+        return;
+    }
+    
     connect();
 }

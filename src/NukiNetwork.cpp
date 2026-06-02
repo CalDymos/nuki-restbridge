@@ -115,6 +115,16 @@ void NukiNetwork::initialize()
         else
         {
             Log->println(F("[ERROR] Failed to create network device"));
+
+            if (_networkDeviceType == NetworkDeviceType::ETH)
+            {
+                Log->println(F("[ERROR] Ethernet device could not be created, "
+                "enable fallback to Wi-Fi and reboot."));
+                wifiFallback = true;
+                Log->disableFileLog();
+                TaskWdtResetAndDelay(200);
+                restartEsp(RestartReason::NetworkDeviceCriticalFailure);
+            }
         }
 
         Log->print(F("[DEBUG] Host name: "));
