@@ -4502,6 +4502,7 @@ bool WebCfgServer::processLogin(WebServer *server)
                 struct timeval time;
                 gettimeofday(&time, NULL);
                 int64_t time_us = (int64_t)time.tv_sec * 1000000L + (int64_t)time.tv_usec;
+                pruneExpiredSessions();   // remove stale entries + enforce cap before adding
                 _httpSessions[String(buffer)] = time_us + (durationLength * 1000000L);
                 saveSessions();
 
@@ -4798,6 +4799,49 @@ void WebCfgServer::loadSessions()
 
             file.close();
         }
+    }
+}
+
+// Maximum number of concurrent web-UI login sessions.
+// Prevents unbounded heap growth when the login endpoint is called
+// repeatedly (e.g. multiple browsers, browsers that don't persist cookies,
+// or repeated failed authentications that leak sessions).
+static constexpr size_t kMaxHttpSessions = 8;
+
+void WebCfgServer::pruneExpiredSessions()
+{
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    const int64_t now_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+
+    // Pass 1: collect keys of all expired sessions
+    std::vector<String> expired;
+    for (JsonPair kv : _httpSessions.as<JsonObject>())
+    {
+        if (kv.value().as<signed long long>() <= now_us)
+            expired.push_back(String(kv.key().c_str()));
+    }
+    for (const String &key : expired)
+        _httpSessions.remove(key.c_str());
+
+    // Pass 2: if still over the cap, evict the session closest to expiry (LRU)
+    while (_httpSessions.size() >= kMaxHttpSessions)
+    {
+        String oldest;
+        int64_t oldestTs = INT64_MAX;
+        for (JsonPair kv : _httpSessions.as<JsonObject>())
+        {
+            int64_t ts = kv.value().as<signed long long>();
+            if (ts < oldestTs)
+            {
+                oldestTs = ts;
+                oldest   = String(kv.key().c_str());
+            }
+        }
+        if (oldest.isEmpty())
+            break;  // safety: nothing left to evict
+        _httpSessions.remove(oldest.c_str());
+        Log->println(F("[DEBUG] Sessions: evicted oldest session (cap reached)"));
     }
 }
 

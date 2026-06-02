@@ -532,6 +532,18 @@ private:
      */
     void clearSessions();
 
+    /**
+     * @brief Remove expired sessions and enforce the per-device session cap.
+     *
+     * Called before every new session is created to prevent unbounded growth
+     * of _httpSessions:
+     *   1. All entries whose expiry timestamp <= now are removed.
+     *   2. If the count still exceeds kMaxHttpSessions, the session with the
+     *      earliest expiry (oldest active session) is evicted until the cap
+     *      is met.
+     */
+    void pruneExpiredSessions();
+
     uint32_t getGCD(uint32_t a, uint32_t b);
 
     // --- Member variables ---
