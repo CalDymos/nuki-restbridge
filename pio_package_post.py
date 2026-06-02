@@ -61,18 +61,23 @@ def get_partition_offsets(env):
             if len(row) < 5 or row[0].startswith("#"):  # Skip comments and invalid lines
                 continue
             name, type_, subtype, offset, size = row[:5]
-            offset = offset.strip()
 
+            name = name.strip().lower()
+            type_ = type_.strip().lower()
+            subtype = subtype.strip().lower()
+            offset = offset.strip()
+            size = size.strip()
+            
             # Bootloader is fixed, we don't need to read them
-            if type_.strip() == "data" and subtype.strip() == "nvs":
+            if type_ == "data" and subtype == "nvs":
                 offsets["nvs"] = offset
-            elif type_.strip() == "data" and subtype.strip() == "ota":
+            elif type_ == "data" and subtype == "ota":
                 offsets["otadata"] = offset
-            elif type_.strip() == "app" and subtype.strip() == "factory":
+            elif type_ == "app" and subtype in ("factory", "ota_0"):
                 offsets["firmware"] = offset
-            elif type_.strip().lower() == "spiffs":
+            elif name in ("spiffs", "littlefs") or subtype in ("spiffs", "littlefs"):
                 offsets["littlefs"] = offset
-            elif name.strip().lower() == "coredump":
+            elif name == "coredump" or subtype == "coredump":
                 offsets["coredump"] = offset
 
     # If certain values were not found, set default values
@@ -324,6 +329,9 @@ def upload_firmware(source, target, env):
         selected_port = str(gui_result.get("port", "")).strip()
         if selected_port:
             upload_port = selected_port
+            
+    print(f"[INFO] Upload selected port: {upload_port}")
+    print(f"[INFO] Erase flash selected: {erase_flash}")
                     
     # Check whether the `upload_port` exists
     available_ports = [p.device for p in serial.tools.list_ports.comports()]
@@ -337,9 +345,24 @@ def upload_firmware(source, target, env):
     
     # Optional: Erase flash before upload
     if erase_flash:
-        cmd = f"\"{python_exe}\" -m esptool --chip {chip} --port {upload_port} erase_flash"
+        cmd = f"\"{python_exe}\" -m esptool --chip {chip} --port {upload_port} erase-flash"
         print("[INFO] Erasing flash before upload...")
-        env.Execute(cmd)
+        result = env.Execute(cmd)
+        if result != 0:
+            print("[ERROR] Flash erase failed. Upload aborted.")
+            return
+    elif partOffsets.get("coredump") and partSizes.get("coredump"):
+        cmd = (
+            f"\"{python_exe}\" -m esptool "
+            f"--chip {chip} "
+            f"--port {upload_port} "
+            f"erase_region {partOffsets['coredump']} {partSizes['coredump']}"
+        )
+        print(f"[INFO] Erasing coredump partition at {partOffsets['coredump']} ({partSizes['coredump']})...")
+        result = env.Execute(cmd)
+        if result != 0:
+            print("[ERROR] Failed to erase coredump partition. Upload aborted.")
+            return
     
     # Upload the firmware with `esptool.py`.
     cmd = f"\"{python_exe}\" -m esptool --chip {chip} --port {upload_port} --baud {upload_speed} write_flash -z "
@@ -354,7 +377,10 @@ def upload_firmware(source, target, env):
         print("[INFO] No LittleFS image found. Skipping in upload_firmware().")
     
     print(f"[INFO] Starte Upload auf {upload_port}...")
-    env.Execute(cmd)
+    result = env.Execute(cmd)
+    if result != 0:
+        print("[ERROR] Firmware upload failed. Serial monitor will not be started.")
+        return
     
     # Start Serial Monitor automatically after flashing
     print(f"[INFO] Öffne Serial Monitor auf {upload_port}...")
