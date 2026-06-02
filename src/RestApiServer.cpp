@@ -41,6 +41,7 @@ void RestApiServer::initialize()
     _lockEnabled = _preferences->getBool(preference_lock_enabled, false);
 
     _apitoken = new BridgeApiToken(_preferences, preference_api_token);
+    _allowedIp = _preferences->getString(preference_api_allowed_ip, "");
 }
 
 void RestApiServer::start(const String& localIP)
@@ -289,15 +290,8 @@ void RestApiServer::onRequestReceived(const char* path, WebServer& server)
     if (!_isOk)
         return;
 
-    // Shutdown is the only endpoint that bypasses token authentication
-    if (comparePrefixedPath(path, api_path_bridge, api_path_shutdown))
-    {
-        onShutdownReceived(path, server);
-        return;
-    }
-
-    // Token authentication
-    if (!server.hasArg("token") || server.arg("token") != _apitoken->get())
+    // Token authentication — required for ALL endpoints including shutdown
+    if (!isAuthenticated(server))
     {
         server.send(401, F("text/html"), "");
         return;
@@ -308,6 +302,12 @@ void RestApiServer::onRequestReceived(const char* path, WebServer& server)
     char* data = getArgs(server);
 
     // --- Bridge-level endpoints ---
+
+    if (comparePrefixedPath(path, api_path_bridge, api_path_shutdown))
+    {
+        onShutdownReceived(path, server);
+        return;
+    }
 
     if (comparePrefixedPath(path, api_path_bridge, api_path_disable_api))
     {
@@ -540,34 +540,93 @@ char* RestApiServer::getArgs(WebServer& server)
 {
     _argsBuffer[0] = '\0';
 
-    if (server.args() == 2 && server.hasArg("val"))
+    // Count only data args — "token" may still appear as a legacy query param
+    uint8_t dataArgCount = 0;
+    for (uint8_t i = 0; i < server.args(); i++)
     {
-        // Only two args and one is "val": return its value
-        strlcpy(_argsBuffer, server.arg(0).c_str(), sizeof(_argsBuffer));
-        return _argsBuffer;
+        if (server.argName(i) != "token")
+            dataArgCount++;
     }
-    else if (server.args() == 2)
+
+    if (dataArgCount == 1)
     {
-        // Only two args without "val": return the name of the first non-token arg
-        strlcpy(_argsBuffer, server.argName(0).c_str(), sizeof(_argsBuffer));
-        return _argsBuffer;
+        // Single data arg: return value if named "val", otherwise return its name
+        for (uint8_t i = 0; i < server.args(); i++)
+        {
+            if (server.argName(i) == "token") continue;
+            if (server.argName(i) == "val")
+                strlcpy(_argsBuffer, server.arg(i).c_str(), sizeof(_argsBuffer));
+            else
+                strlcpy(_argsBuffer, server.argName(i).c_str(), sizeof(_argsBuffer));
+            break;
+        }
     }
-    else if (server.args() > 2)
+    else if (dataArgCount > 1)
     {
-        // More than two args: serialize all non-token args as JSON
+        // Multiple data args: serialize as JSON, skip any legacy "token" arg
         JsonDocument doc;
         for (uint8_t i = 0; i < server.args(); i++)
         {
             if (server.argName(i) != "token")
-            {
                 doc[server.argName(i)] = server.arg(i);
-            }
         }
         serializeJson(doc, _argsBuffer, sizeof(_argsBuffer));
-        return _argsBuffer;
     }
 
-    return _argsBuffer; // empty (0 or 1 args)
+    return _argsBuffer; // empty if dataArgCount == 0
+}
+
+// -----------------------------------------------------------------------
+// Token authentication helper
+// -----------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Constant-time string comparison — prevents timing-based token reconstruction.
+// Returns true only if both strings are identical in both length and content.
+// ---------------------------------------------------------------------------
+static bool constTimeStrEqual(const char* a, const char* b)
+{
+    const size_t lenA = strlen(a);
+    const size_t lenB = strlen(b);
+    // Compare the full longer string so execution time is independent of
+    // where the first difference occurs.
+    const size_t maxLen = (lenA > lenB) ? lenA : lenB;
+    uint8_t diff = (uint8_t)(lenA ^ lenB); // non-zero if lengths differ
+    for (size_t i = 0; i < maxLen; i++)
+    {
+        uint8_t ca = (i < lenA) ? (uint8_t)a[i] : 0;
+        uint8_t cb = (i < lenB) ? (uint8_t)b[i] : 0;
+        diff |= ca ^ cb;
+    }
+    return diff == 0;
+}
+
+bool RestApiServer::isAuthenticated(WebServer& server) const
+{
+    // ── Check 1: IP allowlist ──────────────────────────────────────────────
+    // If an allowed IP is configured (e.g. the Loxone Miniserver address),
+    // reject any request that originates from a different host. This limits
+    // the attack surface even though the token travels as a query parameter
+    // over plain HTTP (Loxone Miniserver Gen 1 does not support HTTPS or
+    // custom HTTP headers).
+    if (_allowedIp.length() > 0 && _allowedIp != "0.0.0.0")
+    {
+        const String remoteIp = server.client().remoteIP().toString();
+        if (remoteIp != _allowedIp)
+        {
+            Log->printf(F("[WARNING] REST API: request from non-allowlisted IP %s rejected\n"),
+                        remoteIp.c_str());
+            return false;
+        }
+    }
+
+    // ── Check 2: Token (constant-time) ────────────────────────────────────
+    // The Loxone Miniserver Gen 1 sends the token as a query parameter
+    // (?token=...). Custom headers and HTTPS are not supported by that client.
+    if (!server.hasArg("token"))
+        return false;
+
+    return constTimeStrEqual(server.arg("token").c_str(), _apitoken->get());
 }
 
 bool RestApiServer::comparePrefixedPath(const char* fullPath,

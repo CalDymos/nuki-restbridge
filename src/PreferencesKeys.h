@@ -169,6 +169,7 @@
 #define preference_api_enabled "ApiEna"
 #define preference_api_port "ApiPort"
 #define preference_api_token "ApiToken"
+#define preference_api_allowed_ip "apiAllowIP"  // optional: IP allowlist for REST API (e.g. Loxone Miniserver IP)
 #define preference_config_from_api "nhCntrlEnabled"
 
 #define preference_webcfgserver_enabled "webCfgSrvEna"

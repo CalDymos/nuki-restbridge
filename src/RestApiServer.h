@@ -300,13 +300,34 @@ private:
     void onShutdownReceived(const char* path, WebServer& server);
 
     /**
+     * @brief Verify the request is authorized to use the REST API.
+     *
+     * Two checks are applied in order:
+     *   1. IP allowlist — if preference_api_allowed_ip is set (e.g. the Loxone
+     *      Miniserver IP), requests from any other host are rejected immediately.
+     *      Leave empty to allow all hosts (less secure, but simpler setup).
+     *   2. Token check — the "token" query parameter is compared against the
+     *      stored API token using a constant-time comparison to prevent
+     *      timing-based token reconstruction attacks.
+     *
+     * Note: The Loxone Miniserver Gen 1 sends tokens as query parameters and
+     * does not support custom HTTP headers or HTTPS. The query-parameter
+     * approach is therefore required for compatibility.
+     *
+     * @param server  The current WebServer request context.
+     * @return true if both checks pass.
+     */
+    bool isAuthenticated(WebServer& server) const;
+
+    /**
      * @brief Extract and return request arguments as a C-string.
      *
+     * Counts only data args (excluding any legacy "token" query param).
      * Behaviour:
-     *   - 2 args with "val": returns value of "val" argument.
-     *   - 2 args without "val": returns name of first non-token argument.
-     *   - >2 args: serializes all non-token args as JSON into _argsBuffer.
-     *   - 0 or 1 args: returns empty string.
+     *   - 1 data arg named "val": returns value of "val".
+     *   - 1 data arg (other name): returns the arg name.
+     *   - >1 data args: serializes all non-token args as JSON into _argsBuffer.
+     *   - 0 data args: returns empty string.
      *
      * Writes into the fixed-size _argsBuffer member (REST_ARGS_BUFFER_SIZE bytes).
      *
@@ -355,6 +376,9 @@ private:
 
     /** API token handler. Owned by this class. */
     BridgeApiToken* _apitoken = nullptr;
+
+    /** If non-empty, only this IP address may call REST endpoints (e.g. Loxone Miniserver). */
+    String _allowedIp = "";
 
     /** WebServer instance for the REST API. Owned by this class. */
     WebServer* _server = nullptr;
