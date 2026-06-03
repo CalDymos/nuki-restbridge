@@ -975,19 +975,10 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
         appendInputFieldRow(response, "KPMULT", "Encryption multiplier", _preferences->getUInt(preference_keypad_code_multiplier, 73), 10, "");
         appendInputFieldRow(response, "KPOFF", "Encryption offset", _preferences->getUInt(preference_keypad_code_offset, 12345), 10, "");
 
-        // calc inverse multiplier for HA
+        // calc inverse multiplier for HA using Extended Euclidean Algorithm (O(log n))
         uint32_t mult = _preferences->getUInt(preference_keypad_code_multiplier, 73);
         uint32_t mod = _preferences->getUInt(preference_keypad_code_modulus, 100001);
-        uint32_t inv = 0;
-
-        for (uint32_t i = 1; i < mod; ++i)
-        {
-            if ((mult * i) % mod == 1)
-            {
-                inv = i;
-                break;
-            }
-        }
+        uint32_t inv = modInverse(mult, mod);
 
         // show Inverse multiplier
         appendInputFieldRow(response, "KPINV", "Inverse multiplier (readonly, generated after saving)", inv, 10, "readonly");
@@ -3708,7 +3699,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
         }
         else if (key == "TSKNTWK")
         {
-            if (value.toInt() > 12287 && value.toInt() < 65537)
+            if (value.toInt() > 6143 && value.toInt() < 65537)
             {
                 if (_preferences->getInt(preference_task_size_network, NETWORK_TASK_SIZE) != value.toInt())
                 {

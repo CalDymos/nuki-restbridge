@@ -36,6 +36,7 @@
   - [Nuki Configuration](#nuki-configuration)
     - [Basic Nuki Configuration](#basic-nuki-configuration)
     - [Advanced Nuki Configuration](#advanced-nuki-configuration)
+      - [Keypad Code Encryption](#keypad-code-encryption)
   - [Access Level Configuration](#access-level-configuration)
     - [Nuki General Access Control](#nuki-general-access-control)
   - [Credentials](#credentials)
@@ -44,11 +45,14 @@
     - [Unpair Nuki Lock](#unpair-nuki-lock)
     - [Factory reset Nuki Bridge](#factory-reset-nuki-bridge)
   - [Advanced Configuartion](#advanced-configuration)
+  - [Logging Configuration](#logging-configuration)
+  - [Import / Export](#import--export)
 - [REST API Enpoints](#rest-api-endpoints)
   - [Authentication](#authentication)
   - [Bridge Control](#bridge-control)
   - [Nuki Lock](#nuki-lock)
     - [Lock Keypad Command (JSON)](#lock-keypad-command-json)
+    - [Using Encrypted Keypad Codes](#using-encrypted-keypad-codes)
     - [Lock Config Action (JSON)](#lock-config-action-json)
     - [Lock Timecontrol Action (JSON)](#lock-timecontrol-action-json)
     - [Lock Authorization action (JSON)](#lock-authorization-action-json)
@@ -126,6 +130,27 @@ The bridge uses both CPU cores to handle BLE scanning, client connections, and w
 
 Flash the firmware to your ESP32 board by compiling it via PlatformIO.
 
+The following PlatformIO environments are available. Select the one matching your hardware:
+
+| Environment             | Target Hardware                           |
+|-------------------------|-------------------------------------------|
+| `ol-poe-wr` *(default)* | Olimex ESP32-POE-ISO (WROOM, no PSRAM)    |
+| `ol-poe-wv`             | Olimex ESP32-POE-ISO (WROVER, with PSRAM) |
+| `wt32`                  | WT32-ETH01                                |
+| `lily-poe`              | LilyGO T-ETH-POE                          |
+| `ws-s3-eth`             | Waveshare ESP32-S3-ETH                    |
+| `ws-s3-poe`             | Waveshare ESP32-S3-POE-ETH                |
+| `jared-poe`             | ESP32-POE-DEV Board (jorticus)            |
+| `wesp32`                | wESP32                                    |
+
+Each environment also has a corresponding `_dbg` variant (e.g. `ol-poe-wr_dbg`) that enables debug-level logging (`DEBUG_NUKIBRIDGE` compile flag, `ARDUHAL_LOG_LEVEL_DEBUG`).
+
+> 📘 Build date, Git branch name (used as build identifier) and hardware name are automatically written into `Config.h` before each build by the pre-build script `pio_package_pre.py`.
+
+The serial monitor runs at **115200 baud**.
+
+> 📘 A native (non-hardware) unit-test environment is also available via `pio test -e native`. It tests `CryptoUtils.h` (keypad code encryption/decryption) and `AuthUtils.h` (constant-time string comparison) without requiring ESP32 hardware.
+
 ---
 
 ### Initial Network Setup
@@ -186,6 +211,8 @@ You can configure:
 - **Enable REST API**: Activate the Rest Web Server to receive requests
 - **API Port**: Set the port number for the REST API (default: 80)
 - **Access Token**: Set an access token to secure the REST API.
+- **Allowed IP**: Restricts REST API access to a single client IP address (e.g. the IP of a Loxone Miniserver). Requests from any other IP are rejected with HTTP 401. Leave empty to allow requests from all hosts.
+  > ⚠️ If no IP restriction is configured, any host that knows the access token can reach the REST API.
 
 ---
 
@@ -505,9 +532,52 @@ You can set markers via the API as follows:
   >📘 **Note:** Updating the Nuki device time requires the Nuki security code / PIN to be set, see "[Nuki Lock PIN](#nuki-lock-pin)" below.
 - **NTP server**: Set to the NTP server you want to use, defaults to "`pool.ntp.org`". If DHCP is used and NTP servers are provided using DHCP these will take precedence over the specified NTP server.
 - **Enable encryption**: Enable Keypad Code Encryption (REST API & HAR), see "[Keypad Code Encryption](#keypad-code-encryption).
-- **Encryption multiplier**: Integer used to scramble the input. Must be coprime to the modulus. Should be > 1 and < (modulus - 1)
-- **Encryption offset**: Fixed number added to the scrambled value. Should be > 0 and < (modulus - 1)
-- **Encryption modulus**: Final result is calculated modulo this value. Should be > 100000 and < 2147483647
+- **Encryption multiplier**: Integer used to scramble the input. Must be coprime to the modulus. Should be ≥ 2 and < (modulus - 1)
+- **Encryption offset**: Fixed number added to the scrambled value. Should be ≥ 1 and < (modulus - 1)
+- **Encryption modulus**: Final result is calculated modulo this value. Should be ≥ 100001 and < 2147483647
+- **Inverse multiplier** (read-only, computed after saving): The modular inverse of the multiplier, required to decrypt encoded keypad codes on the Home Automation side. Calculated automatically.
+  > 📘 The entire Keypad Code Encryption block is only shown in the web UI when a Keypad is detected on the paired Nuki Lock.
+
+##### Keypad Code Encryption
+
+When encryption is enabled, keypad codes transmitted via the REST API or HAR are transformed using an **affine cipher** before being sent.
+
+**Encryption formula:**
+
+```text
+encryptedCode = ((code × multiplier + offset) % modulus) + modulus
+```
+
+**Decryption formula:**
+
+```text
+code = ((encryptedCode − offset) % modulus × inverse) % modulus
+```
+
+where `inverse` is the modular multiplicative inverse of `multiplier` modulo `modulus` (computed using the Extended Euclidean Algorithm). The encrypted result is always ≥ `modulus`, which makes it distinguishable from a raw plaintext code.
+
+Default values: Modulus `100001`, Multiplier `73`, Offset `12345`.
+
+Constraints (enforced):
+
+- Modulus ≥ 100001 and < 2147483647
+- Multiplier ≥ 2 and < (modulus − 1); must be coprime to modulus
+- Offset ≥ 1 and < (modulus − 1)
+
+The **Inverse multiplier** is displayed as a read-only field after saving and can be copied directly into the decryption logic of the Home Automation system.
+
+**Example:**
+
+- multiplier = 73
+- offset = 12345
+- modulus = 1000000
+- inverse multiplier = 630137 (is calculated automatically)
+- keypad code = 123456
+
+```text
+encrypted = ((123456 * 73 + 12345) % 1000000) + 1000000 = 1024633
+decrypted = ((1024633 - 12345) * 630137) % 1000000 = 123456
+```
 
 ---
 
@@ -573,7 +643,9 @@ You can reach the menu directly by browsing to <http://NUKIHUBIP/get?page=advanc
 - **Enable Bootloop prevention**: Enable to reset the following stack size and max entry settings to default if Nuki Hub detects a bootloop.
 - **Char buffer size (min 4096, max 65536)**: Set the character buffer size, needs to be enlarged to support large amounts of auth/keypad/timecontrol/authorization entries. Default 4096.
 - **Task size Network (min 6144, max 65536)**: Set the Network task stack size, needs to be enlarged to support large amounts of auth/keypad/timecontrol/authorization entries. Default 6144.
-- **Task size Nuki (min 6144, max 65536)**: Set the Nuki task stack size. Default 6144.
+- **Task size Nuki (min 8192, max 65536)**: Set the Nuki task stack size. Default 8192.
+- **BLE General timeout in ms (min 3000, max 65536)**: Timeout in milliseconds for general BLE operations (e.g. connecting to the lock). Default 10000.
+- **BLE Command timeout in ms (min 3000, max 65536)**: Timeout in milliseconds for individual BLE commands sent to the lock. Default 3000.
 - **Max auth log entries (min 1, max 100)**: The maximum amount of log entries that will be requested from the lock, default 5.
 - **Max keypad entries (min 1, max 200)**: The maximum amount of keypad codes that will be requested from the lock, default 10.
 - **Max timecontrol entries (min 1, max 100)**: The maximum amount of timecontrol entries that will be requested from the lock, default 10.
@@ -592,6 +664,48 @@ You can reach the menu directly by browsing to <http://NUKIHUBIP/get?page=advanc
 
 ---
 
+### Logging Configuration
+
+The logging configuration page is accessible from the main menu of the web configurator.
+
+- **Filename**: Fixed log filename `nukiBridge.log`, stored in the LittleFS filesystem on the ESP32.
+- **Max. log file size (min 56 KB, max 1024 KB)**: Maximum size of the log file in kilobytes. The file is rotated (cleared and restarted) when this limit is reached.
+- **Log level**: Global log level for the Nuki Bridge. Available levels: TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL. Default: INFO.
+- **Enable FTP log backup**: Activates automatic upload of the log file to an FTP server after rotation.
+- **FTP Server**: IP address or hostname of the FTP server.
+- **FTP Directory**: Target directory on the FTP server. Up to 100 numbered backup files are kept before rollover.
+- **FTP Username / FTP Password**: Login credentials for the FTP server.
+
+The following actions are available via buttons on the logging page:
+
+- **Download Log**: Downloads the current `nukiBridge.log` file directly from the web UI.
+- **Clear Log**: Deletes and recreates the log file after a confirmation prompt.
+- **Download Coredump**: Downloads the `coredump.hex` file stored in LittleFS. This file is automatically extracted from the dedicated `coredump` flash partition (64 KB) and saved to LittleFS whenever the ESP32 reboots after a panic or watchdog reset.
+
+---
+
+### Import / Export
+
+The import/export page is accessible from the main menu of the web configurator.
+
+#### Export
+
+Three export variants are available:
+
+- **Basic export**: Exports all settings. Sensitive fields (passwords, tokens) are included in plain text.
+- **Export with redacted settings**: Exports all settings with sensitive fields omitted.
+- **Export with redacted settings and pairing data**: As above, but also includes the Nuki Lock pairing data (BLE address, secret key, authorization ID).
+
+A password confirmation is required before any export that includes sensitive or pairing data.
+
+The result is a JSON document that can be saved and re-imported later.
+
+#### Import
+
+Paste a previously exported JSON document into the text area and click **Import**. A reboot of the ESP32 is required after a successful import for all settings to take effect.
+
+---
+
 ## REST API Endpoints
 
 All REST API endpoints are accessible via the configured port (default: `8080`).  
@@ -603,8 +717,6 @@ All REST API endpoints are accessible via the configured port (default: `8080`).
 
 Every request must include the access token as HTTP query parameter: `?token=<api-token>`
 
-> ⚠️ The only exception is the `/shutdown` endpoint, which does **not** require a token.
-
 ---
 
 ### Bridge Control
@@ -612,7 +724,7 @@ Every request must include the access token as HTTP query parameter: `?token=<ap
 | Endpoint                 | Paramter | Value | Method | Description                                                                                                         |
 |--------------------------|----------|-------|--------|---------------------------------------------------------------------------------------------------------------------|
 | `bridge/disableApi`      | -        | -     | GET    | deactivates the REST API <br> (if the API is deactivated, it can only be activated via the web configurator)        |
-| `bridge/shutdown`        | -        | -     | GET    | Powers down the ESP32 (no token required).                                                                          |
+| `bridge/shutdown`        | -        | -     | GET    | Powers down the ESP32 (enters deep sleep).                                                                          |
 | `bridge/reboot`          | -        | -     | GET    | Restarts the ESP32 immediately.                                                                                     |
 | `bridge/enableWebServer` | val      | 0/1   | GET    | 0 = Deactivate the web configurator / 1 = Activate the web configurator <br> (reboot is performed after the action) |
 
@@ -654,36 +766,9 @@ Examples:
 
 The result of the last keypad change action will be returned.<br>
 
-##### Keypad Code Encryption
+##### Using Encrypted Keypad Codes
 
-The Nuki REST Bridge supports encryption of keypad PIN codes to allow safe transmission over REST.
-
-You can configure the encryption logic under: [Advanced Nuki Configuration](#advanced-nuki-configuration)
-
-The following formulas are used for
-
-- **Encryption:**  
-  `encrypted = (code * multiplier + offset) % modulus`
-
-- **Decryption:**  
-  `decrypted = ((encrypted + modulus - offset) * inverseMultiplier) % modulus`
-
-> ℹ️ `inverseMultiplier` means the **modular inverse** of the multiplier modulo the modulus.
-
----
-
-**example for the values**:
-
-- multiplier = 73
-- offset = 12345
-- modulus = 1000000
-- inverse multiplier = 410959 (is calculated automatically)
-- kepad Code = 123456
-
-```text
-encrypted = ((123456 * 73 + 12345) % 1000000) + 1000000 = 1929553
-decrypted = ((1929553 - 12345) * 410959) % 1000000 = 123456
-```
+When encryption is enabled, the `code` parameter must contain the encrypted keypad code. See [Keypad Code Encryption](#keypad-code-encryption) in the configuration section for the algorithm, parameters, and a worked example.
 
 ---
 
