@@ -405,6 +405,9 @@ void RestApiServer::onRequestReceived(const char* path, WebServer& server)
         case LockActionResult::AccessDenied:
             sendResponse(jsonResult, "denied", 403);
             break;
+        case LockActionResult::Busy:
+            sendResponse(jsonResult, "device_busy", 429);
+            break;
         case LockActionResult::Failed:
             sendResponse(jsonResult, "error", 500);
             break;

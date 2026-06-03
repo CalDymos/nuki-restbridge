@@ -29,6 +29,12 @@ NukiWrapper::NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, 
 
     nukiInst = this;
 
+    _lockActionQueue = xQueueCreate(1, sizeof(NukiLock::LockAction));
+    if (_lockActionQueue == nullptr)
+    {
+        Log->println(F("[ERROR] NukiWrapper: failed to create _lockActionQueue!"));
+    }
+
     // Set initial lock state on the actual member variable
     _keyTurnerState.lockState = NukiLock::LockState::Undefined;
 
@@ -42,6 +48,11 @@ NukiWrapper::NukiWrapper(const std::string &deviceName, NukiDeviceId *deviceId, 
 NukiWrapper::~NukiWrapper()
 {
     _bleScanner = nullptr;
+    if (_lockActionQueue != nullptr)
+    {
+        vQueueDelete(_lockActionQueue);
+        _lockActionQueue = nullptr;
+    }
 }
 
 void NukiWrapper::initialize()
@@ -283,16 +294,17 @@ void NukiWrapper::update(bool reboot)
 
     _nukiLock.updateConnectionState();
 
-    if (_nextLockAction != kNoLockAction)
+    NukiLock::LockAction pendingAction = kNoLockAction;
+    if (xQueueReceive(_lockActionQueue, &pendingAction, 0) == pdTRUE)
     {
         int retryCount = 0;
         Nuki::CmdResult cmdResult = _nukiRetryHandler->retryComm([&]()
                                                                  {
              Nuki::CmdResult cmdResult;
-             cmdResult = _nukiLock.lockAction(_nextLockAction, 0, 0);
+             cmdResult = _nukiLock.lockAction(pendingAction, 0, 0);
              char resultStr[15] = {0};
              NukiLock::cmdResultToString(cmdResult, resultStr);
-             
+
              Log->printf(F("[INFO] Lock action result: %s\r\n"), resultStr);
 
              if(cmdResult != Nuki::CmdResult::Success)
@@ -305,8 +317,6 @@ void NukiWrapper::update(bool reboot)
 
         if (cmdResult == Nuki::CmdResult::Success)
         {
-            _nextLockAction = kNoLockAction;
-
             retryCount = 0;
             _statusUpdated = true;
 
@@ -320,8 +330,6 @@ void NukiWrapper::update(bool reboot)
         else
         {
             Log->println(F("[WARNING] Lock: Maximum number of retries exceeded, aborting."));
-
-            _nextLockAction = kNoLockAction;
         }
     }
     if (_statusUpdated || _nextLockStateUpdateTs == 0 || ts >= _nextLockStateUpdateTs || (queryCommands & QUERY_COMMAND_LOCKSTATE) > 0)
@@ -410,32 +418,32 @@ void NukiWrapper::update(bool reboot)
 
 void NukiWrapper::lock()
 {
-
-    _nextLockAction = NukiLock::LockAction::Lock;
+    NukiLock::LockAction action = NukiLock::LockAction::Lock;
+    xQueueSend(_lockActionQueue, &action, 0);
 }
 
 void NukiWrapper::unlock()
 {
-
-    _nextLockAction = NukiLock::LockAction::Unlock;
+    NukiLock::LockAction action = NukiLock::LockAction::Unlock;
+    xQueueSend(_lockActionQueue, &action, 0);
 }
 
 void NukiWrapper::unlatch()
 {
-
-    _nextLockAction = NukiLock::LockAction::Unlatch;
+    NukiLock::LockAction action = NukiLock::LockAction::Unlatch;
+    xQueueSend(_lockActionQueue, &action, 0);
 }
 
 void NukiWrapper::lockngo()
 {
-
-    _nextLockAction = NukiLock::LockAction::LockNgo;
+    NukiLock::LockAction action = NukiLock::LockAction::LockNgo;
+    xQueueSend(_lockActionQueue, &action, 0);
 }
 
 void NukiWrapper::lockngounlatch()
 {
-
-    _nextLockAction = NukiLock::LockAction::LockNgoUnlatch;
+    NukiLock::LockAction action = NukiLock::LockAction::LockNgoUnlatch;
+    xQueueSend(_lockActionQueue, &action, 0);
 }
 
 void NukiWrapper::setPin(uint16_t pin)
@@ -1147,7 +1155,11 @@ LockActionResult NukiWrapper::onLockActionReceived(const char *value)
 
     if ((action == NukiLock::LockAction::Lock && (int)aclPrefs[0] == 1) || (action == NukiLock::LockAction::Unlock && (int)aclPrefs[1] == 1) || (action == NukiLock::LockAction::Unlatch && (int)aclPrefs[2] == 1) || (action == NukiLock::LockAction::LockNgo && (int)aclPrefs[3] == 1) || (action == NukiLock::LockAction::LockNgoUnlatch && (int)aclPrefs[4] == 1) || (action == NukiLock::LockAction::FullLock && (int)aclPrefs[5] == 1) || (action == NukiLock::LockAction::FobAction1 && (int)aclPrefs[6] == 1) || (action == NukiLock::LockAction::FobAction2 && (int)aclPrefs[7] == 1) || (action == NukiLock::LockAction::FobAction3 && (int)aclPrefs[8] == 1))
     {
-        nukiInst->_nextLockAction = action;
+        if (xQueueSend(_lockActionQueue, &action, 0) != pdTRUE)
+        {
+            Log->println(F("[WARNING] Lock action queue full — action dropped (device busy)"));
+            return LockActionResult::Busy;
+        }
 
         return LockActionResult::Success;
     }

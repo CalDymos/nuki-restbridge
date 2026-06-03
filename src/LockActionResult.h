@@ -5,5 +5,6 @@ enum class LockActionResult
     Success,
     UnknownAction,
     AccessDenied,
-    Failed
+    Failed,
+    Busy        ///< Queue full — another action is already pending. HTTP 429.
 };

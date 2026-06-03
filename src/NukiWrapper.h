@@ -10,6 +10,7 @@
 #include "util/NukiRetryHandler.h"
 #include "RestartReason.h"
 #include "BleControllerRestartReason.h"
+#include <freertos/queue.h>
 
 /// Sentinel value meaning "no lock action pending".
 /// Used to initialise and reset _nextLockAction.
@@ -386,5 +387,15 @@ private:
     int64_t _lastCodeCheck = 0;                                                                // Last time the PIN codes were checked.
     int64_t _lastRssi = 0;                                                                     // Last known RSSI value.
                                                                                                //
-    volatile NukiLock::LockAction _nextLockAction = kNoLockAction;                             // Next lock action to be performed via API. kNoLockAction = none pending.
+    /**
+     * @brief Single-slot FreeRTOS queue carrying the next lock action.
+     *
+     * Replaces the former `volatile _nextLockAction` variable.
+     * Depth 1: a second REST request while one action is already pending
+     * receives HTTP 429 (LockActionResult::Busy) - safe, deterministic
+     * behaviour for a door lock.  Producer: networkTask (onLockActionReceived).
+     * Consumer: nukiTask (update()).  Thread-safe without an additional mutex.
+     * Memory: ~90 bytes (FreeRTOS queue control block + 1-byte item slot).
+     */
+    QueueHandle_t _lockActionQueue = nullptr;
 };
