@@ -1,6 +1,6 @@
 #pragma once
 
-#define NUKI_REST_BRIDGE_VERSION "1.11"
+#define NUKI_REST_BRIDGE_VERSION "1.12"
 #define NUKI_REST_BRIDGE_BUILD "main"
 #define NUKI_REST_BRIDGE_DATE "2026-06-03"
 #define NUKI_REST_BRIDGE_HW "OLIMEX ESP32-POE-ISO"
@@ -14,6 +14,8 @@
 #define LOG_QUEUE_MAX_ENTRYS 10
 
 #define WEBCFGSERVER_PORT 80
+#define WEBCFGSERVER_POLL_IDLE_MS   50   // Polling interval when no session is active (config UI idle)
+#define WEBCFGSERVER_POLL_ACTIVE_MS 10   // Polling interval when a session is active (user in config UI)
 #define REST_SERVER_PORT 8080
 #define CHAR_BUFFER_SIZE 4096
 #define CHAR_BUFFER_HTTP_TIMEOUT pdMS_TO_TICKS(5000)

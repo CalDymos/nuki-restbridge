@@ -51,6 +51,15 @@ public:
      */
     void handleClient();
 
+    /**
+     * @brief Returns true if at least one non-expired session exists.
+     *
+     * Called by webCfgTask() (while holding webCfgServerMutex) to decide
+     * whether to use the active or idle polling interval.
+     * Thread-safety: must be called under webCfgServerMutex.
+     */
+    bool hasActiveSession() const;
+
 private:
     enum AuthResult
     {

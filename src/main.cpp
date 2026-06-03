@@ -529,11 +529,14 @@ void webCfgTask(void *parameter)
   while (true)
   {
 
-    if (xSemaphoreTake(webCfgServerMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    bool sessionActive = false;
+    if (xSemaphoreTake(webCfgServerMutex, pdMS_TO_TICKS(20)) == pdTRUE)
     {
       if (webCfgServer != nullptr)
       {
         webCfgServer->handleClient();
+        // Check session state while mutex is held — no extra lock needed.
+        sessionActive = webCfgServer->hasActiveSession();
       }
       xSemaphoreGive(webCfgServerMutex);
     }
@@ -542,10 +545,10 @@ void webCfgTask(void *parameter)
       Log->println(F("[DEBUG] webCfgTask is running"));
       webCfgLoopTs = espMillis();
     }
-
-    // 10 ms keeps the configuration interface responsive without excessive task wakeups.
-    // Mutex timeout and task delay use the same interval for predictable timing.
-    TaskWdtResetAndDelay(10);
+    // Dynamic polling: WEBCFGSERVER_POLL_ACTIVE_MS when a session is open,
+    // WEBCFGSERVER_POLL_IDLE_MS when no one is logged in.
+    // Both values are defined in Config.h.
+    TaskWdtResetAndDelay(sessionActive ? WEBCFGSERVER_POLL_ACTIVE_MS : WEBCFGSERVER_POLL_IDLE_MS);
   }
 }
 

@@ -4923,6 +4923,20 @@ void WebCfgServer::loadSessions()
 // or repeated failed authentications that leak sessions).
 static constexpr size_t kMaxHttpSessions = 8;
 
+bool WebCfgServer::hasActiveSession() const
+{
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    const int64_t now_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+
+    for (JsonPairConst kv : _httpSessions.as<JsonObjectConst>())
+    {
+        if (kv.value().as<signed long long>() > now_us)
+            return true;
+    }
+    return false;
+}
+
 void WebCfgServer::pruneExpiredSessions()
 {
     struct timeval now;
