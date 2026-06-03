@@ -9,6 +9,15 @@
 #include <ArduinoJson.h>
 #include "ImportExport.h"
 
+/** Maximum consecutive failed web login attempts before an IP is locked out. */
+static constexpr uint8_t LOGIN_MAX_ATTEMPTS = 5;
+
+/** Lockout duration in milliseconds after exceeding LOGIN_MAX_ATTEMPTS. */
+static constexpr int64_t LOGIN_LOCKOUT_MS = 30000; // 30 seconds
+
+/** Number of IP slots in the fixed-size login-attempt tracker. */
+static constexpr uint8_t LOGIN_TRACKER_SIZE = 8;
+
 /**
  * @brief Minimal Web Configuration Server that accepts configuration via `/` and `/save`.
  *
@@ -438,6 +447,17 @@ private:
     void appendHomeButton(String &response);
 
     /**
+     * @brief Send an HTML response with security headers.
+     *
+     * Adds X-Frame-Options: DENY and X-Content-Type-Options: nosniff to every
+     * HTML response to protect against clickjacking and MIME-sniffing attacks.
+     *
+     * @param server  The active WebServer instance.
+     * @param html    The HTML body to send.
+     */
+    void sendHtmlResponse(WebServer *server, const String &html);
+
+    /**
      * Estimate required HTML response buffer size.
      *
      * @param checkboxCount Number of checkbox rows (appendCheckBoxRow).
@@ -567,6 +587,22 @@ private:
     char _credPassword[31] = {0};        // Stored password for the web interface login.
                                          //
     bool _allowRestartToPortal = false;  // Allows restarting into access point (config portal) mode.
+
+    /**
+     * @brief Per-IP failed login tracking for brute-force protection.
+     *
+     * Fixed-size array avoids heap allocation and fragmentation on ESP32.
+     * When all slots are occupied, the entry with the lowest threat level
+     * (expired lockout first, then lowest count) is evicted.
+     * Memory footprint: LOGIN_TRACKER_SIZE × 28 bytes = 224 bytes.
+     */
+    struct LoginAttempt
+    {
+        char    ip[16]       = {0}; // IPv4 string (max "255.255.255.255" + '\0'); empty = free slot
+        uint8_t count        = 0;   // consecutive failed attempts
+        int64_t lockedUntil  = 0;   // espMillis() when lockout expires; 0 = not locked
+    };
+    LoginAttempt _loginAttempts[LOGIN_TRACKER_SIZE];
 };
 
 extern TaskHandle_t networkTaskHandle;

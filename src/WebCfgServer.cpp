@@ -3,6 +3,8 @@
 #include "WebCfgServer.h"
 #include "WebCfgServerConstants.h"
 #include "util/CryptoUtils.h"
+#include "util/AuthUtils.h"
+#include "EspMillis.h"
 #include "Logger.h"
 #include "PreferencesKeys.h"
 #include "RestartReason.h"
@@ -305,7 +307,7 @@ void WebCfgServer::initialize()
                 {
                     value2 = this->_webServer->arg("adminkey");
                 }
-                if (value2.length() > 0 && value2 == _preferences->getString(preference_admin_secret, ""))
+                if (value2.length() > 0 && constTimeStrEqual(value2.c_str(), _preferences->getString(preference_admin_secret, "").c_str()))
                 {
                     adminKeyValid = true;
                 }
@@ -535,7 +537,7 @@ void WebCfgServer::initialize()
                     {
                         value2 = this->_webServer->arg("adminkey");
                     }
-                    if (value2.length() > 0 && value2 == _preferences->getString(preference_admin_secret, ""))
+                    if (value2.length() > 0 && constTimeStrEqual(value2.c_str(), _preferences->getString(preference_admin_secret, "").c_str()))
                     {
                         adminKeyValid = true;
                     }
@@ -919,7 +921,7 @@ void WebCfgServer::buildAccLvlHtml(WebServer *server)
     response += F("</form></body></html>");
 
     appendHomeButton(response);
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildNukiConfigHtml(WebServer *server)
@@ -998,7 +1000,7 @@ void WebCfgServer::buildNukiConfigHtml(WebServer *server)
 
     appendHomeButton(response);
 
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
@@ -1093,7 +1095,7 @@ void WebCfgServer::buildAdvancedConfigHtml(WebServer *server)
                   "</script></html>");
 
     appendHomeButton(response);
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildLoginHtml(WebServer *server)
@@ -1132,7 +1134,7 @@ void WebCfgServer::buildLoginHtml(WebServer *server)
     response += F("<label><input type=\"checkbox\" name=\"remember\"> Remember me</label></div>");
     response += F("</form></center></body></html>");
 
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, uint32_t redirectDelay, bool redirect, String redirectTo)
@@ -1171,7 +1173,7 @@ void WebCfgServer::buildConfirmHtml(WebServer *server, const String &message, ui
     response += message;
     response += F("</body></html>");
 
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildGetLogFileHtml(WebServer *server)
@@ -1278,7 +1280,7 @@ void WebCfgServer::buildNetworkConfigHtml(WebServer *server)
 
     appendHomeButton(response);
 
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
@@ -1310,7 +1312,7 @@ void WebCfgServer::buildConfigureWifiHtml(WebServer *server)
     response += F("</form></body></html>");
 
     appendHomeButton(response);
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 #endif
 
@@ -1422,7 +1424,7 @@ void WebCfgServer::buildCredHtml(WebServer *server)
 
     appendHomeButton(response);
 
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildLoggingHtml(WebServer *server)
@@ -1487,7 +1489,7 @@ void WebCfgServer::buildLoggingHtml(WebServer *server)
     response += F("</body></html>");
 
     appendHomeButton(response);
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildApiConfigHtml(WebServer *server)
@@ -1502,7 +1504,7 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
                         1, // Parameter rows
                         2, // Buttons (Save + Generate)
                         0, // menus
-                        192 // extra bytes for JS token generator
+                        384 // extra bytes for JS token generator + optional token warning
     );
 
     buildHtmlHeader(response);
@@ -1513,7 +1515,10 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
     appendCheckBoxRow(response, "APIENA", "Enable REST API", _preferences->getBool(preference_api_enabled, false), "", "");
     appendInputFieldRow(response, "APIPORT", "API Port", _preferences->getInt(preference_api_port, 8080), 6, "");
     appendInputFieldRow(response, "APIALLOWIP", "Allowed IP (e.g. Loxone Miniserver)", _preferences->getString(preference_api_allowed_ip, "").c_str(), 39, "");
-    response += F("<tr><td colspan=\"2\"><small class=\"warning\">Security: only the configured IP may call the REST API. Leave empty to allow all hosts.</small></td></tr>");
+    if (_preferences->getString(preference_api_allowed_ip, "").length() == 0)
+    {
+        response += F("<tr><td colspan=\"2\"><small class=\"warning\">Security: if no IP address is specified, all hosts are allowed to call the REST API</small></td></tr>");
+    }
 
     response += F("<tr><td>Access Token</td><td>");
     response += F("<input type=\"text\" name=\"APITOKEN\" id=\"apitokeninput\" placeholder=\"not set\" value=\"");
@@ -1529,10 +1534,15 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
                   "\" value=\"Generate new token\">");
     response += F("</td></tr>");
 
+    if (String(_network->getApiToken()).length() == 0)
+    {
+        response += F("<tr><td colspan=\"2\"><small class=\"warning\">Security: no access token set. All requests to the REST API will be accepted without authentication.</small></td></tr>");
+    }
+
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
 
     appendHomeButton(response);
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildHARConfigHtml(WebServer *server)
@@ -1689,7 +1699,7 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
                   "</script></body></html>");
 
     appendHomeButton(response);
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildHtml(WebServer *server)
@@ -1848,7 +1858,7 @@ void WebCfgServer::buildHtml(WebServer *server)
 
     response += F("</ul></body></html>");
 
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 #ifndef CONFIG_IDF_TARGET_ESP32H2
@@ -1881,7 +1891,7 @@ void WebCfgServer::buildSSIDListHtml(WebServer *server)
         response += F(" %)</td></tr>");
     }
 
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 #endif
 
@@ -1978,7 +1988,7 @@ void WebCfgServer::buildConnectHtml(WebServer *server)
     response += F("<input type=\"submit\" value=\"Reboot\" />");
     response += F("</form></body></html>");
 
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildInfoHtml(WebServer *server)
@@ -2469,7 +2479,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
 
     appendHomeButton(response);
 
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildHtmlHeader(String &response, const String &additionalHeader)
@@ -2577,7 +2587,7 @@ void WebCfgServer::buildImportExportHtml(WebServer *server)
     response += F("<br><br><button title=\"Export with redacted settings and pairing data\" onclick=\" window.open('/get?page=export&redacted=1&pairing=1'); return false;\">Export with redacted settings and pairing data</button>");
     response += F("</div></body></html>");
     appendHomeButton(response);
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 void WebCfgServer::buildApprovalHtml(WebServer *server,
@@ -2614,7 +2624,7 @@ void WebCfgServer::buildApprovalHtml(WebServer *server,
     response += F("</table><br>");
     response += F("<input type=\"submit\" value=\"Confirm\">");
     response += F("</form></body></html>");
-    server->send(200, F("text/html"), response);
+    sendHtmlResponse(server, response);
 }
 
 bool WebCfgServer::processImport(WebServer *server, String &message)
@@ -2913,6 +2923,13 @@ void WebCfgServer::appendCheckBoxRow(String &response,
     response += F("/></td></tr>");
 }
 
+void WebCfgServer::sendHtmlResponse(WebServer *server, const String &html)
+{
+    server->sendHeader(F("X-Frame-Options"),        F("DENY"));
+    server->sendHeader(F("X-Content-Type-Options"), F("nosniff"));
+    server->send(200, F("text/html"), html);
+}
+
 void WebCfgServer::appendHomeButton(String &response)
 {
     response += F("<div class=\"home-button\"><a href=\"/\" class=\"btn btn-icon\" title=\"Home\">&#127968;</a></div>");
@@ -2993,8 +3010,9 @@ void WebCfgServer::sendSettings(WebServer *server, bool adminKey)
 
 String WebCfgServer::generateConfirmCode()
 {
-    int code = random(1000, 9999);
-    return String(code);
+    // Use hardware TRNG instead of Arduino's PRNG.
+    // 6-digit range: 100000–999999 (900000 possibilities vs. 8999 before).
+    return String(esp_random() % 900000 + 100000);
 }
 
 size_t WebCfgServer::estimateHtmlSize(
@@ -4519,6 +4537,47 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
 
 bool WebCfgServer::processLogin(WebServer *server)
 {
+    const String remoteIpStr = server->client().remoteIP().toString();
+    const char*  remoteIp    = remoteIpStr.c_str();
+    const int64_t now        = espMillis();
+
+    // --- Find slot for this IP, or select an eviction candidate ---
+    LoginAttempt* entry          = nullptr; // existing entry for remoteIp
+    LoginAttempt* freeSlot       = nullptr; // first empty slot
+    LoginAttempt* evictCandidate = nullptr; // fallback when array is full
+
+    for (auto& a : _loginAttempts)
+    {
+        if (strcmp(a.ip, remoteIp) == 0)          { entry = &a; break; }
+        if (a.ip[0] == '\0' && !freeSlot)          { freeSlot = &a; }
+        if (!evictCandidate
+            || (a.lockedUntil > 0 && a.lockedUntil <= now)  // prefer expired lockout
+            || a.count < evictCandidate->count)    { evictCandidate = &a; }
+    }
+
+    if (!entry)
+    {
+        // Use free slot, or evict least-threatening entry when array is full
+        entry = freeSlot ? freeSlot : evictCandidate;
+        memset(entry, 0, sizeof(LoginAttempt));
+        strlcpy(entry->ip, remoteIp, sizeof(entry->ip));
+    }
+
+    // --- Lockout check ---
+    if (entry->lockedUntil > now)
+    {
+        Log->printf(F("[WARNING] Web login blocked: IP %s locked out for %lld more second(s)\n"),
+                    remoteIp, (entry->lockedUntil - now) / 1000LL);
+        return false;
+    }
+
+    // Reset counter once a previous lockout has expired
+    if (entry->lockedUntil > 0 && entry->lockedUntil <= now)
+    {
+        entry->count       = 0;
+        entry->lockedUntil = 0;
+    }
+
     if (server->hasArg("username") && server->hasArg("password"))
     {
         String username = server->arg("username");
@@ -4526,9 +4585,12 @@ bool WebCfgServer::processLogin(WebServer *server)
 
         if (!username.isEmpty() && !password.isEmpty())
         {
-            if (username == _preferences->getString(preference_cred_user, "") &&
-                password == _preferences->getString(preference_cred_password, ""))
+            if (constTimeStrEqual(username.c_str(), _preferences->getString(preference_cred_user, "").c_str()) &&
+                constTimeStrEqual(password.c_str(), _preferences->getString(preference_cred_password, "").c_str()))
             {
+                // Successful login: free the slot for this IP
+                memset(entry, 0, sizeof(LoginAttempt));
+
                 char buffer[33];
                 int64_t durationLength = 60 * 60 * _preferences->getInt(preference_cred_session_lifetime_remember, 720);
 
@@ -4544,12 +4606,12 @@ bool WebCfgServer::processLogin(WebServer *server)
 
                 WiFiClient &client = server->client();
 
-                server->sendHeader("Set-Cookie", "sessionId=" + String(buffer) + "; Max-Age=" + String(durationLength) + "; HttpOnly");
+                server->sendHeader("Set-Cookie", "sessionId=" + String(buffer) + "; Max-Age=" + String(durationLength) + "; HttpOnly; SameSite=Strict");
 
                 struct timeval time;
                 gettimeofday(&time, NULL);
                 int64_t time_us = (int64_t)time.tv_sec * 1000000L + (int64_t)time.tv_usec;
-                pruneExpiredSessions();   // remove stale entries + enforce cap before adding
+                pruneExpiredSessions();
                 _httpSessions[String(buffer)] = time_us + (durationLength * 1000000L);
                 saveSessions();
 
@@ -4557,6 +4619,21 @@ bool WebCfgServer::processLogin(WebServer *server)
             }
         }
     }
+
+    // --- Failed login: increment counter, lock out if threshold reached ---
+    entry->count++;
+    if (entry->count >= LOGIN_MAX_ATTEMPTS)
+    {
+        entry->lockedUntil = now + LOGIN_LOCKOUT_MS;
+        Log->printf(F("[WARNING] Web login: %d failed attempts from %s — locked out for %d second(s)\n"),
+                    entry->count, remoteIp, (int)(LOGIN_LOCKOUT_MS / 1000LL));
+    }
+    else
+    {
+        Log->printf(F("[WARNING] Web login: failed attempt %d/%d from %s\n"),
+                    entry->count, (int)LOGIN_MAX_ATTEMPTS, remoteIp);
+    }
+
     return false;
 }
 
@@ -4763,7 +4840,7 @@ void WebCfgServer::logoutSession(WebServer *server)
     Log->println(F("[DEBUG] Logging out from Web configurator"));
 
     // Set the cookies to empty and expiry time to 0 to delete them
-    server->sendHeader("Set-Cookie", "sessionId=; path=/; HttpOnly");
+    server->sendHeader("Set-Cookie", "sessionId=; path=/; HttpOnly; SameSite=Strict");
 
     String cookieHeader = server->header("Cookie");
     if (cookieHeader.indexOf("sessionId=") != -1)
