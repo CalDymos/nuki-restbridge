@@ -273,6 +273,12 @@ public:
     void assignNewApiToken();
 
     /**
+     * @brief Stores a user-supplied API token persistently.
+     * @param token The token string to store.
+     */
+    void assignApiToken(const char* token);
+
+    /**
      * @brief Returns the current API token string.
      * @return Pointer to the API token.
      */

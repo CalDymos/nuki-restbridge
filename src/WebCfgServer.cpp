@@ -2,6 +2,7 @@
 #include <ESPmDNS.h>
 #include "WebCfgServer.h"
 #include "WebCfgServerConstants.h"
+#include "util/CryptoUtils.h"
 #include "Logger.h"
 #include "PreferencesKeys.h"
 #include "RestartReason.h"
@@ -471,12 +472,6 @@ void WebCfgServer::initialize()
             }
             else if (value == "apiconfig")
             {
-                if (this->_webServer->hasArg("genapitoken") && this->_webServer->arg("genapitoken") == "1")
-                {
-                    _network->assignNewApiToken();
-                    this->_webServer->sendHeader(F("Cache-Control"), F("no-cache"));
-                    return this->redirect(this->_webServer, "/get?page=apiconfig", 302);
-                }
                 return buildApiConfigHtml(this->_webServer);
             }
             else if (value == "harconfig")
@@ -604,6 +599,24 @@ void WebCfgServer::initialize()
                         }
                         else if(this->_webServer->hasArg("APIALLOWIP") &&
                                 this->_webServer->arg("APIALLOWIP") != _preferences->getString(preference_api_allowed_ip, ""))
+                        {
+                            hasSensitiveChange = true;
+                        }
+                        else if(this->_webServer->hasArg("APITOKEN") &&
+                                this->_webServer->arg("APITOKEN") != "*" &&
+                                !(this->_webServer->arg("APITOKEN").isEmpty() && String(_network->getApiToken()).isEmpty()))
+                        {
+                            hasSensitiveChange = true;
+                        }
+                        else if(this->_webServer->hasArg("HARUSER") &&
+                                this->_webServer->arg("HARUSER") != "*" &&
+                                !(this->_webServer->arg("HARUSER").isEmpty() && _preferences->getString(preference_har_user, "").isEmpty()))
+                        {
+                            hasSensitiveChange = true;
+                        }
+                        else if(this->_webServer->hasArg("HARPASS") &&
+                                this->_webServer->arg("HARPASS") != "*" &&
+                                !(this->_webServer->arg("HARPASS").isEmpty() && _preferences->getString(preference_har_password, "").isEmpty()))
                         {
                             hasSensitiveChange = true;
                         }
@@ -1487,9 +1500,9 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
                         0, // Dropdown options
                         0, // Textareas
                         1, // Parameter rows
-                        1, // Buttons
+                        2, // Buttons (Save + Generate)
                         0, // menus
-                        0  // extra bytes
+                        192 // extra bytes for JS token generator
     );
 
     buildHtmlHeader(response);
@@ -1500,16 +1513,21 @@ void WebCfgServer::buildApiConfigHtml(WebServer *server)
     appendCheckBoxRow(response, "APIENA", "Enable REST API", _preferences->getBool(preference_api_enabled, false), "", "");
     appendInputFieldRow(response, "APIPORT", "API Port", _preferences->getInt(preference_api_port, 8080), 6, "");
     appendInputFieldRow(response, "APIALLOWIP", "Allowed IP (e.g. Loxone Miniserver)", _preferences->getString(preference_api_allowed_ip, "").c_str(), 39, "");
-
-    const char *currentToken = _network->getApiToken();
+    response += F("<tr><td colspan=\"2\"><small class=\"warning\">Security: only the configured IP may call the REST API. Leave empty to allow all hosts.</small></td></tr>");
 
     response += F("<tr><td>Access Token</td><td>");
-    response += F("<input type=\"text\" value=\"");
-    response += String(currentToken);
-    response += F("\" readonly>");
-    response += F("&nbsp;<a href=\"/get?page=apiconfig&genapitoken=1\"><input type=\"button\" value=\"Generate new token\"></a>");
+    response += F("<input type=\"text\" name=\"APITOKEN\" id=\"apitokeninput\" placeholder=\"not set\" value=\"");
+    response += String(_network->getApiToken()).length() > 0 ? "*" : "";
+    response += F("\" size=\"25\" maxlength=\"20\">");
+    response += F("&nbsp;<input type=\"button\" onclick=\""
+                  "var c='");
+    response += API_TOKEN_CHARSET;
+    response += F("',a=new Uint8Array(");
+    response += String(API_TOKEN_LENGTH);
+    response += F(");crypto.getRandomValues(a);document.getElementById('apitokeninput').value="
+                  "Array.from(a,function(b){return c[b%c.length];}).join('');"
+                  "\" value=\"Generate new token\">");
     response += F("</td></tr>");
-    response += F("<tr><td colspan=\"2\"><small class=\"warning\">Security: only the configured IP may call the REST API. Leave empty to allow all hosts.</small></td></tr>");
 
     response += F("</table><br><input type=\"submit\" name=\"submit\" value=\"Save\"></form></body></html>");
 
@@ -1549,8 +1567,8 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
     std::vector<std::pair<String, String>> restOptions = {{"0", "GET"}, {"1", "POST"}};
     appendDropDownRow(response, "HARRESTMODE", "REST Request Method", String(_preferences->getInt(preference_har_rest_mode, 0)), restOptions, "", "RestModeRow");
 
-    appendInputFieldRow(response, "HARUSER", "Username", _preferences->getString(preference_har_user, "").c_str(), 32, "");
-    appendInputFieldRow(response, "HARPASS", "Password", _preferences->getString(preference_har_password, "").c_str(), 32, "", true, true);
+    appendInputFieldRow(response, "HARUSER", "Username", _preferences->getString(preference_har_user, "").length() > 0 ? "*" : "", 32, "", false, false, "not set");
+    appendInputFieldRow(response, "HARPASS", "Password", _preferences->getString(preference_har_password, "").length() > 0 ? "*" : "", 32, "", true, false, "not set");
 
     response += F("</table><br>");
 
@@ -1659,12 +1677,12 @@ void WebCfgServer::buildHARConfigHtml(WebServer *server)
                   "var m=document.getElementsByName('HARMODE')[0].value;"
                   "var u=document.getElementsByName('HARUSER')[0];"
                   "var p=document.getElementsByName('HARPASS')[0];"
-                  "var r=document.getElementById('RestModeRow');"
+                  "var r=document.getElementById('RestModeRow').closest('tr');"
                   "var k=document.querySelectorAll('.key-row');"
                   "var pl=document.querySelectorAll('.param-label');"
                   "u.disabled=p.disabled=(m==='0');"
                   "r.style.display=(m==='0')?'none':'';"
-                  "k.forEach(e=>e.style.display=(m==='0')?'none':'');"
+                  "k.forEach(e=>e.closest('tr').style.display=(m==='0')?'none':'');"
                   "pl.forEach(l=>{l.innerHTML=l.innerHTML.replace(/:.*$/,m==='0'?'Param:':'Query:');});}"
                   "document.getElementsByName('HARMODE')[0].addEventListener('change', updateHarFields);"
                   "window.addEventListener('load',()=>{updateHarFields();showTab('general');});"
@@ -2067,7 +2085,8 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += String(WEBCFGSERVER_TASK_SIZE);
     response += F("\nUpdate Nuki Bridge and Nuki devices time using NTP: ");
     response += _preferences->getBool(preference_update_time, false) ? F("Yes") : F("No");
-
+    response += F("\nNTP Server: ");
+    response += _preferences->getString(preference_time_server, "none");
     response += F("\nWeb configurator enabled: ");
     response += _preferences->getBool(preference_webcfgserver_enabled, true) ? F("Yes") : F("No");
     response += F("\nWeb configurator username: ");
@@ -2179,7 +2198,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += F("\nAPI enabled: ");
     response += _preferences->getBool(preference_api_enabled, false) != false ? F("Yes") : F("No");
     response += F("\nAPI connected: ");
-    response += (_network->networkServicesState() == NetworkServiceState::OK || _network->networkServicesState() == NetworkServiceState::ERROR_HAR_CLIENT) ? F("Yes") : F("No");
+    response += (_preferences->getBool(preference_api_enabled, false) && (_network->networkServicesState() == NetworkServiceState::OK || _network->networkServicesState() == NetworkServiceState::ERROR_HAR_CLIENT)) ? F("Yes") : F("No");
     response += F("\nAPI Port: ");
     response += String(_preferences->getInt(preference_api_port, 0));
     response += F("\nAPI auth token: ");
@@ -2195,7 +2214,7 @@ void WebCfgServer::buildInfoHtml(WebServer *server)
     response += F("\nHAR enabled: ");
     response += _preferences->getBool(preference_har_enabled, false) != false ? F("Yes") : F("No");
     response += F("\nHA reachable: ");
-    response += (_network->networkServicesState() == NetworkServiceState::OK || _network->networkServicesState() == NetworkServiceState::ERROR_REST_API_SERVER) ? F("Yes") : F("No");
+    response += (_preferences->getBool(preference_har_enabled, false) && (_network->networkServicesState() == NetworkServiceState::OK || _network->networkServicesState() == NetworkServiceState::ERROR_REST_API_SERVER)) ? F("Yes") : F("No");
     response += F("\nHA address: ");
     response += _preferences->getString(preference_har_address, F("Not set"));
     response += F("\nHA user: ");
@@ -2701,7 +2720,8 @@ void WebCfgServer::appendInputFieldRow(String &response,
                                        const size_t &maxLength,
                                        const char *args,
                                        const bool &isPassword,
-                                       const bool &showLengthRestriction)
+                                       const bool &showLengthRestriction,
+                                       const char *placeholder)
 {
     char maxLengthStr[20];
     itoa(maxLength, maxLengthStr, 10);
@@ -2724,6 +2744,13 @@ void WebCfgServer::appendInputFieldRow(String &response,
     {
         response += F(" ");
         response += args;
+    }
+
+    if (placeholder && *placeholder)
+    {
+        response += F(" placeholder=\"");
+        response += placeholder;
+        response += F("\"");
     }
 
     if (strcmp(value, "") != 0)
@@ -3106,7 +3133,7 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             {
                 clearHARCredentials = true;
             }
-            else
+            else if (value != "*")
             {
                 if (_preferences->getString(preference_har_user, "") != value)
                 {
@@ -3117,7 +3144,19 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
                 }
             }
         }
-        HANDLE_STRING_PREF_ARG("HARPASS", preference_har_password, true)
+        else if (key == "HARPASS")
+        {
+            if (value != "*")
+            {
+                if (_preferences->getString(preference_har_password, "") != value)
+                {
+                    _preferences->putString(preference_har_password, value);
+                    Log->print(F("[DEBUG] Setting changed: "));
+                    Log->println(key);
+                    configChanged = true;
+                }
+            }
+        }
         else if (key == "HARENA")
         {
             if (_preferences->getBool(preference_har_enabled, false) != (value == "1"))
@@ -3457,6 +3496,16 @@ bool WebCfgServer::processArgs(WebServer *server, String &message)
             if (_preferences->getString(preference_api_allowed_ip, "") != value)
             {
                 _preferences->putString(preference_api_allowed_ip, value);
+                Log->print(F("[DEBUG] Setting changed: "));
+                Log->println(key);
+                configChanged = true;
+            }
+        }
+        else if (key == "APITOKEN")
+        {
+            if (value.length() > 0 && value != "*" && String(_network->getApiToken()) != value)
+            {
+                _network->assignApiToken(value.c_str());
                 Log->print(F("[DEBUG] Setting changed: "));
                 Log->println(key);
                 configChanged = true;

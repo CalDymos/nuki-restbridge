@@ -52,6 +52,37 @@ inline uint32_t encryptKeypadCode(uint32_t code,
     return ((code * multiplier + offset) % modulus) + modulus;
 }
 
+// ---------------------------------------------------------------------------
+// API token generation
+// ---------------------------------------------------------------------------
+
+/** Length of the API access token (number of printable characters). */
+constexpr size_t API_TOKEN_LENGTH = 20;
+
+/** Character set used for API token generation (lowercase letters + digits). */
+constexpr char API_TOKEN_CHARSET[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+/**
+ * @brief Map raw random bytes in-place to valid API token characters.
+ *
+ * The caller must fill buffer[0..API_TOKEN_LENGTH-1] with random bytes
+ * (e.g. via esp_fill_random or crypto.getRandomValues) before calling this.
+ * After the call buffer is a null-terminated API token string.
+ *
+ * @param buffer  Buffer of at least API_TOKEN_LENGTH + 1 bytes.
+ */
+inline void mapBytesToApiToken(char* buffer)
+{
+    constexpr size_t charsetLen = sizeof(API_TOKEN_CHARSET) - 1; // exclude '\0'
+    for (size_t i = 0; i < API_TOKEN_LENGTH; i++)
+    {
+        buffer[i] = API_TOKEN_CHARSET[(uint8_t)buffer[i] % charsetLen];
+    }
+    buffer[API_TOKEN_LENGTH] = '\0';
+}
+
+// ---------------------------------------------------------------------------
+
 /**
  * @brief Decrypt a keypad code that was encrypted with encryptKeypadCode().
  *

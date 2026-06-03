@@ -237,6 +237,11 @@ void RestApiServer::assignNewApiToken()
     _apitoken->assignNewToken();
 }
 
+void RestApiServer::assignApiToken(const char* token)
+{
+    _apitoken->assignToken(token);
+}
+
 char* RestApiServer::getApiToken()
 {
     return _apitoken->get();

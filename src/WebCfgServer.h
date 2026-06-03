@@ -352,7 +352,8 @@ private:
                              const size_t &maxLength,
                              const char *args = "",
                              const bool &isPassword = false,
-                             const bool &showLengthRestriction = false);
+                             const bool &showLengthRestriction = false,
+                             const char *placeholder = "");
 
     /**
      * @brief Appends an input field for numeric values to the HTML page.

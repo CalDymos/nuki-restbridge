@@ -519,6 +519,11 @@ void NukiNetwork::assignNewApiToken()
     _restApiServer->assignNewApiToken();
 }
 
+void NukiNetwork::assignApiToken(const char* token)
+{
+    _restApiServer->assignApiToken(token);
+}
+
 char *NukiNetwork::getApiToken()
 {
 

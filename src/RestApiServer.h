@@ -220,6 +220,13 @@ public:
     void assignNewApiToken();
 
     /**
+     * @brief Store a user-supplied API token persistently.
+     *
+     * @param token Null-terminated C-string containing the token to store.
+     */
+    void assignApiToken(const char* token);
+
+    /**
      * @brief Return the current API token as a null-terminated C-string.
      *
      * @return Pointer to the internal token buffer. Valid until next token change.
