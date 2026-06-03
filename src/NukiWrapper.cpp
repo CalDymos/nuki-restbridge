@@ -148,6 +148,7 @@ void NukiWrapper::readSettings()
     _keypadCodeInverse = calcKeypadCodeInverse();
     _timeCtrlInfoEnabled = _preferences->getBool(preference_timecontrol_info_enabled);
     _maxTimeControlEntryCount = _preferences->getUInt(preference_lock_max_timecontrol_entry_count);
+    _updateTime = _preferences->getBool(preference_update_time, false);
     _authInfoEnabled = _preferences->getBool(preference_auth_info_enabled);
     _maxAuthEntryCount = _preferences->getUInt(preference_lock_max_auth_entry_count);
     _restartBeaconTimeout = _preferences->getInt(preference_restart_ble_beacon_lost);
@@ -388,7 +389,7 @@ void NukiWrapper::update(bool reboot)
                 _nextKeypadUpdateTs = ts + _intervalKeypad * 1000;
                 updateKeypad(false);
             }
-            if (_preferences->getBool(preference_update_time, false) && ts > (120 * 1000) && ts > _nextTimeUpdateTs)
+            if (_updateTime && ts > (120 * 1000) && ts > _nextTimeUpdateTs)
             {
                 _nextTimeUpdateTs = ts + (12 * 60 * 60 * 1000);
                 updateTime();
@@ -677,8 +678,21 @@ bool NukiWrapper::updateConfig()
         if (_preferences->getUInt(preference_nuki_id_lock, 0) == _nukiConfig.nukiId)
         {
             _hasKeypad = _nukiConfig.hasKeypad == 1 || _nukiConfig.hasKeypadV2 == 1;
-            _firmwareVersion = String(_nukiConfig.firmwareVersion[0]) + "." + String(_nukiConfig.firmwareVersion[1]) + "." + String(_nukiConfig.firmwareVersion[2]);
-            _hardwareVersion = String(_nukiConfig.hardwareRevision[0]) + "." + String(_nukiConfig.hardwareRevision[1]);
+            // snprintf into a stack buffer avoids 5 temporary String heap
+            // allocations per call. The reserve() in the constructor ensures
+            // the assignment below reuses the pre-allocated String buffer.
+            char fwBuf[12];
+            snprintf(fwBuf, sizeof(fwBuf), "%u.%u.%u",
+                     _nukiConfig.firmwareVersion[0],
+                     _nukiConfig.firmwareVersion[1],
+                     _nukiConfig.firmwareVersion[2]);
+            _firmwareVersion = fwBuf;
+
+            char hwBuf[9];
+            snprintf(hwBuf, sizeof(hwBuf), "%u.%u",
+                     _nukiConfig.hardwareRevision[0],
+                     _nukiConfig.hardwareRevision[1]);
+            _hardwareVersion = hwBuf;
 
             if (_timeCtrlInfoEnabled)
             {

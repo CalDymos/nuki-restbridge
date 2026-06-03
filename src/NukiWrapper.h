@@ -325,6 +325,7 @@ private:
                                                                                                //
     bool _authInfoEnabled = false;                                                             // Indicates if authorization info reporting is currently active.
     bool _timeCtrlInfoEnabled = false;                                                         // Indicates if time control info reporting is currently active.
+    bool _updateTime = false;                                                                  // Whether the lock time should be synced periodically (cached from NVS).
                                                                                                //
     NukiLock::Config _nukiConfig = {0};                                                        // Basic configuration of the lock.
     NukiLock::AdvancedConfig _nukiAdvancedConfig = {0};                                        // Advanced configuration.

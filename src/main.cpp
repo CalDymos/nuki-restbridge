@@ -529,7 +529,7 @@ void webCfgTask(void *parameter)
   while (true)
   {
 
-    if (xSemaphoreTake(webCfgServerMutex, pdMS_TO_TICKS(10)) == pdTRUE) 
+    if (xSemaphoreTake(webCfgServerMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
       if (webCfgServer != nullptr)
       {
@@ -542,7 +542,10 @@ void webCfgTask(void *parameter)
       Log->println(F("[DEBUG] webCfgTask is running"));
       webCfgLoopTs = espMillis();
     }
-    TaskWdtResetAndDelay(2);
+
+    // 10 ms keeps the configuration interface responsive without excessive task wakeups.
+    // Mutex timeout and task delay use the same interval for predictable timing.
+    TaskWdtResetAndDelay(10);
   }
 }
 
