@@ -37,9 +37,8 @@ Logger *Log = nullptr;                     // Global logger instance.
 
 bool bleDone = false;                           // Whether BLE initialization is complete.
 bool lockEnabled = false;                       // Whether lock operations are currently permitted.
-bool netwConnected = false;                      // Whether network is connected / ready
+bool netwConnected = false;                     // Physical network connection state
 bool netwGateOpen = false;                      // Whether network gate is open (i.e., network operations are permitted).
-bool rebootLock = false;                        // Whether to reboot lock after failure.
 uint8_t lockBleRestartAttemptCount = 0;         // Counter for lock restart attempts.
 bool coredumpPrinted = true;                    // Prevent repeated printing of core dump on each boot.
 bool timeSynced = false;                        // Whether NTP time sync was successful.
@@ -402,8 +401,7 @@ void nukiTask(void *parameter)
             lockBleRestartAttemptCount = 0;
           }
 
-          nuki->update(rebootLock);
-          rebootLock = false;
+          nuki->update(false);
         }
       }
     }
@@ -481,7 +479,7 @@ void networkTask(void *parameter)
       updateTime = false;
     }
 
-    netwConnected = network->networkGateOpen();
+    netwGateOpen = network->networkGateOpen();
     NukiNetwork::ServiceRestartRequest req = network->consumeServiceRestartRequest();
 
     if (req == NukiNetwork::ServiceRestartRequest::Restart)
@@ -491,14 +489,6 @@ void networkTask(void *parameter)
     else if (req == NukiNetwork::ServiceRestartRequest::RestartWithReconnect)
     {
       restartServices(true);
-    }
-    else
-    {
-      // No restart requested
-      if (netwConnected && lockStarted)
-      {
-        // rebootLock = method for setting rebootLock
-      }
     }
 
     if (espMillis() - networkLoopTs > 120000)
