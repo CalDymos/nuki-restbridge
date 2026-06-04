@@ -210,6 +210,12 @@ public:
      */
     uint8_t queryCommands();
 
+    /**
+     * @brief Consumes a pending lock reboot request triggered via POST /lock/reboot.
+     * @return true once if a reboot was requested, false otherwise.
+     */
+    bool consumeRebootLockRequest();
+
     // -----------------------------------------------------------------------
     // Token management (called by WebCfgServer via NukiNetwork)
     // -----------------------------------------------------------------------
@@ -410,6 +416,7 @@ private:
 
     /** Bitmask of pending QUERY_COMMAND_* flags set by /query/* endpoints. */
     uint8_t _queryCommands = 0;
+    bool    _rebootLockPending  = false;  ///< Set by POST /lock/reboot, consumed by networkTask
 
     /**
      * @brief Fixed-size buffer for request argument serialization.

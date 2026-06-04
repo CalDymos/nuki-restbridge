@@ -346,6 +346,11 @@ uint8_t NukiNetwork::queryCommands()
     return _restApiServer->queryCommands();
 }
 
+bool NukiNetwork::consumeRebootLockRequest()
+{
+    return _restApiServer->consumeRebootLockRequest();
+}
+
 void NukiNetwork::sendToHAFloat(const char *path, const char *param, const float value, uint8_t precision)
 {
     _harClient->sendFloat(path, param, value, precision);

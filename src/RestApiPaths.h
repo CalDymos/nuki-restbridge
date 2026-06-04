@@ -20,6 +20,7 @@
 
 // sub paths
 #define api_path_action (char*)"/action"
+#define api_path_lock_reboot (char*)"/reboot"
 
 #define api_path_query_config (char*)"/query/config"
 #define api_path_query_lockstate (char*)"/query/lockstate"

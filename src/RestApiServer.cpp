@@ -228,6 +228,13 @@ uint8_t RestApiServer::queryCommands()
     return qc;
 }
 
+bool RestApiServer::consumeRebootLockRequest()
+{
+    bool pending = _rebootLockPending;
+    _rebootLockPending = false;
+    return pending;
+}
+
 // -----------------------------------------------------------------------
 // Token management
 // -----------------------------------------------------------------------
@@ -376,6 +383,14 @@ void RestApiServer::onRequestReceived(const char* path, WebServer& server)
 
     if (!_lockEnabled)
         return;
+
+    if (comparePrefixedPath(path, api_path_lock, api_path_lock_reboot))
+    {
+        Log->println(F("[INFO] (REST API) Lock reboot requested"));
+        _rebootLockPending = true;
+        sendResponse(jsonResult);
+        return;
+    }
 
     if (comparePrefixedPath(path, api_path_lock, api_path_action))
     {

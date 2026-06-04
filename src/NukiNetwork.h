@@ -232,6 +232,12 @@ public:
     uint8_t queryCommands();
 
     /**
+     * @brief Consumes a pending lock reboot request triggered via POST /lock/reboot.
+     * @return true once if a reboot was requested, false otherwise.
+     */
+    bool consumeRebootLockRequest();
+
+    /**
      * @brief Sende HTTP-Response as JSON-string to Client (on request of home automation).
      */
     void sendResponse(const char *jsonResultStr);

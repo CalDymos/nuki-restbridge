@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include "esp_crt_bundle.h"
 #include "esp_http_client.h"
@@ -39,6 +38,7 @@ bool bleDone = false;                           // Whether BLE initialization is
 bool lockEnabled = false;                       // Whether lock operations are currently permitted.
 bool netwConnected = false;                     // Physical network connection state
 bool netwGateOpen = false;                      // Whether network gate is open (i.e., network operations are permitted).
+bool rebootLock    = false;                     // Pending BLE reboot request for the Nuki lock; set by networkTask, consumed by nukiTask.
 uint8_t lockBleRestartAttemptCount = 0;         // Counter for lock restart attempts.
 bool coredumpPrinted = true;                    // Prevent repeated printing of core dump on each boot.
 bool timeSynced = false;                        // Whether NTP time sync was successful.
@@ -401,7 +401,8 @@ void nukiTask(void *parameter)
             lockBleRestartAttemptCount = 0;
           }
 
-          nuki->update(false);
+          nuki->update(rebootLock);
+          rebootLock = false;
         }
       }
     }
@@ -489,6 +490,13 @@ void networkTask(void *parameter)
     else if (req == NukiNetwork::ServiceRestartRequest::RestartWithReconnect)
     {
       restartServices(true);
+    }
+    else
+    {
+      if (netwGateOpen && lockStarted)
+      {
+        rebootLock = network->consumeRebootLockRequest();
+      }
     }
 
     if (espMillis() - networkLoopTs > 120000)
