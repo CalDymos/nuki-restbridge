@@ -243,7 +243,6 @@ bool NukiNetwork::update()
         {
             forceEnableWebCfgServer = false;
         }
-        TaskWdtResetAndDelay(2000);
     }
 
     if (_networkServicesState != NetworkServiceState::OK || !isConnected())
