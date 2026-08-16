@@ -182,6 +182,13 @@ bool NukiNetwork::update()
         return false;
     }
 
+    const bool connected = isConnected();
+
+    if (_restApiServer->isEnabled())
+    {
+        _restApiServer->handleClient();
+    }
+
     if (!isConnected() || (_networkServicesConnectCounter > 15))
     {
         _networkServicesConnectCounter = 0;
@@ -259,8 +266,6 @@ bool NukiNetwork::update()
     _lastConnectedTs = ts;
 
     _harClient->update(ts, signalStrength());
-
-    _restApiServer->handleClient();
 
     return true;
 }
