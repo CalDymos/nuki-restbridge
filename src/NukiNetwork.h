@@ -53,9 +53,13 @@ public:
     void initialize();
 
     /**
-     * @brief Controls the periodic processes, watchdog checks,
-     *        reconnection, IP configuration, web server acceptance, etc.
-     * @return true if network is active and connection exists, otherwise false.
+     * @brief Updates the network adapter and network services.
+     *
+     * @return true if the physical network connection is active,
+     *         false if networking is disabled, AP mode is active,
+     *         or the network link is disconnected.
+     *
+     * Service health is reported separately via networkServicesState().
      */
     bool update();
 
@@ -344,11 +348,13 @@ private:
                                                                               //
     ServiceRestartRequest _pendingServiceRestart = ServiceRestartRequest::None;  // Pending service restart request
                                                                               //
-    int64_t _lastConnectedTs = 0;                                             // Last time a successful connection occurred
+    int64_t _lastConnectedTs = 0;                                             // Last time services were confirmed OK
     int64_t _lastNetworkServiceTs = 0;                                        // Last time services were checked
+
+    bool    _serviceRetestPending = false;                                    // True while waiting for the 1s post-restart retest
+    int64_t _serviceRetestTs = 0;                                             // espMillis() at which the retest is due
                                                                               //
     int _networkTimeout = 0;                                                  // Timeout in ms for network operations
-    int _networkServicesConnectCounter = 0;                                   // Counter for tracking connection attempts
                                                                               //
     NetworkDevice* _device = nullptr;                                         // Owned - is created in initialize()
     NetworkDeviceType _networkDeviceType = NetworkDeviceType::UNDEFINED;      // WiFi or Ethernet

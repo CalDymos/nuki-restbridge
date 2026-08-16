@@ -164,14 +164,16 @@ void NukiNetwork::requestServiceRestart(bool reconnect)
 
 bool NukiNetwork::update()
 {
-
     wdt_hal_context_t rtc_wdt_ctx = RWDT_HAL_CONTEXT_DEFAULT();
     wdt_hal_write_protect_disable(&rtc_wdt_ctx);
     wdt_hal_feed(&rtc_wdt_ctx);
     wdt_hal_write_protect_enable(&rtc_wdt_ctx);
-    int64_t ts = espMillis();
 
-    // update device
+    const int64_t ts = espMillis();
+
+    // ------------------------------------------------------------------
+    //   Physical network adapter
+    // ------------------------------------------------------------------
     if (_device)
     {
         _device->update();
@@ -182,85 +184,104 @@ bool NukiNetwork::update()
         return false;
     }
 
-    if (!isConnected() || (_networkServicesConnectCounter > 15))
-    {
-        _networkServicesConnectCounter = 0;
+    const bool connected = isConnected();
 
-        if (_restartOnDisconnect && espMillis() > 60000)
+    // ------------------------------------------------------------------
+    //    Physical connection failure — the only place a blocking backoff
+    //    remains, and the only trigger for "Restart on disconnect"
+    // ------------------------------------------------------------------
+    if (!connected)
+    {
+        if (_restartOnDisconnect && ts > 60000)
         {
             Log->disableFileLog();
             TaskWdtResetAndDelay(10);
             restartEsp(RestartReason::RestartOnDisconnectWatchdog);
         }
-    }
 
-    if (isConnected() && (_restApiServer->isEnabled() || _harClient->isEnabled()))
-    {
-        if (ts - _lastNetworkServiceTs > 30000)
-        { // test all 30 seconds
-            _lastNetworkServiceTs = ts;
-            _networkServicesState = testNetworkServices();
-
-            bool svcBothDown = _harClient->isEnabled() && _restApiServer->isEnabled() && _networkServicesState != NetworkServiceState::OK;
-            bool svcHADown = !_restApiServer->isEnabled() && _networkServicesState != NetworkServiceState::ERROR_REST_API_SERVER;
-            bool svcAPIDown = !_harClient->isEnabled() && _networkServicesState != NetworkServiceState::ERROR_HAR_CLIENT;
-
-            if (svcBothDown || svcHADown || svcAPIDown)
-            { // error in network Services
-                restartNetworkServices(_networkServicesState);
-                TaskWdtResetAndDelay(1000);
-                _networkServicesState = testNetworkServices(); // test network services again
-
-                bool expectedStateOk =
-                    (_harClient->isEnabled() && _restApiServer->isEnabled() && _networkServicesState == NetworkServiceState::OK) ||
-                    (_harClient->isEnabled() && !_restApiServer->isEnabled() && _networkServicesState == NetworkServiceState::ERROR_REST_API_SERVER) ||
-                    (!_harClient->isEnabled() && _restApiServer->isEnabled() && _networkServicesState == NetworkServiceState::ERROR_HAR_CLIENT);
-
-                if (!expectedStateOk)
-                {
-                    _networkServicesConnectCounter++;
-                    return false;
-                }
-            }
-        }
-
-        _networkServicesConnectCounter = 0;
-        if (forceEnableWebCfgServer && !_webCfgEnabled)
-        {
-            forceEnableWebCfgServer = false;
-            Log->disableFileLog();
-            TaskWdtResetAndDelay(200);
-            restartEsp(RestartReason::ReconfigureWebCfgServer);
-        }
-        else if (!_webCfgEnabled)
-        {
-            forceEnableWebCfgServer = false;
-        }
-        TaskWdtResetAndDelay(2000);
-    }
-
-    if (_networkServicesState != NetworkServiceState::OK || !isConnected())
-    {
-        if (_networkTimeout > 0 && (ts - _lastConnectedTs > _networkTimeout * 1000) && ts > 60000)
-        {
-            if (!_webCfgEnabled)
-            {
-                forceEnableWebCfgServer = true;
-            }
-            Log->println(F("[WARNING] Networkservice timeout has been reached, restarting ..."));
-            Log->disableFileLog();
-            TaskWdtResetAndDelay(200);
-            restartEsp(RestartReason::NetworkTimeoutWatchdog);
-        }
         TaskWdtResetAndDelay(2000);
         return false;
     }
 
-    _lastConnectedTs = ts;
+    // ------------------------------------------------------------------
+    //    Fast path: serve REST immediately. A dead HAR/HA target must
+    //    never block the REST API.
+    // ------------------------------------------------------------------
+    if (_restApiServer->isEnabled())
+    {
+        _restApiServer->handleClient();
+    }
 
-    _harClient->update(ts, signalStrength());
+    // ------------------------------------------------------------------
+    //    Non-blocking retest, 1s after restartNetworkServices() ran.
+    // ------------------------------------------------------------------
+    if (_serviceRetestPending && ts >= _serviceRetestTs)
+    {
+        _serviceRetestPending = false;
+        _networkServicesState = testNetworkServices();
+    }
 
-    _restApiServer->handleClient();
+    // ------------------------------------------------------------------
+    //    Regular health check every 30s. A disabled service is never a
+    //    failure (test() returns true for it), so "state != OK" alone
+    //    is correct here.
+    // ------------------------------------------------------------------
+    if (!_serviceRetestPending &&
+        (_restApiServer->isEnabled() || _harClient->isEnabled()) &&
+        (ts - _lastNetworkServiceTs > 30000))
+    {
+        _lastNetworkServiceTs = ts;
+        _networkServicesState = testNetworkServices();
+
+        if (_networkServicesState != NetworkServiceState::OK)
+        {
+            restartNetworkServices(_networkServicesState);
+            _serviceRetestPending = true;
+            _serviceRetestTs = ts + 1000;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //   WebCfg reconfiguration request
+    // ------------------------------------------------------------------
+    if (forceEnableWebCfgServer && !_webCfgEnabled)
+    {
+        forceEnableWebCfgServer = false;
+        Log->disableFileLog();
+        TaskWdtResetAndDelay(200);
+        restartEsp(RestartReason::ReconfigureWebCfgServer);
+    }
+    else if (!_webCfgEnabled)
+    {
+        forceEnableWebCfgServer = false;
+    }
+
+    // ------------------------------------------------------------------
+    //   HAR
+    // ------------------------------------------------------------------
+    if (_harClient->isEnabled())
+    {
+        _harClient->update(ts, signalStrength());
+    }
+
+    // ------------------------------------------------------------------
+    //    Network-service timeout watchdog
+    // ------------------------------------------------------------------
+    if (_networkServicesState == NetworkServiceState::OK)
+    {
+        _lastConnectedTs = ts;
+    }
+    else if (_networkTimeout > 0 && ts > 60000 && (ts - _lastConnectedTs > static_cast<int64_t>(_networkTimeout) * 1000))
+    {
+        if (!_webCfgEnabled)
+        {
+            forceEnableWebCfgServer = true;
+        }
+        Log->println(F("[WARNING] Networkservice timeout has been reached, restarting ..."));
+        Log->disableFileLog();
+        TaskWdtResetAndDelay(200);
+        restartEsp(RestartReason::NetworkTimeoutWatchdog);
+    }
 
     return true;
 }
